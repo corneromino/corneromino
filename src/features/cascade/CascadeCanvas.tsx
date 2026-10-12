@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { Application, Container, Graphics } from 'pixi.js'
 import { gsap } from 'gsap'
 import { ShockwaveFilter } from 'pixi-filters'
@@ -24,6 +24,10 @@ interface CascadeCanvasProps {
   gridSize: CascadeGridSize
   initialState: CascadeGameSaveState | null
   onStatsChange: (stats: { destroyedLineCount: number; lockedCornerominoCount: number; upcomingCorners: CascadeCorner[] }) => void
+}
+
+export interface CascadeCanvasHandle {
+  exportDebugState: () => string
 }
 
 interface BoardMetrics {
@@ -78,8 +82,16 @@ function drawCorneromino(graphics: Graphics, corner: CascadeCorner, cellSize: nu
   graphics.rect(markerX, markerY, markerSize, markerSize).fill({ color: detailColor })
 }
 
-export function CascadeCanvas(props: CascadeCanvasProps) {
+export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>(function CascadeCanvas(props, ref) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const exportDebugStateRef = useRef<(() => string) | null>(null)
+
+  useImperativeHandle(ref, () => ({
+    exportDebugState: () => {
+      if (!exportDebugStateRef.current) throw new Error('Cascade canvas is not ready.')
+      return exportDebugStateRef.current()
+    },
+  }), [])
 
   useEffect(() => {
     const container = containerRef.current
@@ -130,6 +142,25 @@ export function CascadeCanvas(props: CascadeCanvasProps) {
       }
       void saveCascadeGameState(state)
     }
+
+    exportDebugStateRef.current = () => JSON.stringify({
+      config: {
+        cornerSpawnMode: props.cornerSpawnMode,
+        fallIntervalMs: props.fallIntervalMs,
+        gridSize: props.gridSize,
+      },
+      destroyedLineCount,
+      elapsedSinceFall,
+      gameState,
+      lockedPieces: [...lockedPieceColors].map(([cellKey, color]) => ({
+        cellKey,
+        color: `#${color.toString(16).padStart(6, '0')}`,
+        groupId: lockedPieceGroupIds.get(cellKey) ?? `legacy:${cellKey}`,
+      })),
+      lockedCornerominoCount,
+      selectedPieceKeys: [...selectedPieceKeys],
+      version: 1,
+    }, null, 2)
 
     function notifyStats() {
       props.onStatsChange({
@@ -619,6 +650,7 @@ export function CascadeCanvas(props: CascadeCanvasProps) {
 
     return () => {
       disposed = true
+      exportDebugStateRef.current = null
       resizeObserver.disconnect()
       window.removeEventListener('keydown', handleKeyDown)
       if (initialized) {
@@ -648,4 +680,4 @@ export function CascadeCanvas(props: CascadeCanvasProps) {
   }, [props.cornerSpawnMode, props.fallIntervalMs, props.gridSize.columns, props.gridSize.rows])
 
   return <div className="size-full" ref={containerRef} />
-}
+})

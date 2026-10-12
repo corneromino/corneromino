@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
-import { RotateCcw } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Copy, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { clearCascadeGameState, loadCascadeGameState, type CascadeGameSaveState } from '@/lib/db'
 import type { CascadeCorner, CascadeCornerSpawnMode } from './cascadeGame'
-import { CascadeCanvas } from './CascadeCanvas'
+import { CascadeCanvas, type CascadeCanvasHandle } from './CascadeCanvas'
 
 interface CascadeConfig {
   cornerSpawnMode: CascadeCornerSpawnMode
@@ -33,6 +33,7 @@ function CornerPreview(props: { corner: CascadeCorner }) {
 }
 
 export function Cascade() {
+  const canvasRef = useRef<CascadeCanvasHandle>(null)
   const [gameVersion, setGameVersion] = useState(0)
   const [initialState, setInitialState] = useState<CascadeGameSaveState | null | undefined>(undefined)
   const [stats, setStats] = useState<{ destroyedLineCount: number; lockedCornerominoCount: number; upcomingCorners: CascadeCorner[] }>({
@@ -57,6 +58,11 @@ export function Cascade() {
     }
   }, [])
 
+  async function copyDebugState() {
+    if (!canvasRef.current || !navigator.clipboard) return
+    await navigator.clipboard.writeText(canvasRef.current.exportDebugState())
+  }
+
   useEffect(() => {
     return () => {
       window.setTimeout(() => {
@@ -74,21 +80,33 @@ export function Cascade() {
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
           <h1 className="poster-title mt-2 text-[33px] leading-none">Cascade</h1>
         </div>
-        <Button
-          aria-label="Restart cascade"
-          className="cartoon-press size-10 text-[var(--canvas-foreground)]"
-          onClick={() => {
-            void clearCascadeGameState()
-            setInitialState(null)
-            setStats({ destroyedLineCount: 0, lockedCornerominoCount: 0, upcomingCorners: [] })
-            setGameVersion((version) => version + 1)
-          }}
-          size="icon"
-          title="Restart cascade"
-          type="button"
-        >
-          <RotateCcw aria-hidden="true" />
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            aria-label="Copy Cascade debug state"
+            className="cartoon-press size-10 text-[var(--canvas-foreground)]"
+            onClick={() => void copyDebugState()}
+            size="icon"
+            title="Copy debug state"
+            type="button"
+          >
+            <Copy aria-hidden="true" />
+          </Button>
+          <Button
+            aria-label="Restart cascade"
+            className="cartoon-press size-10 text-[var(--canvas-foreground)]"
+            onClick={() => {
+              void clearCascadeGameState()
+              setInitialState(null)
+              setStats({ destroyedLineCount: 0, lockedCornerominoCount: 0, upcomingCorners: [] })
+              setGameVersion((version) => version + 1)
+            }}
+            size="icon"
+            title="Restart cascade"
+            type="button"
+          >
+            <RotateCcw aria-hidden="true" />
+          </Button>
+        </div>
       </header>
       <div className="flex min-h-0 flex-1 gap-2 px-1">
         <section aria-label="Cascade board" className="relative min-h-0 min-w-0 flex-1 border-4 border-[var(--grid-border-color)] bg-[var(--grid-border-color)]">
@@ -100,6 +118,7 @@ export function Cascade() {
               initialState={initialState}
               key={gameVersion}
               onStatsChange={setStats}
+              ref={canvasRef}
             />
           )}
         </section>
