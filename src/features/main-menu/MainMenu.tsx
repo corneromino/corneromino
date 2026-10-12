@@ -24,8 +24,15 @@ export function MainMenu() {
           className="cartoon-press h-[64px] w-full text-[11px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
           size="lg"
         >
-          <Link to="/sandbox">Sandbox</Link>
+          <Link to="/cascade">Corneromino: Cascade</Link>
         </Button>
+        {/* <Button
+          asChild
+          className="cartoon-press h-[64px] w-full text-[11px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+          size="lg"
+        >
+          <Link to="/sandbox">Sandbox</Link>
+        </Button> */}
       </section>
     </main>
   )

@@ -4,6 +4,7 @@ import { MainMenu } from '@/features/main-menu/MainMenu'
 import { SavedGames } from '@/features/saved-games/SavedGames'
 import { Sandbox } from '@/features/sandbox/Sandbox'
 import { SandboxWorld } from '@/features/sandbox/SandboxWorld'
+import { Cascade } from '@/features/cascade/Cascade'
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route element={<SandboxWorld />} path="/sandbox/new" />
         <Route element={<SandboxWorld />} path="/sandbox/:worldId" />
         <Route element={<SavedGames />} path="/saved" />
+        <Route element={<Cascade />} path="/cascade" />
         <Route element={<MainMenu />} path="*" />
       </Routes>
     </HashRouter>

@@ -29,6 +29,22 @@ export interface SavedSandboxWorld {
   state: SandboxWorldState
 }
 
+export interface CascadeGameSaveState {
+  destroyedLineCount?: number
+  elapsedSinceFall: number
+  gameState: {
+    activePiece: { column: number; corner: 0 | 1 | 2 | 3; row: number } | null
+    nextCornerIndex?: number
+    settledPieces: Array<{ column: number; corner: 0 | 1 | 2 | 3; row: number }>
+    upcomingCorners?: Array<0 | 1 | 2 | 3>
+  }
+  lockedPieces: Array<{ cellKey: string; color: number; groupId: string }>
+  /** Backwards compatibility for Cascade saves created before lock groups existed. */
+  lockedPieceColors?: Array<{ cellKey: string; color: number }>
+  lockedCornerominoCount?: number
+  selectedPieceKeys: string[]
+}
+
 interface CornerominoDatabase {
   games: {
     key: string
@@ -53,6 +69,37 @@ export const db = openDB<CornerominoDatabase>('corneromino', 2, {
 
 function selectionStorageKey(gameMode: GameMode, gameId: string): string {
   return `selection:${gameMode}:${gameId}`
+}
+
+const CASCADE_STORAGE_KEY = 'cascade:current'
+
+function isCascadePiece(value: unknown): value is { column: number; corner: 0 | 1 | 2 | 3; row: number } {
+  return typeof value === 'object'
+    && value !== null
+    && (!('destroyedLineCount' in value) || (typeof value.destroyedLineCount === 'number' && value.destroyedLineCount >= 0))
+    && 'column' in value && typeof value.column === 'number'
+    && 'row' in value && typeof value.row === 'number'
+    && 'corner' in value && typeof value.corner === 'number' && Number.isInteger(value.corner) && value.corner >= 0 && value.corner <= 3
+}
+
+function isCascadeGameSaveState(value: unknown): value is CascadeGameSaveState {
+  return typeof value === 'object'
+    && value !== null
+    && 'elapsedSinceFall' in value && typeof value.elapsedSinceFall === 'number' && value.elapsedSinceFall >= 0
+    && 'gameState' in value && typeof value.gameState === 'object' && value.gameState !== null
+    && 'activePiece' in value.gameState && (value.gameState.activePiece === null || isCascadePiece(value.gameState.activePiece))
+    && 'settledPieces' in value.gameState && Array.isArray(value.gameState.settledPieces) && value.gameState.settledPieces.every(isCascadePiece)
+    && (!('nextCornerIndex' in value.gameState) || (typeof value.gameState.nextCornerIndex === 'number' && value.gameState.nextCornerIndex >= 0))
+    && (!('upcomingCorners' in value.gameState) || (Array.isArray(value.gameState.upcomingCorners) && value.gameState.upcomingCorners.every((corner) => Number.isInteger(corner) && corner >= 0 && corner <= 3)))
+    && (!('lockedPieces' in value) || (Array.isArray(value.lockedPieces) && value.lockedPieces.every((piece) => (
+      typeof piece === 'object' && piece !== null && 'cellKey' in piece && typeof piece.cellKey === 'string' && 'color' in piece && typeof piece.color === 'number' && 'groupId' in piece && typeof piece.groupId === 'string'
+    ))))
+    && (!('lockedPieceColors' in value) || (Array.isArray(value.lockedPieceColors) && value.lockedPieceColors.every((piece) => (
+      typeof piece === 'object' && piece !== null && 'cellKey' in piece && typeof piece.cellKey === 'string' && 'color' in piece && typeof piece.color === 'number'
+    ))))
+    && ('lockedPieces' in value || 'lockedPieceColors' in value)
+    && (!('lockedCornerominoCount' in value) || (typeof value.lockedCornerominoCount === 'number' && value.lockedCornerominoCount >= 0))
+    && 'selectedPieceKeys' in value && Array.isArray(value.selectedPieceKeys) && value.selectedPieceKeys.every((cellKey) => typeof cellKey === 'string')
 }
 
 function isLockedCellGroup(value: unknown): value is LockedCellGroup {
@@ -168,6 +215,19 @@ export async function clearGameSelection(gameMode: GameMode, gameId: string): Pr
 
 export async function deleteSavedGame(gameMode: GameMode, gameId: string): Promise<void> {
   await clearGameSelection(gameMode, gameId)
+}
+
+export async function loadCascadeGameState(): Promise<CascadeGameSaveState | null> {
+  const storedState = await (await db).get('games', CASCADE_STORAGE_KEY)
+  return storedState && isCascadeGameSaveState(storedState.state) ? storedState.state : null
+}
+
+export async function saveCascadeGameState(state: CascadeGameSaveState): Promise<void> {
+  await (await db).put('games', { id: CASCADE_STORAGE_KEY, state, updatedAt: Date.now() })
+}
+
+export async function clearCascadeGameState(): Promise<void> {
+  await (await db).delete('games', CASCADE_STORAGE_KEY)
 }
 
 export async function saveSandboxWorld(world: SavedSandboxWorld): Promise<void> {
