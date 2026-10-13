@@ -1,68 +1,122 @@
-export interface SandboxCornerMarker {
+export interface SandboxCornerState {
+  corner: number
+  isOn: boolean
+  sourceKey: string | null
+}
+
+export interface SandboxCornerMarker extends Partial<SandboxCornerState> {
   cellKey: string
   corner: number
 }
 
-type CellUpdateHandler = (system: SandboxCellSystem, cellKey: string) => void
+export type SandboxCellUpdateHandler = (
+  system: SandboxCellSystem,
+  cellKey: string,
+  state: Readonly<SandboxCornerState>,
+  previousState: Readonly<SandboxCornerState> | undefined,
+) => boolean
 
 interface PendingCellUpdate {
   cellKey: string
-  senderCellKey: string
-}
-
-interface CornerAlignment {
-  corner: number
-  mirrored: boolean
 }
 
 const CORNER_COUNT = 4
-const TOP_LEFT_CORNER = 0
 const TOP_RIGHT_CORNER = 1
-const BOTTOM_RIGHT_CORNER = 2
-const BOTTOM_LEFT_CORNER = 3
 const NEIGHBOR_OFFSETS = [
   { x: 0, y: -1 },
   { x: 1, y: 0 },
   { x: 0, y: 1 },
   { x: -1, y: 0 },
-]
+] as const
 
 function parseCellKey(cellKey: string) {
   const [x, y] = cellKey.split(',').map(Number)
   return { x, y }
 }
 
-export class SandboxCellSystem {
-  private readonly cornerMarkers: Map<string, number>
-  private pendingUpdateIndex = 0
-  private readonly pendingUpdates: PendingCellUpdate[] = []
-  private readonly updateHandlers: CellUpdateHandler[]
+export const updatePowerStateFromNeighbors: SandboxCellUpdateHandler = (system, cellKey, state, previousState) => {
+  const { x, y } = parseCellKey(cellKey);
+  const activatingOffCorner = (state.corner + 1) % CORNER_COUNT;
 
-  constructor(markers: readonly SandboxCornerMarker[]) {
-    this.cornerMarkers = new Map(markers.map((marker) => [marker.cellKey, marker.corner]))
-    this.updateHandlers = [
-      (system, cellKey) => system.alignCornerWithPrioritizedNeighbor(cellKey),
-    ]
+  
+  let newState: SandboxCornerState = {
+    corner: state.corner,
+    isOn: false,
+    sourceKey: null
+  };
+
+  for (const offset of NEIGHBOR_OFFSETS) {
+    const neighborCellKey = `${x + offset.x},${y + offset.y}`;
+    const neighborState = system.getState(neighborCellKey);
+    if (neighborState && neighborState.sourceKey != cellKey) {
+      if ((neighborState?.corner === state.corner && neighborState.isOn) ||
+          (neighborState?.corner === activatingOffCorner && !neighborState.isOn)) {
+        newState.isOn = true;
+        newState.sourceKey = neighborCellKey;
+      }
+    }
   }
 
-  getCorner(cellKey: string): number | undefined {
-    return this.cornerMarkers.get(cellKey)
+
+  // const source = NEIGHBOR_OFFSETS.map((offset) => {
+  //   const neighborCellKey = `${x + offset.x},${y + offset.y}`
+  //   return { neighborCellKey, neighborState: system.getState(neighborCellKey) }
+  // }).find(({ neighborState }) => (
+  //   (neighborState?.corner === state.corner && neighborState.isOn)
+  //   || (neighborState?.corner === activatingOffCorner && !neighborState.isOn)
+  // ))
+  system.setCornerStateFromUpdate(cellKey, newState)
+  return previousState === undefined
+    || previousState.corner !== newState.corner
+    || previousState.isOn !== newState.isOn
+    || previousState.sourceKey !== newState.sourceKey
+}
+
+export class SandboxCellSystem {
+  private readonly cornerMarkers: Map<string, SandboxCornerState>
+  private pendingUpdateIndex = 0
+  private readonly pendingUpdates: PendingCellUpdate[] = []
+  private readonly updateHandlers: readonly SandboxCellUpdateHandler[]
+
+  constructor(markers: readonly SandboxCornerMarker[], updateHandlers: readonly SandboxCellUpdateHandler[] = []) {
+    this.cornerMarkers = new Map(markers.map((marker) => [marker.cellKey, {
+      corner: marker.corner,
+      isOn: marker.isOn ?? false,
+      sourceKey: marker.sourceKey ?? null,
+    }]))
+    this.updateHandlers = updateHandlers
   }
 
   getMarkers(): SandboxCornerMarker[] {
-    return [...this.cornerMarkers].map(([cellKey, corner]) => ({ cellKey, corner }))
+    return [...this.cornerMarkers].map(([cellKey, marker]) => ({
+      cellKey,
+      corner: marker.corner,
+      isOn: marker.isOn,
+      sourceKey: marker.sourceKey,
+    }))
+  }
+
+  getState(cellKey: string): Readonly<SandboxCornerState> | undefined {
+    const state = this.cornerMarkers.get(cellKey)
+    return state ? Object.freeze({ ...state }) : undefined
+  }
+
+  setCornerStateFromUpdate(cellKey: string, state: SandboxCornerState): void {
+    if (!this.cornerMarkers.has(cellKey)) return
+    this.cornerMarkers.set(cellKey, { ...state })
   }
 
   rotateCornerFromUser(cellKey: string): void {
-    const currentCorner = this.cornerMarkers.get(cellKey)
+    const previousState = this.getState(cellKey)
+    const currentCorner = previousState?.corner
     const nextCorner = currentCorner === undefined ? TOP_RIGHT_CORNER : (currentCorner + 1) % CORNER_COUNT
-    this.cornerMarkers.set(cellKey, nextCorner)
-    if (currentCorner !== nextCorner) this.sendUpdateToNeighbors(cellKey, null)
+    this.cornerMarkers.set(cellKey, { corner: nextCorner, isOn: false, sourceKey: null })
+    if (this.runUpdateHandlers(cellKey, previousState)) this.sendUpdateToNeighbors(cellKey)
   }
 
   removeCornerFromUser(cellKey: string): void {
     if (!this.cornerMarkers.delete(cellKey)) return
-    this.sendUpdateToNeighbors(cellKey, null)
+    this.sendUpdateToNeighbors(cellKey)
   }
 
   hasPendingUpdates(): boolean {
@@ -75,7 +129,7 @@ export class SandboxCellSystem {
     while (processedUpdates < maximumUpdates && this.hasPendingUpdates()) {
       const update = this.pendingUpdates[this.pendingUpdateIndex]
       this.pendingUpdateIndex += 1
-      if (update) this.receiveUpdate(update.cellKey, update.senderCellKey)
+      if (update) this.receiveUpdate(update.cellKey)
       processedUpdates += 1
     }
 
@@ -87,88 +141,31 @@ export class SandboxCellSystem {
     return processedUpdates
   }
 
-  private alignCornerWithPrioritizedNeighbor(cellKey: string): void {
-    const currentCorner = this.cornerMarkers.get(cellKey)
-    if (currentCorner === undefined) return
-
-    const horizontalAlignment = this.getHorizontalAlignment(cellKey, currentCorner)
-    const verticalAlignment = this.getVerticalAlignment(cellKey, currentCorner)
-    const preferredAlignment = [horizontalAlignment, verticalAlignment].find((alignment) => alignment && !alignment.mirrored)
-      ?? horizontalAlignment
-      ?? verticalAlignment
-
-    if (preferredAlignment) this.cornerMarkers.set(cellKey, preferredAlignment.corner)
-  }
-
-  private getHorizontalAlignment(cellKey: string, currentCorner: number): CornerAlignment | undefined {
-    const { x, y } = parseCellKey(cellKey)
-    if (currentCorner === TOP_RIGHT_CORNER || currentCorner === BOTTOM_RIGHT_CORNER) {
-      const leftNeighborCorner = this.cornerMarkers.get(`${x - 1},${y}`)
-      if (leftNeighborCorner === TOP_RIGHT_CORNER || leftNeighborCorner === BOTTOM_RIGHT_CORNER) {
-        return { corner: leftNeighborCorner, mirrored: false }
-      } else if (leftNeighborCorner === TOP_LEFT_CORNER) {
-        return { corner: BOTTOM_RIGHT_CORNER, mirrored: true }
-      } else if (leftNeighborCorner === BOTTOM_LEFT_CORNER) {
-        return { corner: TOP_RIGHT_CORNER, mirrored: true }
-      }
-    }
-
-    if (currentCorner === TOP_LEFT_CORNER || currentCorner === BOTTOM_LEFT_CORNER) {
-      const rightNeighborCorner = this.cornerMarkers.get(`${x + 1},${y}`)
-      if (rightNeighborCorner === TOP_LEFT_CORNER || rightNeighborCorner === BOTTOM_LEFT_CORNER) {
-        return { corner: rightNeighborCorner, mirrored: false }
-      } else if (rightNeighborCorner === TOP_RIGHT_CORNER) {
-        return { corner: BOTTOM_LEFT_CORNER, mirrored: true }
-      } else if (rightNeighborCorner === BOTTOM_RIGHT_CORNER) {
-        return { corner: TOP_LEFT_CORNER, mirrored: true }
-      }
-    }
-  }
-
-  private getVerticalAlignment(cellKey: string, currentCorner: number): CornerAlignment | undefined {
-    const { x, y } = parseCellKey(cellKey)
-    if (currentCorner === TOP_LEFT_CORNER || currentCorner === TOP_RIGHT_CORNER) {
-      const bottomNeighborCorner = this.cornerMarkers.get(`${x},${y + 1}`)
-      if (bottomNeighborCorner === TOP_LEFT_CORNER || bottomNeighborCorner === TOP_RIGHT_CORNER) {
-        return { corner: bottomNeighborCorner, mirrored: false }
-      } else if (bottomNeighborCorner === BOTTOM_LEFT_CORNER) {
-        return { corner: TOP_RIGHT_CORNER, mirrored: true }
-      } else if (bottomNeighborCorner === BOTTOM_RIGHT_CORNER) {
-        return { corner: TOP_LEFT_CORNER, mirrored: true }
-      }
-    }
-
-    if (currentCorner === BOTTOM_LEFT_CORNER || currentCorner === BOTTOM_RIGHT_CORNER) {
-      const topNeighborCorner = this.cornerMarkers.get(`${x},${y - 1}`)
-      if (topNeighborCorner === BOTTOM_LEFT_CORNER || topNeighborCorner === BOTTOM_RIGHT_CORNER) {
-        return { corner: topNeighborCorner, mirrored: false }
-      } else if (topNeighborCorner === TOP_LEFT_CORNER) {
-        return { corner: BOTTOM_RIGHT_CORNER, mirrored: true }
-      } else if (topNeighborCorner === TOP_RIGHT_CORNER) {
-        return { corner: BOTTOM_LEFT_CORNER, mirrored: true }
-      }
-    }
-  }
-
-  private receiveUpdate(cellKey: string, senderCellKey: string): void {
+  private receiveUpdate(cellKey: string): void {
     if (!this.cornerMarkers.has(cellKey)) return
 
-    const cornerBeforeUpdate = this.cornerMarkers.get(cellKey)
-    for (const updateHandler of this.updateHandlers) {
-      updateHandler(this, cellKey)
-    }
-    if (cornerBeforeUpdate !== this.cornerMarkers.get(cellKey)) {
-      this.sendUpdateToNeighbors(cellKey, senderCellKey)
-    }
+    const markerBeforeUpdate = this.cornerMarkers.get(cellKey)
+    if (!markerBeforeUpdate) return
+    if (this.runUpdateHandlers(cellKey, markerBeforeUpdate)) this.sendUpdateToNeighbors(cellKey)
   }
 
-  private sendUpdateToNeighbors(cellKey: string, senderCellKey: string | null): void {
+  private runUpdateHandlers(cellKey: string, previousState: Readonly<SandboxCornerState> | undefined): boolean {
+    let shouldUpdateNeighbors = false
+    for (const updateHandler of this.updateHandlers) {
+      const state = this.getState(cellKey)
+      if (!state) break
+      if (updateHandler(this, cellKey, state, previousState)) shouldUpdateNeighbors = true
+    }
+    return shouldUpdateNeighbors
+  }
+
+  private sendUpdateToNeighbors(cellKey: string): void {
     const { x, y } = parseCellKey(cellKey)
 
     for (const offset of NEIGHBOR_OFFSETS) {
       const neighborCellKey = `${x + offset.x},${y + offset.y}`
-      if (neighborCellKey === senderCellKey || !this.cornerMarkers.has(neighborCellKey)) continue
-      this.pendingUpdates.push({ cellKey: neighborCellKey, senderCellKey: cellKey })
+      if (!this.cornerMarkers.has(neighborCellKey)) continue
+      this.pendingUpdates.push({ cellKey: neighborCellKey })
     }
   }
 }

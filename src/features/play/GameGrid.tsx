@@ -3,11 +3,12 @@ import { Check, Eraser, ListChecks, Lock, LogOut, RotateCcw, Unlock, X } from 'l
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import type { CellCorner, CellMarkerColor, GameConfig, GameMode, GameSelectionState, LockedCellGroup, PlacedTetromino, PlacedTetrominoCell } from '@/game/gameConfig'
+import type { CellMarkerColor, GameConfig, GameMode, GameSelectionState, LockedCellGroup, PlacedTetromino } from '@/game/gameConfig'
 import { isTetrominoShape } from '@/game/tetrominoes'
 import { clearGameSelection, loadGameSelection, saveGameSelection } from '@/lib/db'
 import { cn } from '@/lib/utils'
 import { SaveGameDialog } from './SaveGameDialog'
+import { GameGridCanvas } from './GameGridCanvas'
 
 interface GameGridProps {
   config: GameConfig
@@ -17,13 +18,6 @@ interface GameGridProps {
   onMoveCountChange: (moveCount: number) => void
   pieces: readonly PlacedTetromino[]
 }
-
-const CORNER_POSITION_CLASSES = {
-  'top-left': 'left-[7%] top-[7%]',
-  'top-right': 'right-[7%] top-[7%]',
-  'bottom-right': 'bottom-[7%] right-[7%]',
-  'bottom-left': 'bottom-[7%] left-[7%]',
-} as const
 
 const LOCKED_CELL_COLORS = [
   'bg-[#55c7df]',
@@ -54,79 +48,9 @@ function parseCellKeys(cellKeys: Iterable<string>) {
   })
 }
 
-interface GameGridCellProps {
-  cell: PlacedTetrominoCell | undefined
-  className?: string
-  lockedColor: string | undefined
-  markerColor: CellMarkerColor | undefined
-  piece: PlacedTetromino | undefined
-  selected: boolean
-  showId: boolean
-  x: number
-  y: number
-  onToggle: (cellKey: string) => void
-}
-
 interface ValidationResult {
   isCorrect: boolean
   validLockCount: number
-}
-
-function CornerMarker(props: { backgroundClass: string; corner: CellCorner }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        'absolute z-10 w-1/2 aspect-square rounded-[10%]',
-        props.backgroundClass,
-        CORNER_POSITION_CLASSES[props.corner],
-      )}
-    />
-  )
-}
-
-export function GameGridCell(props: GameGridCellProps) {
-  const cellKey = `${props.x},${props.y}`
-
-  function toggleSelection() {
-    props.onToggle(cellKey)
-  }
-
-  return (
-    <button
-      aria-label={`Cell ${props.x + 1}, ${props.y + 1}`}
-      aria-pressed={props.selected}
-      className={cn(
-        'border-[#773526] border-2',
-        'relative flex aspect-square items-center justify-center rounded-[2%] bg-[#ffd18a] p-0 text-[11px] font-bold text-[var(--canvas-foreground)] transition-transform duration-150',
-        props.lockedColor,
-        props.lockedColor && 'locked-tetromino-cell',
-        props.cell && 'z-30',
-        props.selected && props.cell && '-translate-y-[20%] rotate-2 bg-[#773526] border-[#ffd18a] scale-90',
-        props.className,
-      )}
-      disabled={!props.cell}
-      onClick={toggleSelection}
-      type="button"
-    >
-      {props.showId && props.piece && <span className="relative z-10 text-[var(--canvas-foreground)] [text-shadow:0_0_7px_var(--coral)]">#{props.piece.id}</span>}
-      {props.markerColor && (
-        <span
-          aria-hidden="true"
-          className={cn(
-            'absolute z-20 size-[30%] rounded-full',
-            props.markerColor === 'white' ? 'bg-[#8d8d8d]' : 'bg-[#15100e]',
-          )}
-        />
-      )}
-      {props.cell && (
-        <CornerMarker
-          backgroundClass={props.selected ? "bg-[#ffd18a]" : "bg-[var(--outline-color)]"}
-          corner={props.cell.corner}
-        />
-      )}
-    </button>
-  )
 }
 
 export function GameGrid(props: GameGridProps) {
@@ -154,10 +78,6 @@ export function GameGrid(props: GameGridProps) {
   const savedSelectionRef = useRef<GameSelectionState | null>(null)
   const cellMap = createCellMap(props.pieces)
   const lockedCellMap = createLockedCellMap(lockedCellGroups)
-  const boardCells = Array.from({ length: props.config.columns * props.config.rows }, (_, index) => ({
-    x: index % props.config.columns,
-    y: Math.floor(index / props.config.columns),
-  }))
   const canLockSelectedCells = selectedCellKeys.size === 4 && isTetrominoShape(parseCellKeys(selectedCellKeys))
   const canValidate = cellMap.size > 0 && [...cellMap.keys()].every((cellKey) => lockedCellMap.has(cellKey))
   const boardStyle = {
@@ -196,15 +116,9 @@ export function GameGrid(props: GameGridProps) {
   async function captureGameGridScreenshot(): Promise<Blob | null> {
     if (!gameBoardRef.current) return null
 
-    const { default: html2canvas } = await import('html2canvas')
-    const canvas = await html2canvas(gameBoardRef.current, {
-      backgroundColor: null,
-      scale: 2,
-    })
-
-    return new Promise((resolve) => {
-      canvas.toBlob(resolve, 'image/png')
-    })
+    const pixiCanvas = gameBoardRef.current.querySelector('canvas')
+    if (!pixiCanvas) return null
+    return await new Promise((resolve) => pixiCanvas.toBlob(resolve, 'image/png'))
   }
 
   async function exitGame(saveGame: boolean) {
@@ -431,16 +345,14 @@ export function GameGrid(props: GameGridProps) {
   useEffect(() => {
     if (!selectionLoaded || isCompleted || isExiting) return
 
-    const timer = window.setInterval(() => {
-      setElapsedSeconds((seconds) => {
-        const nextSeconds = seconds + 1
-        props.onElapsedSecondsChange(nextSeconds)
-        return nextSeconds
-      })
+    const timer = window.setTimeout(() => {
+      const nextSeconds = elapsedSeconds + 1
+      setElapsedSeconds(nextSeconds)
+      props.onElapsedSecondsChange(nextSeconds)
     }, 1000)
 
-    return () => window.clearInterval(timer)
-  }, [isCompleted, isExiting, props.onElapsedSecondsChange, selectionLoaded])
+    return () => window.clearTimeout(timer)
+  }, [elapsedSeconds, isCompleted, isExiting, props.onElapsedSecondsChange, selectionLoaded])
 
   useEffect(() => {
     if (!selectionLoaded || isExiting) return
@@ -468,33 +380,17 @@ export function GameGrid(props: GameGridProps) {
         </>
       )}
       <section aria-label="Game board" className="mx-auto max-w-[550px]" ref={gameBoardRef} style={boardStyle}>
-        <div
-          className="grid size-full bg-[#773526] border-2 border-[#773526]"
-          style={{
-            gridTemplateColumns: `repeat(${props.config.columns}, minmax(0, 1fr))`,
-            gridTemplateRows: `repeat(${props.config.rows}, minmax(0, 1fr))`,
-          }}
-        >
-          {boardCells.map(({ x, y }) => {
-            const cellKey = `${x},${y}`
-            const piece = cellMap.get(cellKey)
-            const cell = piece?.cells.find((pieceCell) => pieceCell.x === x && pieceCell.y === y)
-            const lockedGroup = lockedCellMap.get(cellKey)
-            return (
-              <GameGridCell
-                cell={cell}
-                key={`${x},${y}`}
-                lockedColor={lockedGroup?.color}
-                markerColor={markers.get(cellKey)}
-                onToggle={toggleCellSelection}
-                piece={piece}
-                selected={selectedCellKeys.has(cellKey) || lockedGroup?.id === selectedLockedGroupId}
-                showId={showCellIds}
-                x={x}
-                y={y}
-              />
-            )
-          })}
+        <div className="size-full border-2 border-[#773526] bg-[#773526]">
+          <GameGridCanvas
+            config={props.config}
+            lockedCellGroups={lockedCellGroups}
+            markers={markers}
+            onToggle={toggleCellSelection}
+            pieces={props.pieces}
+            selectedCellKeys={selectedCellKeys}
+            selectedLockedGroupId={selectedLockedGroupId}
+            showCellIds={showCellIds}
+          />
         </div>
       </section>
       <div className="mx-auto flex w-full max-w-[550px] flex-nowrap justify-center gap-1 sm:gap-2">

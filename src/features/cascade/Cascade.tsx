@@ -17,7 +17,7 @@ interface CascadeConfig {
 }
 
 const CASCADE_CONFIG: CascadeConfig = {
-  cornerSpawnMode: 'random',
+  cornerSpawnMode: 'sequential',
   gridSize: { columns: 9, rows: 18 },
   getFallIntervalMs: (gameState) => {
     const speedMultiplier = 1 + Math.log1p(gameState.destroyedLineCount ?? 0) * 0.25
@@ -46,7 +46,7 @@ function AnimatedScore(props: { step: number; targetScore: number }) {
         if (nextScore === props.targetScore) window.clearInterval(timer)
         return nextScore
       })
-    }, 10)
+    }, 4)
 
     return () => window.clearInterval(timer)
   }, [props.step, props.targetScore])

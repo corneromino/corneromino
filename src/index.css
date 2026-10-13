@@ -156,12 +156,12 @@
 
 @keyframes cascade-score-shake {
   0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-1px); }
-  75% { transform: translateX(1px); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
 }
 
 .cascade-score-shake {
-  animation: cascade-score-shake 80ms steps(2, end) infinite;
+  animation: cascade-score-shake 55ms steps(2, end) infinite;
 }
 
 .saved-game-card {

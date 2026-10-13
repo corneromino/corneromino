@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { SandboxCellSystem } from './cellSystem'
+import { SandboxCellSystem, updatePowerStateFromNeighbors } from './cellSystem'
 
 describe('SandboxCellSystem', () => {
-  it('aligns a right-side corner with a left neighbor right-side corner', () => {
+  it('rotates only the corner selected by the user', () => {
     const system = new SandboxCellSystem([
       { cellKey: '0,0', corner: 1 },
       { cellKey: '1,0', corner: 1 },
@@ -11,21 +11,70 @@ describe('SandboxCellSystem', () => {
     system.rotateCornerFromUser('0,0')
     system.processUpdates(1)
 
-    expect(system.getCorner('0,0')).toBe(2)
-    expect(system.getCorner('1,0')).toBe(2)
-    expect(system.getCorner('0,1')).toBeUndefined()
+    expect(system.getState('0,0')?.corner).toBe(2)
+    expect(system.getState('1,0')?.corner).toBe(1)
+    expect(system.getState('0,1')).toBeUndefined()
   })
 
-  it('does not send an update directly back to its sender', () => {
+  it('does not notify neighbors when no update handler requests it', () => {
     const system = new SandboxCellSystem([
       { cellKey: '0,0', corner: 1 },
       { cellKey: '1,0', corner: 1 },
     ])
 
     system.rotateCornerFromUser('0,0')
+    expect(system.getState('0,0')?.corner).toBe(2)
+    expect(system.getState('1,0')?.corner).toBe(1)
+    expect(system.hasPendingUpdates()).toBe(false)
+  })
+
+  it('allows update handlers to change a corneromino on/off state', () => {
+    const system = new SandboxCellSystem([
+      { cellKey: '0,0', corner: 1 },
+      { cellKey: '1,0', corner: 1 },
+    ], [
+      (target, cellKey, state, previousState) => {
+        const nextState = { ...state, isOn: true, sourceKey: '0,-1' }
+        target.setCornerStateFromUpdate(cellKey, nextState)
+        return previousState?.isOn !== nextState.isOn || previousState?.sourceKey !== nextState.sourceKey
+      },
+    ])
+
+    system.rotateCornerFromUser('0,0')
     system.processUpdates(1)
 
-    expect(system.getCorner('0,0')).toBe(2)
+    expect(system.getState('0,0')?.isOn).toBe(true)
+    expect(system.getState('1,0')?.isOn).toBe(true)
+  })
+
+  it('turns A on when it touches a B that is off', () => {
+    const system = new SandboxCellSystem([
+      { cellKey: '0,0', corner: 0 },
+      { cellKey: '1,0', corner: 2 },
+    ], [updatePowerStateFromNeighbors])
+
+    system.rotateCornerFromUser('0,0')
+    system.processUpdates(1)
+
+    expect(system.getState('0,0')?.corner).toBe(1)
+    expect(system.getState('0,0')?.isOn).toBe(true)
+    expect(system.getMarkers().find((marker) => marker.cellKey === '0,0')?.sourceKey).toBe('1,0')
+    expect(system.getState('1,0')?.isOn).toBe(false)
+    expect(system.getMarkers().find((marker) => marker.cellKey === '1,0')?.sourceKey).toBeNull()
+  })
+
+  it('turns a corner on when it touches the same type that is on', () => {
+    const system = new SandboxCellSystem([
+      { cellKey: '0,0', corner: 0 },
+      { cellKey: '1,0', corner: 1 },
+    ], [updatePowerStateFromNeighbors])
+    system.setCornerStateFromUpdate('1,0', { corner: 1, isOn: true, sourceKey: '1,-1' })
+
+    system.rotateCornerFromUser('0,0')
+
+    expect(system.getState('0,0')?.corner).toBe(1)
+    expect(system.getState('0,0')?.isOn).toBe(true)
+    expect(system.getMarkers().find((marker) => marker.cellKey === '0,0')?.sourceKey).toBe('1,0')
   })
 
   it('does not update a neighbor when removing a corner', () => {
@@ -37,70 +86,8 @@ describe('SandboxCellSystem', () => {
     system.removeCornerFromUser('0,0')
     system.processUpdates(1)
 
-    expect(system.getCorner('0,0')).toBeUndefined()
-    expect(system.getCorner('1,0')).toBe(1)
+    expect(system.getState('0,0')).toBeUndefined()
+    expect(system.getState('1,0')?.corner).toBe(1)
   })
 
-  it('aligns a left-side corner with a right neighbor left-side corner', () => {
-    const system = new SandboxCellSystem([
-      { cellKey: '0,0', corner: 0 },
-      { cellKey: '1,0', corner: 1 },
-    ])
-
-    system.rotateCornerFromUser('1,0')
-    system.processUpdates(1)
-    system.rotateCornerFromUser('1,0')
-    system.processUpdates(1)
-
-    expect(system.getCorner('0,0')).toBe(3)
-  })
-
-  it('aligns a top-side corner with a bottom neighbor top-side corner', () => {
-    const system = new SandboxCellSystem([
-      { cellKey: '0,0', corner: 1 },
-      { cellKey: '0,1', corner: 3 },
-    ])
-
-    system.rotateCornerFromUser('0,1')
-    system.processUpdates(1)
-
-    expect(system.getCorner('0,0')).toBe(0)
-  })
-
-  it('mirrors a right-side corner when its left neighbor faces left', () => {
-    const system = new SandboxCellSystem([
-      { cellKey: '0,0', corner: 3 },
-      { cellKey: '1,0', corner: 1 },
-    ])
-
-    system.rotateCornerFromUser('0,0')
-    system.processUpdates(1)
-
-    expect(system.getCorner('1,0')).toBe(2)
-  })
-
-  it('mirrors a top-side corner when its bottom neighbor faces down', () => {
-    const system = new SandboxCellSystem([
-      { cellKey: '0,0', corner: 0 },
-      { cellKey: '0,1', corner: 2 },
-    ])
-
-    system.rotateCornerFromUser('0,1')
-    system.processUpdates(1)
-
-    expect(system.getCorner('0,0')).toBe(1)
-  })
-
-  it('prioritizes a same-facing neighbor over a mirrored neighbor', () => {
-    const system = new SandboxCellSystem([
-      { cellKey: '0,0', corner: 0 },
-      { cellKey: '1,0', corner: 1 },
-      { cellKey: '1,1', corner: 2 },
-    ])
-
-    system.rotateCornerFromUser('0,0')
-    system.processUpdates(1)
-
-    expect(system.getCorner('1,0')).toBe(1)
-  })
 })

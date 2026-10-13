@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { Application, Graphics } from 'pixi.js'
 import type { SandboxWorldState } from '@/lib/db'
-import { SandboxCellSystem } from './cellSystem'
+import { SandboxCellSystem, updatePowerStateFromNeighbors } from './cellSystem'
 
 const BASE_CELL_SIZE = 56
 const MIN_ZOOM = 0.2
@@ -87,7 +87,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
     let pinchStartDistance = 0
     let pinchStartZoom = 1
     let zoom = props.initialState?.zoom ?? 1
-    const cellSystem = new SandboxCellSystem(props.initialState?.cornerMarkers ?? [])
+    const cellSystem = new SandboxCellSystem(props.initialState?.cornerMarkers ?? [], [updatePowerStateFromNeighbors])
     const cornerTransitions = new Map<string, CornerTransition>()
     let cornerAnimationFrame = 0
     let lastCornerStates = new Map<string, number>()
@@ -95,7 +95,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
 
     function getCornerMarkerPosition(corner: number, x: number, y: number, cellSize: number) {
       const markerSize = cellSize / 2
-      const markerPadding = cellSize * 0.07
+       const markerPadding = cellSize * 0.12
       return {
         markerSize,
         x: corner === CORNER_MARKER_TOP_RIGHT || corner === CORNER_MARKER_BOTTOM_RIGHT
@@ -120,7 +120,8 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       const cellSize = BASE_CELL_SIZE * zoom
       const borderWidth = 2 * zoom
       const now = performance.now()
-      const currentCornerStates = new Map(cellSystem.getMarkers().map((marker) => [marker.cellKey, marker.corner]))
+      const currentMarkers = new Map(cellSystem.getMarkers().map((marker) => [marker.cellKey, marker]))
+      const currentCornerStates = new Map([...currentMarkers].map(([cellKey, marker]) => [cellKey, marker.corner]))
 
       for (const [cellKey, corner] of currentCornerStates) {
         const previousCorner = lastCornerStates.get(cellKey)
@@ -140,13 +141,15 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
         for (let column = firstColumn; column <= lastColumn; column += 1) {
           const x = column * cellSize + gridOffsetX
           const y = row * cellSize + gridOffsetY
-          grid
-            .roundRect(x + borderWidth / 2, y + borderWidth / 2, cellSize - borderWidth, cellSize - borderWidth, cellSize * 0.02)
-            .fill({ color: CELL_FILL_COLOR })
-            .stroke({ color: CELL_BORDER_COLOR, width: borderWidth })
-
           const cellKey = `${column},${row}`
           const cornerMarker = currentCornerStates.get(cellKey)
+          const isCornerOn = currentMarkers.get(cellKey)?.isOn ?? false
+          const cellInset = isCornerOn ? borderWidth * 1.5 : borderWidth / 2
+          grid
+            .roundRect(x + cellInset, y + cellInset, cellSize - cellInset * 2, cellSize - cellInset * 2, cellSize * 0.02)
+            .fill({ color: isCornerOn ? CORNER_MARKER_COLOR : CELL_FILL_COLOR })
+            .stroke({ color: isCornerOn ? CELL_FILL_COLOR : CELL_BORDER_COLOR, width: borderWidth })
+
           if (cornerMarker === undefined) continue
 
           const transition = cornerTransitions.get(cellKey)
@@ -160,7 +163,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
 
           grid
             .roundRect(markerX, markerY, toPosition.markerSize, toPosition.markerSize, toPosition.markerSize * 0.1)
-            .fill({ color: CORNER_MARKER_COLOR })
+            .fill({ color: isCornerOn ? CELL_FILL_COLOR : CORNER_MARKER_COLOR })
         }
       }
 

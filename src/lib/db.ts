@@ -15,7 +15,7 @@ export interface SavedGame {
 }
 
 export interface SandboxWorldState {
-  cornerMarkers: Array<{ cellKey: string; corner: number }>
+  cornerMarkers: Array<{ cellKey: string; corner: number; isOn?: boolean; sourceKey?: string | null }>
   gridOffsetX: number
   gridOffsetY: number
   zoom: number
