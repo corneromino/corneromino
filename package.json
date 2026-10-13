@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "vitest run",
+    "benchmark:sandbox": "node --experimental-strip-types scripts/benchmark-sandbox.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

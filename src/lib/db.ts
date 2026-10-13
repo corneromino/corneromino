@@ -73,6 +73,7 @@ function selectionStorageKey(gameMode: GameMode, gameId: string): string {
 }
 
 const CASCADE_STORAGE_KEY = 'cascade:current'
+const CASCADE_BEST_SCORE_STORAGE_KEY = 'cascade:best-score'
 
 function isCascadePiece(value: unknown): value is { column: number; corner: 0 | 1 | 2 | 3; row: number } {
   return typeof value === 'object'
@@ -230,6 +231,19 @@ export async function saveCascadeGameState(state: CascadeGameSaveState): Promise
 
 export async function clearCascadeGameState(): Promise<void> {
   await (await db).delete('games', CASCADE_STORAGE_KEY)
+}
+
+export async function loadCascadeBestScore(): Promise<number> {
+  const storedScore = await (await db).get('games', CASCADE_BEST_SCORE_STORAGE_KEY)
+  return storedScore && typeof storedScore.state === 'number' && storedScore.state >= 0 ? storedScore.state : 0
+}
+
+/** Returns the recorded best score, preserving a higher score from another session. */
+export async function recordCascadeBestScore(score: number): Promise<number> {
+  const currentBestScore = await loadCascadeBestScore()
+  if (score <= currentBestScore) return currentBestScore
+  await (await db).put('games', { id: CASCADE_BEST_SCORE_STORAGE_KEY, state: score, updatedAt: Date.now() })
+  return score
 }
 
 export async function saveSandboxWorld(world: SavedSandboxWorld): Promise<void> {

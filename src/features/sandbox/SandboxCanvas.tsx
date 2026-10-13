@@ -1,10 +1,10 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { Application, Graphics } from 'pixi.js'
 import type { SandboxWorldState } from '@/lib/db'
-import { SandboxCellSystem, updatePowerStateFromNeighbors } from './cellSystem'
+import { SandboxCellSystem, type SandboxCornerMarker, updatePowerStateFromNeighbors } from './cellSystem'
 
 const BASE_CELL_SIZE = 56
-const MIN_ZOOM = 0.2
+const MIN_ZOOM = 0.1
 const MAX_ZOOM = 5
 const CELL_FILL_COLOR = 0xffd18a
 const CELL_BORDER_COLOR = 0x773526
@@ -13,13 +13,22 @@ const CORNER_MARKER_TOP_RIGHT = 1
 const CORNER_MARKER_BOTTOM_RIGHT = 2
 const CORNER_MARKER_BOTTOM_LEFT = 3
 const PAN_THRESHOLD = 4
-const UPDATES_PER_FRAME = 8
+const SANDBOX_TICK_INTERVAL_MS = 2
+const MAX_UPDATES_PER_TICK = 10_000
+const UPDATE_BUDGET_MS = 100
 const CORNER_TRANSITION_DURATION_MS = 20
 
 interface PointerPosition {
   x: number
   y: number
 }
+
+interface CellPosition {
+  column: number
+  row: number
+}
+
+type SelectionBound = 'upper' | 'lower'
 
 interface CornerTransition {
   fromCorner: number
@@ -31,10 +40,17 @@ interface SandboxCanvasProps {
   deleteEnabled: boolean
   drawEnabled: boolean
   initialState: SandboxWorldState | null
+  moveEnabled: boolean
+  selectEnabled: boolean
 }
 
 export interface SandboxCanvasHandle {
   captureWorld: () => Promise<{ screenshot: Blob; state: SandboxWorldState }>
+  captureSelectedWorld: () => Promise<{ screenshot: Blob; state: SandboxWorldState }>
+  beginPaste: (state: SandboxWorldState) => void
+  commitMove: (copy?: boolean) => void
+  cancelMove: () => void
+  deleteSelectedCells: () => void
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -49,19 +65,61 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   })
 }
 
+function cropCanvasToBlob(canvas: HTMLCanvasElement, sourceX: number, sourceY: number, sourceWidth: number, sourceHeight: number): Promise<Blob> {
+  const croppedCanvas = document.createElement('canvas')
+  const left = Math.max(0, Math.floor(sourceX))
+  const top = Math.max(0, Math.floor(sourceY))
+  const right = Math.min(canvas.width, Math.ceil(sourceX + sourceWidth))
+  const bottom = Math.min(canvas.height, Math.ceil(sourceY + sourceHeight))
+  croppedCanvas.width = Math.max(1, right - left)
+  croppedCanvas.height = Math.max(1, bottom - top)
+  const context = croppedCanvas.getContext('2d')
+  if (!context) return Promise.reject(new Error('Could not create the selected world preview.'))
+  context.drawImage(canvas, left, top, croppedCanvas.width, croppedCanvas.height, 0, 0, croppedCanvas.width, croppedCanvas.height)
+  return canvasToBlob(croppedCanvas)
+}
+
 export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>(function SandboxCanvas(props, ref) {
   const canvasContainerRef = useRef<HTMLDivElement>(null)
   const deleteEnabledRef = useRef(props.deleteEnabled)
   const drawEnabledRef = useRef(props.drawEnabled)
+  const selectEnabledRef = useRef(props.selectEnabled)
+  const moveEnabledRef = useRef(props.moveEnabled)
   const captureWorldRef = useRef<SandboxCanvasHandle['captureWorld'] | null>(null)
+  const captureSelectedWorldRef = useRef<SandboxCanvasHandle['captureSelectedWorld'] | null>(null)
+  const beginPasteRef = useRef<((state: SandboxWorldState) => void) | null>(null)
+  const deleteSelectedCellsRef = useRef<(() => void) | null>(null)
+  const commitMoveRef = useRef<((copy?: boolean) => void) | null>(null)
+  const cancelMoveRef = useRef<(() => void) | null>(null)
+  const setSelectModeRef = useRef<((enabled: boolean) => void) | null>(null)
+  const redrawRef = useRef<(() => void) | null>(null)
   deleteEnabledRef.current = props.deleteEnabled
   drawEnabledRef.current = props.drawEnabled
+  selectEnabledRef.current = props.selectEnabled
+  moveEnabledRef.current = props.moveEnabled
+
+  useEffect(() => {
+    setSelectModeRef.current?.(props.selectEnabled)
+  }, [props.selectEnabled])
+
+  useEffect(() => {
+    if (!props.moveEnabled) cancelMoveRef.current?.()
+    else redrawRef.current?.()
+  }, [props.moveEnabled])
 
   useImperativeHandle(ref, () => ({
     captureWorld: async () => {
       if (!captureWorldRef.current) throw new Error('Sandbox canvas is not ready.')
       return captureWorldRef.current()
     },
+    captureSelectedWorld: async () => {
+      if (!captureSelectedWorldRef.current) throw new Error('Sandbox canvas is not ready.')
+      return captureSelectedWorldRef.current()
+    },
+    beginPaste: (state) => beginPasteRef.current?.(state),
+    commitMove: (copy = false) => commitMoveRef.current?.(copy),
+    cancelMove: () => cancelMoveRef.current?.(),
+    deleteSelectedCells: () => deleteSelectedCellsRef.current?.(),
   }), [])
 
   useEffect(() => {
@@ -91,11 +149,19 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
     const cornerTransitions = new Map<string, CornerTransition>()
     let cornerAnimationFrame = 0
     let lastCornerStates = new Map<string, number>()
-    let updateAnimationFrame = 0
+    let updateTimer: number | undefined
+    let upperSelectionBound: CellPosition | null = null
+    let lowerSelectionBound: CellPosition | null = null
+    let draggedSelectionBound: SelectionBound | null = null
+    let isMovingSelection = false
+    let moveOffset = { column: 0, row: 0 }
+    let moveStartCell: CellPosition | null = null
+    let moveStartOffset = { column: 0, row: 0 }
+    let pastedMarkers: SandboxCornerMarker[] | null = null
 
     function getCornerMarkerPosition(corner: number, x: number, y: number, cellSize: number) {
       const markerSize = cellSize / 2
-       const markerPadding = cellSize * 0.12
+      const markerPadding = cellSize * 0.12
       return {
         markerSize,
         x: corner === CORNER_MARKER_TOP_RIGHT || corner === CORNER_MARKER_BOTTOM_RIGHT
@@ -116,20 +182,13 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       })
     }
 
-    function drawGrid() {
+    function drawGrid(includeSelection = true) {
       const cellSize = BASE_CELL_SIZE * zoom
       const borderWidth = 2 * zoom
       const now = performance.now()
-      const currentMarkers = new Map(cellSystem.getMarkers().map((marker) => [marker.cellKey, marker]))
-      const currentCornerStates = new Map([...currentMarkers].map(([cellKey, marker]) => [cellKey, marker.corner]))
-
-      for (const [cellKey, corner] of currentCornerStates) {
-        const previousCorner = lastCornerStates.get(cellKey)
-        if (previousCorner !== undefined && previousCorner !== corner) {
-          cornerTransitions.set(cellKey, { fromCorner: previousCorner, startedAt: now, toCorner: corner })
-        }
-      }
-      lastCornerStates = currentCornerStates
+      // Read only visible cells; exporting every marker would make each frame
+      // scale with the entire infinite world, including offscreen cells.
+      const currentCornerStates = new Map<string, number>()
 
       const firstColumn = Math.floor(-gridOffsetX / cellSize) - 1
       const lastColumn = Math.ceil((app.renderer.width - gridOffsetX) / cellSize) + 1
@@ -142,16 +201,22 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
           const x = column * cellSize + gridOffsetX
           const y = row * cellSize + gridOffsetY
           const cellKey = `${column},${row}`
-          const cornerMarker = currentCornerStates.get(cellKey)
-          const isCornerOn = currentMarkers.get(cellKey)?.isOn ?? false
+          const state = cellSystem.getState(cellKey)
+          const cornerMarker = state?.corner
+          const isCornerOn = state?.isOn ?? false
           const cellInset = isCornerOn ? borderWidth * 1.5 : borderWidth / 2
-          grid
+          const cellGraphic = grid
             .roundRect(x + cellInset, y + cellInset, cellSize - cellInset * 2, cellSize - cellInset * 2, cellSize * 0.02)
             .fill({ color: isCornerOn ? CORNER_MARKER_COLOR : CELL_FILL_COLOR })
-            .stroke({ color: isCornerOn ? CELL_FILL_COLOR : CELL_BORDER_COLOR, width: borderWidth })
+          if (!isCornerOn) cellGraphic.stroke({ color: CELL_BORDER_COLOR, width: borderWidth })
 
           if (cornerMarker === undefined) continue
 
+          currentCornerStates.set(cellKey, cornerMarker)
+          const previousCorner = lastCornerStates.get(cellKey)
+          if (previousCorner !== undefined && previousCorner !== cornerMarker) {
+            cornerTransitions.set(cellKey, { fromCorner: previousCorner, startedAt: now, toCorner: cornerMarker })
+          }
           const transition = cornerTransitions.get(cellKey)
           const transitionProgress = transition ? Math.min(1, (now - transition.startedAt) / CORNER_TRANSITION_DURATION_MS) : 1
           const fromPosition = getCornerMarkerPosition(transition?.fromCorner ?? cornerMarker, x, y, cellSize)
@@ -166,47 +231,276 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
             .fill({ color: isCornerOn ? CELL_FILL_COLOR : CORNER_MARKER_COLOR })
         }
       }
+      lastCornerStates = currentCornerStates
 
       for (const [cellKey, transition] of cornerTransitions) {
         if (now - transition.startedAt >= CORNER_TRANSITION_DURATION_MS) cornerTransitions.delete(cellKey)
       }
+      if (includeSelection) drawSelection(cellSize)
+      if (includeSelection) drawMoveSilhouette(cellSize)
       scheduleCornerAnimation()
     }
 
-    function rotateCornerMarker(event: PointerEvent) {
-      const bounds = app.canvas.getBoundingClientRect()
-      const cellSize = BASE_CELL_SIZE * zoom
-      const column = Math.floor((event.clientX - bounds.left - gridOffsetX) / cellSize)
-      const row = Math.floor((event.clientY - bounds.top - gridOffsetY) / cellSize)
-      const cellKey = `${column},${row}`
-      cellSystem.rotateCornerFromUser(cellKey)
-      drawGrid()
-      processPendingUpdates()
+    function drawSelection(cellSize: number) {
+      if (!upperSelectionBound || !lowerSelectionBound) return
+
+      const leftColumn = Math.min(upperSelectionBound.column, lowerSelectionBound.column)
+      const rightColumn = Math.max(upperSelectionBound.column, lowerSelectionBound.column)
+      const topRow = Math.min(upperSelectionBound.row, lowerSelectionBound.row)
+      const bottomRow = Math.max(upperSelectionBound.row, lowerSelectionBound.row)
+      const x = leftColumn * cellSize + gridOffsetX
+      const y = topRow * cellSize + gridOffsetY
+      const width = (rightColumn - leftColumn + 1) * cellSize
+      const height = (bottomRow - topRow + 1) * cellSize
+      const handleSize = Math.max(8, cellSize * 0.22)
+      const handleOffset = (cellSize - handleSize) / 2
+
+      grid.rect(x, y, width, height).fill({ color: 0x808080, alpha: 0.52 }).stroke({ color: 0xd6d6d6, width: Math.max(1, cellSize * 0.045) })
+      for (const bound of [upperSelectionBound, lowerSelectionBound]) {
+        grid
+          .roundRect(
+            bound.column * cellSize + gridOffsetX + handleOffset,
+            bound.row * cellSize + gridOffsetY + handleOffset,
+            handleSize,
+            handleSize,
+            handleSize * 0.2,
+          )
+          .fill({ color: 0xd6d6d6 })
+          .stroke({ color: 0x4d4d4d, width: Math.max(1, cellSize * 0.035) })
+      }
     }
 
-    function deleteCornerMarker(event: PointerEvent) {
-      const bounds = app.canvas.getBoundingClientRect()
-      const cellSize = BASE_CELL_SIZE * zoom
-      const column = Math.floor((event.clientX - bounds.left - gridOffsetX) / cellSize)
-      const row = Math.floor((event.clientY - bounds.top - gridOffsetY) / cellSize)
+    function drawMoveSilhouette(cellSize: number) {
+      if (!moveEnabledRef.current || !upperSelectionBound || !lowerSelectionBound || (moveOffset.column === 0 && moveOffset.row === 0 && !pastedMarkers)) return
+      const sourceLeftColumn = Math.min(upperSelectionBound.column, lowerSelectionBound.column)
+      const sourceRightColumn = Math.max(upperSelectionBound.column, lowerSelectionBound.column)
+      const sourceTopRow = Math.min(upperSelectionBound.row, lowerSelectionBound.row)
+      const sourceBottomRow = Math.max(upperSelectionBound.row, lowerSelectionBound.row)
+      const leftColumn = sourceLeftColumn + moveOffset.column
+      const rightColumn = sourceRightColumn + moveOffset.column
+      const topRow = sourceTopRow + moveOffset.row
+      const bottomRow = sourceBottomRow + moveOffset.row
+      const x = leftColumn * cellSize + gridOffsetX
+      const y = topRow * cellSize + gridOffsetY
+      grid
+        .rect(x, y, (rightColumn - leftColumn + 1) * cellSize, (bottomRow - topRow + 1) * cellSize)
+        .fill({ color: 0xb8b8b8, alpha: 0.28 })
 
-      cellSystem.removeCornerFromUser(`${column},${row}`)
-      drawGrid()
-      processPendingUpdates()
-    }
+      const borderWidth = 2 * zoom
+      const pastedStates = pastedMarkers ? new Map(pastedMarkers.map((marker) => [marker.cellKey, marker])) : null
+      for (let row = sourceTopRow; row <= sourceBottomRow; row += 1) {
+        for (let column = sourceLeftColumn; column <= sourceRightColumn; column += 1) {
+          const state = pastedStates ? pastedStates.get(`${column},${row}`) : cellSystem.getState(`${column},${row}`)
+          if (!state) continue
+          const targetX = (column + moveOffset.column) * cellSize + gridOffsetX
+          const targetY = (row + moveOffset.row) * cellSize + gridOffsetY
+          const cellInset = state.isOn ? borderWidth * 1.5 : borderWidth / 2
+          const cellGraphic = grid
+            .roundRect(targetX + cellInset, targetY + cellInset, cellSize - cellInset * 2, cellSize - cellInset * 2, cellSize * 0.02)
+            .fill({ color: state.isOn ? CORNER_MARKER_COLOR : CELL_FILL_COLOR, alpha: 0.72 })
+          if (!state.isOn) cellGraphic.stroke({ color: CELL_BORDER_COLOR, width: borderWidth, alpha: 0.72 })
 
-    function processPendingUpdates() {
-      if (updateAnimationFrame !== 0) return
-
-      function processUpdateFrame() {
-        updateAnimationFrame = 0
-        if (cellSystem.processUpdates(UPDATES_PER_FRAME) > 0) drawGrid()
-        if (cellSystem.hasPendingUpdates()) {
-          updateAnimationFrame = window.requestAnimationFrame(processUpdateFrame)
+          const markerPosition = getCornerMarkerPosition(state.corner, targetX, targetY, cellSize)
+          grid
+            .roundRect(markerPosition.x, markerPosition.y, markerPosition.markerSize, markerPosition.markerSize, markerPosition.markerSize * 0.1)
+            .fill({ color: state.isOn ? CELL_FILL_COLOR : CORNER_MARKER_COLOR, alpha: 0.72 })
         }
       }
 
-      updateAnimationFrame = window.requestAnimationFrame(processUpdateFrame)
+      grid
+        .rect(x, y, (rightColumn - leftColumn + 1) * cellSize, (bottomRow - topRow + 1) * cellSize)
+        .stroke({ color: 0xe6e6e6, width: Math.max(1, cellSize * 0.05) })
+    }
+
+    function getCellPosition(event: PointerEvent): CellPosition {
+      const bounds = app.canvas.getBoundingClientRect()
+      const cellSize = BASE_CELL_SIZE * zoom
+      return {
+        column: Math.floor((event.clientX - bounds.left - gridOffsetX) / cellSize),
+        row: Math.floor((event.clientY - bounds.top - gridOffsetY) / cellSize),
+      }
+    }
+
+    function isSameCell(first: CellPosition, second: CellPosition | null): boolean {
+      return second !== null && first.column === second.column && first.row === second.row
+    }
+
+    function rotateCornerMarker(event: PointerEvent) {
+      const { column, row } = getCellPosition(event)
+      const cellKey = `${column},${row}`
+      cellSystem.rotateCornerFromUser(cellKey)
+      drawGrid()
+    }
+
+    function isInsideSelection(cell: CellPosition): boolean {
+      if (!upperSelectionBound || !lowerSelectionBound) return false
+      return cell.column >= Math.min(upperSelectionBound.column, lowerSelectionBound.column)
+        && cell.column <= Math.max(upperSelectionBound.column, lowerSelectionBound.column)
+        && cell.row >= Math.min(upperSelectionBound.row, lowerSelectionBound.row)
+        && cell.row <= Math.max(upperSelectionBound.row, lowerSelectionBound.row)
+    }
+
+    function isInsideMoveSilhouette(cell: CellPosition): boolean {
+      if (!upperSelectionBound || !lowerSelectionBound) return false
+      return cell.column >= Math.min(upperSelectionBound.column, lowerSelectionBound.column) + moveOffset.column
+        && cell.column <= Math.max(upperSelectionBound.column, lowerSelectionBound.column) + moveOffset.column
+        && cell.row >= Math.min(upperSelectionBound.row, lowerSelectionBound.row) + moveOffset.row
+        && cell.row <= Math.max(upperSelectionBound.row, lowerSelectionBound.row) + moveOffset.row
+    }
+
+    function rotateSelectedCorners() {
+      if (!upperSelectionBound || !lowerSelectionBound) return
+      const leftColumn = Math.min(upperSelectionBound.column, lowerSelectionBound.column)
+      const rightColumn = Math.max(upperSelectionBound.column, lowerSelectionBound.column)
+      const topRow = Math.min(upperSelectionBound.row, lowerSelectionBound.row)
+      const bottomRow = Math.max(upperSelectionBound.row, lowerSelectionBound.row)
+      for (let row = topRow; row <= bottomRow; row += 1) {
+        for (let column = leftColumn; column <= rightColumn; column += 1) {
+          cellSystem.rotateCornerFromUser(`${column},${row}`)
+        }
+      }
+      drawGrid()
+    }
+
+    function deleteCornerMarker(event: PointerEvent) {
+      const { column, row } = getCellPosition(event)
+
+      cellSystem.removeCornerFromUser(`${column},${row}`)
+      drawGrid()
+    }
+
+    function processUpdateTick() {
+      if (cellSystem.processTick(MAX_UPDATES_PER_TICK, UPDATE_BUDGET_MS) > 0) drawGrid()
+    }
+
+    function deleteSelectedCells() {
+      if (!upperSelectionBound || !lowerSelectionBound) return
+
+      const leftColumn = Math.min(upperSelectionBound.column, lowerSelectionBound.column)
+      const rightColumn = Math.max(upperSelectionBound.column, lowerSelectionBound.column)
+      const topRow = Math.min(upperSelectionBound.row, lowerSelectionBound.row)
+      const bottomRow = Math.max(upperSelectionBound.row, lowerSelectionBound.row)
+      for (let row = topRow; row <= bottomRow; row += 1) {
+        for (let column = leftColumn; column <= rightColumn; column += 1) {
+          cellSystem.removeCornerFromUser(`${column},${row}`)
+        }
+      }
+      drawGrid()
+    }
+
+    function cancelMove() {
+      isMovingSelection = false
+      moveStartCell = null
+      moveStartOffset = { column: 0, row: 0 }
+      moveOffset = { column: 0, row: 0 }
+      pastedMarkers = null
+      if (initialized) drawGrid()
+    }
+
+    function beginPaste(state: SandboxWorldState) {
+      if (state.cornerMarkers.length === 0) return
+      const parsedMarkers = state.cornerMarkers.map((marker) => {
+        const separator = marker.cellKey.indexOf(',')
+        return { ...marker, column: Number(marker.cellKey.slice(0, separator)), row: Number(marker.cellKey.slice(separator + 1)) }
+      })
+      const leftColumn = Math.min(...parsedMarkers.map((marker) => marker.column))
+      const rightColumn = Math.max(...parsedMarkers.map((marker) => marker.column))
+      const topRow = Math.min(...parsedMarkers.map((marker) => marker.row))
+      const bottomRow = Math.max(...parsedMarkers.map((marker) => marker.row))
+      const cellSize = BASE_CELL_SIZE * zoom
+      const centerColumn = Math.floor((app.renderer.width / 2 - gridOffsetX) / cellSize)
+      const centerRow = Math.floor((app.renderer.height / 2 - gridOffsetY) / cellSize)
+      const targetLeftColumn = centerColumn - Math.floor((rightColumn - leftColumn) / 2)
+      const targetTopRow = centerRow - Math.floor((bottomRow - topRow) / 2)
+      const sourceKeys = new Set(state.cornerMarkers.map((marker) => marker.cellKey))
+      pastedMarkers = parsedMarkers.map((marker) => {
+        const column = targetLeftColumn + marker.column - leftColumn
+        const row = targetTopRow + marker.row - topRow
+        let sourceKey = marker.sourceKey ?? null
+        if (sourceKey && sourceKeys.has(sourceKey)) {
+          const separator = sourceKey.indexOf(',')
+          sourceKey = `${targetLeftColumn + Number(sourceKey.slice(0, separator)) - leftColumn},${targetTopRow + Number(sourceKey.slice(separator + 1)) - topRow}`
+        }
+        return { cellKey: `${column},${row}`, corner: marker.corner, isOn: marker.isOn ?? false, sourceKey }
+      })
+      upperSelectionBound = { column: targetLeftColumn, row: targetTopRow }
+      lowerSelectionBound = {
+        column: targetLeftColumn + rightColumn - leftColumn,
+        row: targetTopRow + bottomRow - topRow,
+      }
+      moveOffset = { column: 0, row: 0 }
+      drawGrid()
+    }
+
+    function commitMove(copy = false) {
+      if (!upperSelectionBound || !lowerSelectionBound || (moveOffset.column === 0 && moveOffset.row === 0 && !pastedMarkers)) {
+        cancelMove()
+        return
+      }
+      const leftColumn = Math.min(upperSelectionBound.column, lowerSelectionBound.column)
+      const rightColumn = Math.max(upperSelectionBound.column, lowerSelectionBound.column)
+      const topRow = Math.min(upperSelectionBound.row, lowerSelectionBound.row)
+      const bottomRow = Math.max(upperSelectionBound.row, lowerSelectionBound.row)
+      const movingMarkers = pastedMarkers ?? cellSystem.getMarkers().filter((marker) => {
+        const separator = marker.cellKey.indexOf(',')
+        const column = Number(marker.cellKey.slice(0, separator))
+        const row = Number(marker.cellKey.slice(separator + 1))
+        return column >= leftColumn && column <= rightColumn && row >= topRow && row <= bottomRow
+      })
+      const movingKeys = new Set(movingMarkers.map((marker) => marker.cellKey))
+      cellSystem.moveCornerStatesFromUser(movingMarkers.map((marker) => {
+        const separator = marker.cellKey.indexOf(',')
+        const column = Number(marker.cellKey.slice(0, separator))
+        const row = Number(marker.cellKey.slice(separator + 1))
+        const toCellKey = `${column + moveOffset.column},${row + moveOffset.row}`
+        return {
+          fromCellKey: marker.cellKey,
+          state: {
+            corner: marker.corner,
+            isOn: marker.isOn ?? false,
+            sourceKey: marker.sourceKey && movingKeys.has(marker.sourceKey)
+              ? `${Number(marker.sourceKey.slice(0, marker.sourceKey.indexOf(','))) + moveOffset.column},${Number(marker.sourceKey.slice(marker.sourceKey.indexOf(',') + 1)) + moveOffset.row}`
+              : marker.sourceKey ?? null,
+          },
+          toCellKey,
+        }
+      }), pastedMarkers ? false : !copy)
+      upperSelectionBound = { column: upperSelectionBound.column + moveOffset.column, row: upperSelectionBound.row + moveOffset.row }
+      lowerSelectionBound = { column: lowerSelectionBound.column + moveOffset.column, row: lowerSelectionBound.row + moveOffset.row }
+      pastedMarkers = null
+      cancelMove()
+    }
+
+    async function captureSelectedWorld() {
+      if (!upperSelectionBound || !lowerSelectionBound) throw new Error('No selected cells to save.')
+      const leftColumn = Math.min(upperSelectionBound.column, lowerSelectionBound.column)
+      const rightColumn = Math.max(upperSelectionBound.column, lowerSelectionBound.column)
+      const topRow = Math.min(upperSelectionBound.row, lowerSelectionBound.row)
+      const bottomRow = Math.max(upperSelectionBound.row, lowerSelectionBound.row)
+      const cornerMarkers = cellSystem.getMarkers().filter((marker) => {
+        const separator = marker.cellKey.indexOf(',')
+        const column = Number(marker.cellKey.slice(0, separator))
+        const row = Number(marker.cellKey.slice(separator + 1))
+        return column >= leftColumn && column <= rightColumn && row >= topRow && row <= bottomRow
+      })
+      const cellSize = BASE_CELL_SIZE * zoom
+      const previewScale = app.canvas.width / app.renderer.width
+
+      // Do not include the editor-only selection overlay in the saved preview.
+      drawGrid(false)
+      const screenshot = await cropCanvasToBlob(
+        app.canvas,
+        (leftColumn * cellSize + gridOffsetX) * previewScale,
+        (topRow * cellSize + gridOffsetY) * previewScale,
+        (rightColumn - leftColumn + 1) * cellSize * previewScale,
+        (bottomRow - topRow + 1) * cellSize * previewScale,
+      )
+      drawGrid()
+
+      return {
+        screenshot,
+        state: { cornerMarkers, gridOffsetX, gridOffsetY, zoom },
+      }
     }
 
     function resizeCanvas() {
@@ -229,6 +523,28 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       app.canvas.setPointerCapture(event.pointerId)
 
       if (activePointers.size === 1) {
+        const pointerCell = getCellPosition(event)
+        if (moveEnabledRef.current && upperSelectionBound && lowerSelectionBound && (isInsideSelection(pointerCell) || isInsideMoveSilhouette(pointerCell))) {
+          isMovingSelection = true
+          moveStartCell = pointerCell
+          moveStartOffset = { ...moveOffset }
+          hasPanned = false
+          isPanning = false
+          return
+        }
+        if (selectEnabledRef.current && upperSelectionBound && lowerSelectionBound) {
+          const cell = getCellPosition(event)
+          if (isSameCell(cell, upperSelectionBound)) {
+            draggedSelectionBound = 'upper'
+            isPanning = false
+            return
+          }
+          if (isSameCell(cell, lowerSelectionBound)) {
+            draggedSelectionBound = 'lower'
+            isPanning = false
+            return
+          }
+        }
         isPanning = true
         hasPanned = false
         interactionWasPinch = false
@@ -249,6 +565,30 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
         return
       }
 
+      if (isMovingSelection && moveStartCell) {
+        const cell = getCellPosition(event)
+        const nextOffset = {
+          column: moveStartOffset.column + cell.column - moveStartCell.column,
+          row: moveStartOffset.row + cell.row - moveStartCell.row,
+        }
+        if (nextOffset.column !== moveOffset.column || nextOffset.row !== moveOffset.row) {
+          moveOffset = nextOffset
+          drawGrid()
+        }
+        return
+      }
+
+      if (draggedSelectionBound) {
+        const cell = getCellPosition(event)
+        const currentBound = draggedSelectionBound === 'upper' ? upperSelectionBound : lowerSelectionBound
+        if (!isSameCell(cell, currentBound)) {
+          if (draggedSelectionBound === 'upper') upperSelectionBound = cell
+          else lowerSelectionBound = cell
+          drawGrid()
+        }
+        return
+      }
+
       if (!isPanning) return
 
       if (!hasPanned && Math.hypot(event.clientX - lastPointerX, event.clientY - lastPointerY) < PAN_THRESHOLD) return
@@ -262,14 +602,29 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
     }
 
     function handlePointerUp(event: PointerEvent) {
-      const shouldRotateCorner = activePointers.size === 1 && !hasPanned && !interactionWasPinch
+      const shouldSelectCell = activePointers.size === 1 && !hasPanned && !interactionWasPinch && !draggedSelectionBound
+      const shouldRotateCorner = shouldSelectCell
       activePointers.delete(event.pointerId)
       if (app.canvas.hasPointerCapture(event.pointerId)) app.canvas.releasePointerCapture(event.pointerId)
 
-      if (shouldRotateCorner && deleteEnabledRef.current) {
+      if (draggedSelectionBound) {
+        draggedSelectionBound = null
+      } else if (isMovingSelection) {
+        isMovingSelection = false
+        moveStartCell = null
+      } else if (shouldSelectCell && selectEnabledRef.current && !drawEnabledRef.current && !deleteEnabledRef.current) {
+        const cell = getCellPosition(event)
+        if (!upperSelectionBound) upperSelectionBound = cell
+        else if (!lowerSelectionBound) lowerSelectionBound = cell
+        drawGrid()
+      } else if (shouldRotateCorner && deleteEnabledRef.current) {
         deleteCornerMarker(event)
       } else if (shouldRotateCorner && drawEnabledRef.current) {
-        rotateCornerMarker(event)
+        if (selectEnabledRef.current && isInsideSelection(getCellPosition(event))) {
+          rotateSelectedCorners()
+        } else {
+          rotateCornerMarker(event)
+        }
       }
 
       const [remainingPointer] = activePointers.values()
@@ -359,6 +714,33 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       }
 
       app.stage.addChild(grid)
+      redrawRef.current = drawGrid
+      deleteSelectedCellsRef.current = deleteSelectedCells
+      beginPasteRef.current = beginPaste
+      commitMoveRef.current = commitMove
+      cancelMoveRef.current = cancelMove
+      captureSelectedWorldRef.current = captureSelectedWorld
+      setSelectModeRef.current = (enabled) => {
+        if (enabled) {
+          // beginPaste establishes the imported world's full bounds before
+          // React enables Select; keep them instead of creating a 2x2 area.
+          if (pastedMarkers) {
+            drawGrid()
+            return
+          }
+          const cellSize = BASE_CELL_SIZE * zoom
+          const centerColumn = Math.floor((app.renderer.width / 2 - gridOffsetX) / cellSize)
+          const centerRow = Math.floor((app.renderer.height / 2 - gridOffsetY) / cellSize)
+          upperSelectionBound = { column: centerColumn - 1, row: centerRow - 1 }
+          lowerSelectionBound = { column: centerColumn, row: centerRow }
+        } else {
+          upperSelectionBound = null
+          lowerSelectionBound = null
+          draggedSelectionBound = null
+          cancelMove()
+        }
+        if (initialized) drawGrid()
+      }
       captureWorldRef.current = async () => ({
         screenshot: await canvasToBlob(app.canvas),
         state: {
@@ -377,6 +759,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       app.canvas.addEventListener('wheel', handleWheel, { passive: false })
       resizeObserver.observe(stableCanvasContainer)
       resizeCanvas()
+      updateTimer = window.setInterval(processUpdateTick, SANDBOX_TICK_INTERVAL_MS)
     }
 
     void startCanvas()
@@ -385,7 +768,14 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       disposed = true
       resizeObserver.disconnect()
       captureWorldRef.current = null
-      if (updateAnimationFrame !== 0) window.cancelAnimationFrame(updateAnimationFrame)
+      captureSelectedWorldRef.current = null
+      beginPasteRef.current = null
+      deleteSelectedCellsRef.current = null
+      commitMoveRef.current = null
+      cancelMoveRef.current = null
+      setSelectModeRef.current = null
+      redrawRef.current = null
+      window.clearInterval(updateTimer)
       if (cornerAnimationFrame !== 0) window.cancelAnimationFrame(cornerAnimationFrame)
       if (!initialized) return
       app.canvas.removeEventListener('pointerdown', handlePointerDown)

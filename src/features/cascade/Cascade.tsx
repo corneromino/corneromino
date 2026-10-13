@@ -3,7 +3,7 @@ import { Bug, Pause, Play, RotateCcw, Save } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { clearCascadeGameState, loadCascadeGameState, type CascadeGameSaveState } from '@/lib/db'
+import { clearCascadeGameState, loadCascadeGameState, recordCascadeBestScore, type CascadeGameSaveState } from '@/lib/db'
 import type { CascadeCorner, CascadeCornerSpawnMode } from './cascadeGame'
 import { CascadeCanvas, type CascadeCanvasHandle } from './CascadeCanvas'
 
@@ -11,19 +11,21 @@ interface CascadeConfig {
   cornerSpawnMode: CascadeCornerSpawnMode
   getFallIntervalMs: (gameState: CascadeGameSaveState) => number
   gridSize: { columns: number; rows: number }
+  scoreContinueIncrementAnimationStep: number
   scoreIncrementAnimationStep: number
   scorePointsPerLockedCorneromino: number
   scorePointsPerLine: number
 }
 
 const CASCADE_CONFIG: CascadeConfig = {
-  cornerSpawnMode: 'random',
+  cornerSpawnMode: 'sequential',
   gridSize: { columns: 9, rows: 18 },
   getFallIntervalMs: (gameState) => {
     const speedMultiplier = 1 + Math.log1p(gameState.destroyedLineCount ?? 0) * 0.25
     return Math.max(250, Math.round(1000 / speedMultiplier))
   },
-  scoreIncrementAnimationStep: 1,
+  scoreContinueIncrementAnimationStep: 100,
+  scoreIncrementAnimationStep: 3,
   scorePointsPerLockedCorneromino: 10,
   scorePointsPerLine: 100,
 }
@@ -69,13 +71,14 @@ function CornerPreview(props: { corner: CascadeCorner }) {
   )
 }
 
-export function Cascade() {
+export function Cascade(props: { startNew?: boolean }) {
   const canvasRef = useRef<CascadeCanvasHandle>(null)
   const preserveGameOnExitRef = useRef(false)
   const navigate = useNavigate()
   const [gameVersion, setGameVersion] = useState(0)
   const [initialState, setInitialState] = useState<CascadeGameSaveState | null | undefined>(undefined)
   const [isPaused, setIsPaused] = useState(false)
+  const [scoreAnimationStep, setScoreAnimationStep] = useState(CASCADE_CONFIG.scoreIncrementAnimationStep)
   const [stats, setStats] = useState<{ destroyedLineCount: number; lockedCornerominoCount: number; score: number; upcomingCorners: CascadeCorner[] }>({
     destroyedLineCount: 0,
     lockedCornerominoCount: 0,
@@ -85,6 +88,17 @@ export function Cascade() {
 
   useEffect(() => {
     let active = true
+    if (props.startNew) {
+      void clearCascadeGameState().then(() => {
+        if (!active) return
+        setInitialState(null)
+        setStats({ destroyedLineCount: 0, lockedCornerominoCount: 0, score: 0, upcomingCorners: [] })
+        setScoreAnimationStep(CASCADE_CONFIG.scoreIncrementAnimationStep)
+      })
+      return () => {
+        active = false
+      }
+    }
     void loadCascadeGameState().then((state) => {
       if (!active) return
       setInitialState(state)
@@ -94,11 +108,18 @@ export function Cascade() {
         score: state?.score ?? 0,
         upcomingCorners: state?.gameState.upcomingCorners ?? [],
       })
+      setScoreAnimationStep(state?.score
+        ? CASCADE_CONFIG.scoreContinueIncrementAnimationStep
+        : CASCADE_CONFIG.scoreIncrementAnimationStep)
     })
     return () => {
       active = false
     }
-  }, [])
+  }, [props.startNew])
+
+  useEffect(() => {
+    void recordCascadeBestScore(stats.score)
+  }, [stats.score])
 
   async function copyDebugState() {
     if (!canvasRef.current || !navigator.clipboard) return
@@ -125,13 +146,14 @@ export function Cascade() {
     setInitialState(null)
     setIsPaused(false)
     setStats({ destroyedLineCount: 0, lockedCornerominoCount: 0, score: 0, upcomingCorners: [] })
+    setScoreAnimationStep(CASCADE_CONFIG.scoreIncrementAnimationStep)
     setGameVersion((version) => version + 1)
   }
 
   async function saveAndQuit() {
     await canvasRef.current?.save()
     preserveGameOnExitRef.current = true
-    navigate('/')
+    navigate('/cascade')
   }
 
   useEffect(() => {
@@ -166,7 +188,7 @@ export function Cascade() {
       <div className="flex min-h-0 flex-1 flex-col gap-2 px-1">
         <section aria-label="Cascade score" className="flex h-10 shrink-0 items-center bg-[var(--outline-color)] px-4 text-[var(--canvas)]">
           <p className="poster-kicker text-[22px]">Score</p>
-          <p className="ml-auto text-[22px] leading-none"><AnimatedScore step={CASCADE_CONFIG.scoreIncrementAnimationStep} targetScore={stats.score} /></p>
+          <p className="ml-auto text-[22px] leading-none"><AnimatedScore step={scoreAnimationStep} targetScore={stats.score} /></p>
         </section>
         <div className="flex min-h-0 flex-1 gap-2">
           <section aria-label="Cascade board" className="relative min-h-0 min-w-0 flex-1 border-4 border-[var(--grid-border-color)] bg-[var(--grid-border-color)]">

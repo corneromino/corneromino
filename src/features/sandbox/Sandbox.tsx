@@ -3,6 +3,7 @@ import { ArrowLeft, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { deleteSandboxWorld, loadSandboxWorlds, type SavedSandboxWorld } from '@/lib/db'
+import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
 
 function formatSavedAt(savedAt: number): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -11,7 +12,11 @@ function formatSavedAt(savedAt: number): string {
   }).format(savedAt)
 }
 
-function SandboxWorldCard(props: { world: SavedSandboxWorld; onDelete: (world: SavedSandboxWorld) => void }) {
+export function SandboxWorldCard(props: {
+  world: SavedSandboxWorld
+  onDelete?: (world: SavedSandboxWorld) => void
+  onSelect?: (world: SavedSandboxWorld) => void
+}) {
   const [screenshotUrl, setScreenshotUrl] = useState('')
 
   useEffect(() => {
@@ -23,29 +28,45 @@ function SandboxWorldCard(props: { world: SavedSandboxWorld; onDelete: (world: S
 
   return (
     <article className="saved-game-card flex gap-3 p-2 text-[var(--canvas-foreground)]">
-      <Link className="flex min-w-0 flex-1 gap-3" to={`/sandbox/${props.world.id}`}>
-        {screenshotUrl &&
-          <img
-            alt={`Saved sandbox world: ${props.world.name}`}
-            className="h-auto w-28 shrink-0 self-start border-[#773526] border-4"
-            src={screenshotUrl}
-          />
-        }
-        <div className="min-w-0 py-1">
-          <h2 className="text-[22px] font-black uppercase">{props.world.name}</h2>
-          <p className="poster-kicker mt-2 text-[11px] text-[var(--muted-text-color)]">{formatSavedAt(props.world.savedAt)}</p>
-        </div>
-      </Link>
-      <Button
+      {props.onSelect ? (
+        <button className="flex min-w-0 flex-1 gap-3 text-left" onClick={() => props.onSelect?.(props.world)} type="button">
+          {screenshotUrl &&
+            <img
+              alt={`Saved sandbox world: ${props.world.name}`}
+              className="h-auto w-28 shrink-0 self-start border-[#773526] border-4"
+              src={screenshotUrl}
+            />
+          }
+          <div className="min-w-0 py-1">
+            <h2 className="text-[22px] font-black uppercase">{props.world.name}</h2>
+            <p className="poster-kicker mt-2 text-[11px] text-[var(--muted-text-color)]">{formatSavedAt(props.world.savedAt)}</p>
+          </div>
+        </button>
+      ) : (
+        <Link className="flex min-w-0 flex-1 gap-3" to={`/sandbox/${props.world.id}`}>
+          {screenshotUrl &&
+            <img
+              alt={`Saved sandbox world: ${props.world.name}`}
+              className="h-auto w-28 shrink-0 self-start border-[#773526] border-4"
+              src={screenshotUrl}
+            />
+          }
+          <div className="min-w-0 py-1">
+            <h2 className="text-[22px] font-black uppercase">{props.world.name}</h2>
+            <p className="poster-kicker mt-2 text-[11px] text-[var(--muted-text-color)]">{formatSavedAt(props.world.savedAt)}</p>
+          </div>
+        </Link>
+      )}
+      {props.onDelete && <Button
         aria-label={`Delete ${props.world.name}`}
         className="cartoon-press size-9 shrink-0 self-end text-[var(--coral)]"
-        onClick={() => props.onDelete(props.world)}
+        onClick={() => props.onDelete?.(props.world)}
         size="icon"
         title="Delete world"
         type="button"
       >
         <Trash2 aria-hidden="true" />
-      </Button>
+      </Button>}
     </article>
   )
 }
@@ -77,6 +98,7 @@ export function Sandbox() {
 
   return (
     <main className="poster-page relative flex h-dvh flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
+      <TetrominoBackground />
       <header className="relative z-10 mx-auto flex w-full max-w-[550px] items-center justify-between gap-3 px-5 pb-6">
         <div className="min-w-0">
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
