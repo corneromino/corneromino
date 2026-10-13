@@ -34,6 +34,7 @@ export interface CascadeLockedCell {
 export interface CascadeLockedRowResolution {
   clearedCellKeys: string[]
   gravityMoves: CascadeGravityMove[]
+  lockedCells: CascadeLockedCell[]
   state: CascadeGameState
 }
 
@@ -159,20 +160,17 @@ export function resolveCascadeLockedRows(
   const clearedRows = Array.from({ length: gridSize.rows }, (_, row) => row).filter((row) => (
     Array.from({ length: gridSize.columns }, (_, column) => lockedCellKeys.has(`${column},${row}`)).every(Boolean)
   ))
-  if (clearedRows.length === 0) return { clearedCellKeys: [], gravityMoves: [], state }
+  if (clearedRows.length === 0) return { clearedCellKeys: [], gravityMoves: [], lockedCells: [...lockedCells], state }
 
   const clearedRowSet = new Set(clearedRows)
   const clearedCellKeys = lockedCells.filter((cell) => clearedRowSet.has(Number(cell.cellKey.split(',')[1]))).map((cell) => cell.cellKey)
-  const remainingLockedCells = new Map(
-    lockedCells
-      .filter((cell) => !clearedRowSet.has(Number(cell.cellKey.split(',')[1])))
-      .map((cell) => [cell.cellKey, cell.groupId]),
-  )
+  const remainingLockedCells = splitLockedFragments(lockedCells.filter((cell) => !clearedRowSet.has(Number(cell.cellKey.split(',')[1]))))
+  const remainingLockedCellGroups = new Map(remainingLockedCells.map((cell) => [cell.cellKey, cell.groupId]))
   const entries = state.settledPieces
     .filter((piece) => !clearedRowSet.has(piece.row))
     .map((piece) => {
       const originalCellKey = `${piece.column},${piece.row}`
-      return { bodyId: remainingLockedCells.get(originalCellKey) ?? originalCellKey, originalCellKey, piece }
+      return { bodyId: remainingLockedCellGroups.get(originalCellKey) ?? originalCellKey, originalCellKey, piece }
     })
   const gravityMoves = new Map<string, string>()
   let hasMoved = true
@@ -218,10 +216,53 @@ export function resolveCascadeLockedRows(
   return {
     clearedCellKeys,
     gravityMoves: [...gravityMoves].map(([fromCellKey, toCellKey]) => ({ fromCellKey, toCellKey })),
+    lockedCells: remainingLockedCells,
     state: {
       ...state,
       settledPieces: entries.map((entry) => entry.piece),
     },
   }
+}
+
+function splitLockedFragments(lockedCells: readonly CascadeLockedCell[]): CascadeLockedCell[] {
+  const cellsByGroup = new Map<string, CascadeLockedCell[]>()
+  for (const cell of lockedCells) {
+    const group = cellsByGroup.get(cell.groupId) ?? []
+    group.push(cell)
+    cellsByGroup.set(cell.groupId, group)
+  }
+
+  return [...cellsByGroup].flatMap(([groupId, groupCells]) => {
+    const cellsByKey = new Map(groupCells.map((cell) => [cell.cellKey, cell]))
+    const fragments: CascadeLockedCell[][] = []
+
+    while (cellsByKey.size > 0) {
+      const [startingCell] = cellsByKey.values()
+      if (!startingCell) break
+      const fragment: CascadeLockedCell[] = []
+      const pendingCells = [startingCell]
+      cellsByKey.delete(startingCell.cellKey)
+
+      while (pendingCells.length > 0) {
+        const cell = pendingCells.pop()
+        if (!cell) continue
+        fragment.push(cell)
+        const [column, row] = cell.cellKey.split(',').map(Number)
+        for (const adjacentKey of [`${column - 1},${row}`, `${column + 1},${row}`, `${column},${row - 1}`, `${column},${row + 1}`]) {
+          const adjacentCell = cellsByKey.get(adjacentKey)
+          if (!adjacentCell) continue
+          cellsByKey.delete(adjacentKey)
+          pendingCells.push(adjacentCell)
+        }
+      }
+
+      fragments.push(fragment)
+    }
+
+    return fragments.flatMap((fragment, index) => fragment.map((cell) => ({
+      ...cell,
+      groupId: fragments.length === 1 ? groupId : `${groupId}:fragment:${index + 1}`,
+    })))
+  })
 }
 import { isTetrominoShape } from '@/game/tetrominoes'

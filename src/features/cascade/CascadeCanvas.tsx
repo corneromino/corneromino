@@ -20,14 +20,19 @@ const LOCKED_CELL_COLORS = [0x55c7df, 0x8270d8, 0xbe69d6, 0xde5d9b, 0xe4555c, 0x
 
 interface CascadeCanvasProps {
   cornerSpawnMode: CascadeCornerSpawnMode
-  fallIntervalMs: number
+  getFallIntervalMs: (gameState: CascadeGameSaveState) => number
   gridSize: CascadeGridSize
   initialState: CascadeGameSaveState | null
-  onStatsChange: (stats: { destroyedLineCount: number; lockedCornerominoCount: number; upcomingCorners: CascadeCorner[] }) => void
+  onStatsChange: (stats: { destroyedLineCount: number; lockedCornerominoCount: number; score: number; upcomingCorners: CascadeCorner[] }) => void
+  scorePointsPerLockedCorneromino: number
+  scorePointsPerLine: number
 }
 
 export interface CascadeCanvasHandle {
   exportDebugState: () => string
+  pause: () => void
+  resume: () => void
+  save: () => Promise<void>
 }
 
 interface BoardMetrics {
@@ -62,8 +67,10 @@ function drawCorneromino(graphics: Graphics, corner: CascadeCorner, cellSize: nu
   const markerY = corner === 2 || corner === 3 ? cellSize - padding - markerSize : padding
 
   if (lockedColor !== undefined) {
+    const lockedCellInset = borderWidth * 1.5
+    graphics.rect(0, 0, cellSize, cellSize).fill({ color: CELL_BORDER_COLOR })
     graphics
-      .rect(borderWidth / 2, borderWidth / 2, cellSize - borderWidth, cellSize - borderWidth)
+      .rect(lockedCellInset, lockedCellInset, cellSize - lockedCellInset * 2, cellSize - lockedCellInset * 2)
       .fill({ color: lockedColor })
     graphics.rect(markerX, markerY, markerSize, markerSize).fill({ color: CORNER_MARKER_COLOR })
     return
@@ -85,11 +92,20 @@ function drawCorneromino(graphics: Graphics, corner: CascadeCorner, cellSize: nu
 export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>(function CascadeCanvas(props, ref) {
   const containerRef = useRef<HTMLDivElement>(null)
   const exportDebugStateRef = useRef<(() => string) | null>(null)
+  const pauseRef = useRef<(() => void) | null>(null)
+  const resumeRef = useRef<(() => void) | null>(null)
+  const saveRef = useRef<(() => Promise<void>) | null>(null)
 
   useImperativeHandle(ref, () => ({
     exportDebugState: () => {
       if (!exportDebugStateRef.current) throw new Error('Cascade canvas is not ready.')
       return exportDebugStateRef.current()
+    },
+    pause: () => pauseRef.current?.(),
+    resume: () => resumeRef.current?.(),
+    save: async () => {
+      if (!saveRef.current) throw new Error('Cascade canvas is not ready.')
+      await saveRef.current()
     },
   }), [])
 
@@ -114,11 +130,14 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     const lockedPieceGroupIds = new Map(lockedPieces.map((piece) => [piece.cellKey, piece.groupId]))
     let destroyedLineCount = props.initialState?.destroyedLineCount ?? 0
     let lockedCornerominoCount = props.initialState?.lockedCornerominoCount ?? lockedPieceColors.size
+    let score = props.initialState?.score ?? 0
     const lockWaves = new Set<ShockwaveFilter>()
     let disposed = false
     let initialized = false
     let gameState: CascadeGameState = props.initialState?.gameState ?? createCascadeGame()
-    let elapsedSinceFall = props.initialState?.elapsedSinceFall ?? props.fallIntervalMs
+    let elapsedSinceFall = props.initialState?.elapsedSinceFall ?? 0
+    let fallIntervalMs = 0
+    let isPaused = false
     let swipeStart: { x: number; y: number } | null = null
     let horizontalSwipePosition = 0
     let hasMovedHorizontally = false
@@ -131,22 +150,47 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       selectedPieceKeys.delete(pieceKey)
     }
 
-    function persistGameState() {
-      const state: CascadeGameSaveState = {
+    function getCurrentSaveState(): CascadeGameSaveState {
+      return {
         destroyedLineCount,
         elapsedSinceFall,
         gameState,
         lockedCornerominoCount,
         lockedPieces: [...lockedPieceColors].map(([cellKey, color]) => ({ cellKey, color, groupId: lockedPieceGroupIds.get(cellKey) ?? `legacy:${cellKey}` })),
+        score,
         selectedPieceKeys: [...selectedPieceKeys],
       }
+    }
+
+    fallIntervalMs = props.getFallIntervalMs(getCurrentSaveState())
+    if (props.initialState?.elapsedSinceFall === undefined) elapsedSinceFall = fallIntervalMs
+
+    function persistGameState() {
+      const state = getCurrentSaveState()
       void saveCascadeGameState(state)
     }
+
+    function pauseGame() {
+      isPaused = true
+      persistGameState()
+    }
+
+    function resumeGame() {
+      isPaused = false
+    }
+
+    async function saveGame() {
+      await saveCascadeGameState(getCurrentSaveState())
+    }
+
+    pauseRef.current = pauseGame
+    resumeRef.current = resumeGame
+    saveRef.current = saveGame
 
     exportDebugStateRef.current = () => JSON.stringify({
       config: {
         cornerSpawnMode: props.cornerSpawnMode,
-        fallIntervalMs: props.fallIntervalMs,
+        fallIntervalMs,
         gridSize: props.gridSize,
       },
       destroyedLineCount,
@@ -158,6 +202,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         groupId: lockedPieceGroupIds.get(cellKey) ?? `legacy:${cellKey}`,
       })),
       lockedCornerominoCount,
+      score,
       selectedPieceKeys: [...selectedPieceKeys],
       version: 1,
     }, null, 2)
@@ -166,6 +211,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       props.onStatsChange({
         destroyedLineCount,
         lockedCornerominoCount,
+        score,
         upcomingCorners: [...(gameState.upcomingCorners ?? [])],
       })
     }
@@ -215,8 +261,9 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       renderedPiece.shine.mask = isLocked ? renderedPiece.shineMask : null
       if (!isLocked) return
 
+      const lockedCellInset = borderWidth * 1.5
       renderedPiece.shineMask
-        .rect(borderWidth / 2, borderWidth / 2, cellSize - borderWidth, cellSize - borderWidth)
+        .rect(lockedCellInset, lockedCellInset, cellSize - lockedCellInset * 2, cellSize - lockedCellInset * 2)
         .fill({ color: 0xffffff })
       const stripeHeight = cellSize * 3
       renderedPiece.shine
@@ -381,14 +428,16 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     }
 
     function update(ticker: { deltaMS: number }) {
+      if (isPaused) return
       elapsedSinceFall += ticker.deltaMS
-      while (elapsedSinceFall >= props.fallIntervalMs) {
-        elapsedSinceFall -= props.fallIntervalMs
+      while (elapsedSinceFall >= fallIntervalMs) {
+        elapsedSinceFall -= fallIntervalMs
         setGameState(advanceCascadeGame(gameState, props.gridSize, Math.random, props.cornerSpawnMode))
       }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
+      if (isPaused) return
       if (event.target instanceof HTMLInputElement) return
       if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'ArrowDown') return
 
@@ -401,6 +450,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     }
 
     function handlePointerDown(event: PointerEvent) {
+      if (isPaused) return
       swipeStart = { x: event.clientX, y: event.clientY }
       horizontalSwipePosition = event.clientX
       hasMovedHorizontally = false
@@ -408,6 +458,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     }
 
     function handlePointerMove(event: PointerEvent) {
+      if (isPaused) return
       if (!swipeStart) return
 
       const totalDeltaX = event.clientX - swipeStart.x
@@ -427,6 +478,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     }
 
     function handlePointerUp(event: PointerEvent) {
+      if (isPaused) return
       if (!swipeStart) return
 
       const deltaX = event.clientX - swipeStart.x
@@ -489,6 +541,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         lockedPieceColors.set(pieceKey, lockedColor)
         lockedPieceGroupIds.set(pieceKey, lockGroupId)
       }
+      score += props.scorePointsPerLockedCorneromino
       selectedPieceKeys.clear()
       const resolution = resolveCascadeLockedRows(
         gameState,
@@ -499,6 +552,9 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         lockedPieceColors.delete(cellKey)
         lockedPieceGroupIds.delete(cellKey)
         removeRenderedPiece(cellKey)
+      }
+      for (const lockedCell of resolution.lockedCells) {
+        lockedPieceGroupIds.set(lockedCell.cellKey, lockedCell.groupId)
       }
       const movedLockedPieces = resolution.gravityMoves.flatMap((move) => {
         const color = lockedPieceColors.get(move.fromCellKey)
@@ -515,7 +571,12 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       }
       applyGravityMoves(resolution.gravityMoves)
       gameState = resolution.state
-      destroyedLineCount += new Set(resolution.clearedCellKeys.map((cellKey) => cellKey.split(',')[1])).size
+      const clearedLineCount = new Set(resolution.clearedCellKeys.map((cellKey) => cellKey.split(',')[1])).size
+      for (let line = 0; line < clearedLineCount; line += 1) {
+        destroyedLineCount += 1
+        score += props.scorePointsPerLine
+        fallIntervalMs = props.getFallIntervalMs(getCurrentSaveState())
+      }
       lockedCornerominoCount = lockedPieceColors.size
       notifyStats()
       playLockShake(selectedPieces)
@@ -651,6 +712,9 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     return () => {
       disposed = true
       exportDebugStateRef.current = null
+      pauseRef.current = null
+      resumeRef.current = null
+      saveRef.current = null
       resizeObserver.disconnect()
       window.removeEventListener('keydown', handleKeyDown)
       if (initialized) {
@@ -677,7 +741,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         app.destroy(true)
       }
     }
-  }, [props.cornerSpawnMode, props.fallIntervalMs, props.gridSize.columns, props.gridSize.rows])
+  }, [props.cornerSpawnMode, props.getFallIntervalMs, props.gridSize.columns, props.gridSize.rows, props.scorePointsPerLine, props.scorePointsPerLockedCorneromino])
 
   return <div className="size-full" ref={containerRef} />
 })

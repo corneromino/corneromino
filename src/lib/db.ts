@@ -42,6 +42,7 @@ export interface CascadeGameSaveState {
   /** Backwards compatibility for Cascade saves created before lock groups existed. */
   lockedPieceColors?: Array<{ cellKey: string; color: number }>
   lockedCornerominoCount?: number
+  score?: number
   selectedPieceKeys: string[]
 }
 
@@ -99,6 +100,7 @@ function isCascadeGameSaveState(value: unknown): value is CascadeGameSaveState {
     ))))
     && ('lockedPieces' in value || 'lockedPieceColors' in value)
     && (!('lockedCornerominoCount' in value) || (typeof value.lockedCornerominoCount === 'number' && value.lockedCornerominoCount >= 0))
+    && (!('score' in value) || (typeof value.score === 'number' && value.score >= 0))
     && 'selectedPieceKeys' in value && Array.isArray(value.selectedPieceKeys) && value.selectedPieceKeys.every((cellKey) => typeof cellKey === 'string')
 }
 

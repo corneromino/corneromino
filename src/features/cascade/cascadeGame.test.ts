@@ -121,6 +121,32 @@ describe('Cascade game', () => {
     ]))
   })
 
+  it('splits disconnected locked remnants into independent falling bodies', () => {
+    const resolution = resolveCascadeLockedRows({
+      activePiece: null,
+      settledPieces: [
+        { column: 0, corner: 0, row: 1 },
+        { column: 0, corner: 1, row: 2 },
+        { column: 1, corner: 2, row: 2 },
+        { column: 0, corner: 3, row: 3 },
+      ],
+    }, { columns: 2, rows: 4 }, [
+      { cellKey: '0,1', groupId: 'split-group' },
+      { cellKey: '0,2', groupId: 'clear' },
+      { cellKey: '1,2', groupId: 'clear' },
+      { cellKey: '0,3', groupId: 'split-group' },
+    ])
+
+    expect(resolution.state.settledPieces).toEqual(expect.arrayContaining([
+      { column: 0, corner: 0, row: 2 },
+      { column: 0, corner: 3, row: 3 },
+    ]))
+    expect(resolution.lockedCells).toEqual(expect.arrayContaining([
+      { cellKey: '0,1', groupId: 'split-group:fragment:1' },
+      { cellKey: '0,3', groupId: 'split-group:fragment:2' },
+    ]))
+  })
+
   it('only accepts a tetromino with four unique corners as a lock selection', () => {
     expect(isValidCascadeLockSelection([
       { column: 0, corner: 0, row: 0 },
