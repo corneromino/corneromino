@@ -18,7 +18,7 @@ interface CascadeConfig {
 }
 
 const CASCADE_CONFIG: CascadeConfig = {
-  cornerSpawnMode: 'sequential',
+  cornerSpawnMode: 'random',
   gridSize: { columns: 9, rows: 18 },
   getFallIntervalMs: (gameState) => {
     const speedMultiplier = 1 + Math.log1p(gameState.destroyedLineCount ?? 0) * 0.25
