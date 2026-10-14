@@ -68,7 +68,7 @@ export function SandboxWorld() {
       if (!overwriteWorldId) {
         const currentWorldId = saveSelection ? null : savedWorldId
         const matchingWorld = (await loadSandboxWorlds()).find((world) => (
-          world.id !== currentWorldId && world.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase()
+          world.id !== currentWorldId && world.name === name
         ))
         if (matchingWorld) {
           setOverwriteWorld(matchingWorld)

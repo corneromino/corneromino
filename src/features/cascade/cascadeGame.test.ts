@@ -23,6 +23,50 @@ describe('Cascade game', () => {
     expect(nextState.activePiece).toEqual({ column: 0, corner: 1, row: 1 })
   })
 
+  it('provides all four corners in each aligned group of four at zero difficulty', () => {
+    let state = createCascadeGame()
+    const corners: number[] = []
+    for (let index = 0; index < 40; index += 1) {
+      state = advanceCascadeGame({ ...state, activePiece: null }, gridSize, () => 0.6, 'balanced', 0)
+      corners.push(state.activePiece!.corner)
+    }
+    for (let index = 0; index < corners.length; index += 4) {
+      expect(corners.slice(index, index + 4).sort()).toEqual([0, 1, 2, 3])
+    }
+  })
+
+  it('allows fully random repeats at maximum difficulty without consuming the bag', () => {
+    const state = advanceCascadeGame({ ...createCascadeGame(), cornerBag: [0, 1] }, gridSize, () => 0.6, 'balanced', 1)
+    expect(state.activePiece?.corner).toBe(2)
+    expect(state.upcomingCorners).toEqual([2, 2, 2])
+    expect(state.cornerBag).toEqual([0, 1])
+  })
+
+  it('mixes random draws and bag draws at the configured probability', () => {
+    const initial: CascadeGameState = { ...createCascadeGame(), cornerBag: [0, 1, 2, 3] }
+    // Spawn column, then random branch + corner, bag branch, random branch + corner, bag branch.
+    const draws = [0, 0.1, 0.6, 0.8, 0.2, 0.6, 0.9]
+    const state = advanceCascadeGame(initial, gridSize, () => draws.shift()!, 'balanced', 0.25)
+    expect([state.activePiece?.corner, ...state.upcomingCorners!]).toEqual([2, 3, 2, 2])
+    expect(state.cornerBag).toEqual([0, 1])
+    expect(initial.cornerBag).toEqual([0, 1, 2, 3])
+    expect(draws).toEqual([])
+  })
+
+  it('preserves the preview queue and remaining bag through save/restore and dropping', () => {
+    let state = advanceCascadeGame(createCascadeGame(), gridSize, () => 0.6, 'balanced', 0)
+    state = advanceCascadeGame({ ...state, activePiece: null }, gridSize, () => 0.6, 'balanced', 0)
+    expect(state.cornerBag).toHaveLength(3)
+    const restored: CascadeGameState = JSON.parse(JSON.stringify(state))
+    const dropped = dropCascadePiece(restored, gridSize)
+    expect(dropped.cornerBag).toEqual(state.cornerBag)
+    expect(dropped.upcomingCorners).toEqual(state.upcomingCorners)
+    const next = advanceCascadeGame(dropped, gridSize, () => 0.6, 'balanced', 0)
+    expect(next.activePiece?.corner).toBe(state.upcomingCorners![0])
+    expect(next.upcomingCorners).toEqual([...state.upcomingCorners!.slice(1), state.cornerBag!.at(-1)])
+    expect(next.cornerBag).toEqual(state.cornerBag!.slice(0, -1))
+  })
+
   it('stacks a corneromino when it reaches the floor or another piece', () => {
     const onFloor = advanceCascadeGame({ activePiece: { column: 0, corner: 1, row: 2 }, settledPieces: [] }, gridSize)
     const onPiece = advanceCascadeGame({

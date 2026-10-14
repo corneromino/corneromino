@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Trash2 } from 'lucide-react'
+import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { deleteSandboxWorld, loadSandboxWorlds, type SavedSandboxWorld } from '@/lib/db'
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { deleteSandboxWorld, loadSandboxWorlds, saveSandboxWorld, type SavedSandboxWorld } from '@/lib/db'
 import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
 
 function formatSavedAt(savedAt: number): string {
@@ -15,6 +16,7 @@ function formatSavedAt(savedAt: number): string {
 export function SandboxWorldCard(props: {
   world: SavedSandboxWorld
   onDelete?: (world: SavedSandboxWorld) => void
+  onRename?: (world: SavedSandboxWorld) => void
   onSelect?: (world: SavedSandboxWorld) => void
 }) {
   const [screenshotUrl, setScreenshotUrl] = useState('')
@@ -38,35 +40,53 @@ export function SandboxWorldCard(props: {
             />
           }
           <div className="min-w-0 py-1">
-            <h2 className="text-[22px] font-black uppercase">{props.world.name}</h2>
+            <h2 className="max-w-full overflow-x-auto whitespace-nowrap text-[22px] font-black">{props.world.name}</h2>
             <p className="poster-kicker mt-2 text-[11px] text-[var(--muted-text-color)]">{formatSavedAt(props.world.savedAt)}</p>
           </div>
         </button>
       ) : (
-        <Link className="flex min-w-0 flex-1 gap-3" to={`/sandbox/${props.world.id}`}>
-          {screenshotUrl &&
-            <img
-              alt={`Saved sandbox world: ${props.world.name}`}
-              className="h-auto w-28 shrink-0 self-start border-[#773526] border-4"
-              src={screenshotUrl}
-            />
-          }
-          <div className="min-w-0 py-1">
-            <h2 className="text-[22px] font-black uppercase">{props.world.name}</h2>
-            <p className="poster-kicker mt-2 text-[11px] text-[var(--muted-text-color)]">{formatSavedAt(props.world.savedAt)}</p>
+        <>
+          <Link className="w-28 shrink-0 self-start" to={`/sandbox/${props.world.id}`}>
+            {screenshotUrl &&
+              <img
+                alt={`Saved sandbox world: ${props.world.name}`}
+                className="h-auto w-full border-[#773526] border-4"
+                src={screenshotUrl}
+              />
+            }
+          </Link>
+          <div className="flex min-w-0 flex-1 flex-col py-1">
+            <Link className="min-w-0" to={`/sandbox/${props.world.id}`}>
+              <h2 className="max-w-full overflow-x-auto whitespace-nowrap text-[22px] font-black">{props.world.name}</h2>
+              <p className="poster-kicker mt-2 text-[11px] text-[var(--muted-text-color)]">{formatSavedAt(props.world.savedAt)}</p>
+            </Link>
+            {(props.onRename || props.onDelete) && (
+              <div className="mt-2 flex gap-2">
+                {props.onRename && <Button
+                  aria-label={`Rename ${props.world.name}`}
+                  className="cartoon-press size-9 text-[var(--canvas-foreground)]"
+                  onClick={() => props.onRename?.(props.world)}
+                  size="icon"
+                  title="Rename world"
+                  type="button"
+                >
+                  <Pencil aria-hidden="true" />
+                </Button>}
+                {props.onDelete && <Button
+                  aria-label={`Delete ${props.world.name}`}
+                  className="cartoon-press size-9 text-[var(--coral)]"
+                  onClick={() => props.onDelete?.(props.world)}
+                  size="icon"
+                  title="Delete world"
+                  type="button"
+                >
+                  <Trash2 aria-hidden="true" />
+                </Button>}
+              </div>
+            )}
           </div>
-        </Link>
+        </>
       )}
-      {props.onDelete && <Button
-        aria-label={`Delete ${props.world.name}`}
-        className="cartoon-press size-9 shrink-0 self-end text-[var(--coral)]"
-        onClick={() => props.onDelete?.(props.world)}
-        size="icon"
-        title="Delete world"
-        type="button"
-      >
-        <Trash2 aria-hidden="true" />
-      </Button>}
     </article>
   )
 }
@@ -74,10 +94,34 @@ export function SandboxWorldCard(props: {
 export function Sandbox() {
   const [savedWorlds, setSavedWorlds] = useState<SavedSandboxWorld[]>([])
   const [loading, setLoading] = useState(true)
+  const [renameError, setRenameError] = useState('')
+  const [renamingWorld, setRenamingWorld] = useState<SavedSandboxWorld | null>(null)
+  const [worldName, setWorldName] = useState('')
 
   async function deleteWorld(world: SavedSandboxWorld) {
     await deleteSandboxWorld(world.id)
     setSavedWorlds((worlds) => worlds.filter((savedWorld) => savedWorld.id !== world.id))
+  }
+
+  function beginRename(world: SavedSandboxWorld) {
+    setRenamingWorld(world)
+    setWorldName(world.name)
+    setRenameError('')
+  }
+
+  async function renameWorld() {
+    if (!renamingWorld) return
+    const name = worldName.trim()
+    if (!name) return
+    if (savedWorlds.some((world) => world.id !== renamingWorld.id && world.name === name)) {
+      setRenameError('A world with this name already exists.')
+      return
+    }
+
+    const renamedWorld = { ...renamingWorld, name }
+    await saveSandboxWorld(renamedWorld)
+    setSavedWorlds((worlds) => worlds.map((world) => world.id === renamedWorld.id ? renamedWorld : world))
+    setRenamingWorld(null)
   }
 
   useEffect(() => {
@@ -116,11 +160,45 @@ export function Sandbox() {
           {loading && <p className="poster-kicker text-center text-[11px] text-[var(--muted-text-color)]">Loading worlds…</p>}
           {!loading && savedWorlds.length > 0 && (
             <div className="grid gap-4 pb-1">
-              {savedWorlds.map((world) => <SandboxWorldCard key={world.id} onDelete={deleteWorld} world={world} />)}
+              {savedWorlds.map((world) => <SandboxWorldCard key={world.id} onDelete={deleteWorld} onRename={beginRename} world={world} />)}
             </div>
           )}
         </div>
       </section>
+      <Dialog onOpenChange={(open) => {
+        if (!open) setRenamingWorld(null)
+      }} open={renamingWorld !== null}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename world</DialogTitle>
+            <DialogDescription>Choose a unique name for this sandbox world.</DialogDescription>
+          </DialogHeader>
+          <label className="poster-kicker mt-5 block text-[11px] text-[var(--muted-text-color)]">
+            World name
+            <input
+              autoFocus
+              className="mt-2 h-[42px] w-full border border-[var(--outline-color)] bg-[var(--paper-muted)] px-3 text-[11px] text-[var(--canvas-foreground)] outline-none focus:border-[var(--canvas-foreground)]"
+              onChange={(event) => {
+                setWorldName(event.target.value)
+                setRenameError('')
+              }}
+              type="text"
+              value={worldName}
+            />
+          </label>
+          {renameError && <p className="mt-3 text-[11px] text-[var(--coral)]" role="alert">{renameError}</p>}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={!worldName.trim()} onClick={() => void renameWorld()} size="lg" type="button">
+              Rename
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }

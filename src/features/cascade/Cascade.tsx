@@ -8,6 +8,7 @@ import type { CascadeCorner, CascadeCornerSpawnMode } from './cascadeGame'
 import { CascadeCanvas, type CascadeCanvasHandle } from './CascadeCanvas'
 
 interface CascadeConfig {
+  cornerDifficulty: number
   cornerSpawnMode: CascadeCornerSpawnMode
   getFallIntervalMs: (gameState: CascadeGameSaveState) => number
   gridSize: { columns: number; rows: number }
@@ -18,10 +19,12 @@ interface CascadeConfig {
 }
 
 const CASCADE_CONFIG: CascadeConfig = {
-  cornerSpawnMode: 'random',
+  // Balanced mode: 0 = shuffled four-corner bags, 1 = fully random.
+  cornerDifficulty: 0.20,
+  cornerSpawnMode: 'balanced',
   gridSize: { columns: 9, rows: 18 },
   getFallIntervalMs: (gameState) => {
-    const speedMultiplier = 1 + Math.log1p(gameState.destroyedLineCount ?? 0) * 0.25
+    const speedMultiplier = 1 + Math.log1p(gameState.destroyedLineCount ?? 0) * 0.1
     return Math.max(250, Math.round(1000 / speedMultiplier))
   },
   scoreContinueIncrementAnimationStep: 100,
@@ -194,6 +197,7 @@ export function Cascade(props: { startNew?: boolean }) {
           <section aria-label="Cascade board" className="relative min-h-0 min-w-0 flex-1 border-4 border-[var(--grid-border-color)] bg-[var(--grid-border-color)]">
             {initialState !== undefined && (
               <CascadeCanvas
+                cornerDifficulty={CASCADE_CONFIG.cornerDifficulty}
                 cornerSpawnMode={CASCADE_CONFIG.cornerSpawnMode}
                 getFallIntervalMs={CASCADE_CONFIG.getFallIntervalMs}
                 gridSize={CASCADE_CONFIG.gridSize}

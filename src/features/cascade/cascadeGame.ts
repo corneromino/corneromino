@@ -1,5 +1,5 @@
 export type CascadeCorner = 0 | 1 | 2 | 3
-export type CascadeCornerSpawnMode = 'random' | 'sequential'
+export type CascadeCornerSpawnMode = 'random' | 'sequential' | 'balanced'
 
 const SEQUENTIAL_CORNERS: readonly CascadeCorner[] = [0, 3, 2, 1]
 
@@ -14,6 +14,8 @@ export interface CascadeGameState {
   nextCornerIndex?: number
   settledPieces: CascadePiece[]
   upcomingCorners?: CascadeCorner[]
+  /** Remaining shuffled corners, consumed only by balanced draws. */
+  cornerBag?: CascadeCorner[]
 }
 
 export interface CascadeGridSize {
@@ -57,6 +59,7 @@ export function advanceCascadeGame(
   gridSize: CascadeGridSize,
   random: () => number = Math.random,
   cornerSpawnMode: CascadeCornerSpawnMode = 'random',
+  cornerDifficulty = 0.25,
 ): CascadeGameState {
   if (!state.activePiece) {
     const column = Math.floor(random() * gridSize.columns)
@@ -64,10 +67,26 @@ export function advanceCascadeGame(
 
     let nextCornerIndex = state.nextCornerIndex ?? 0
     const upcomingCorners = [...(state.upcomingCorners ?? [])]
+    const cornerBag = [...(state.cornerBag ?? [])]
+    const difficulty = Number.isNaN(cornerDifficulty) ? 0.25 : Math.max(0, Math.min(1, cornerDifficulty))
     function generateCorner(): CascadeCorner {
-      const corner = cornerSpawnMode === 'sequential'
-        ? SEQUENTIAL_CORNERS[nextCornerIndex % SEQUENTIAL_CORNERS.length]!
-        : Math.floor(random() * 4) as CascadeCorner
+      let corner: CascadeCorner
+      if (cornerSpawnMode === 'sequential') {
+        corner = SEQUENTIAL_CORNERS[nextCornerIndex % SEQUENTIAL_CORNERS.length]!
+      } else if (cornerSpawnMode === 'balanced' && difficulty < 1 && (difficulty === 0 || random() >= difficulty)) {
+        if (cornerBag.length === 0) {
+          cornerBag.push(0, 1, 2, 3)
+          // Fisher–Yates shuffle: every ordering is equally likely.
+          for (let index = cornerBag.length - 1; index > 0; index -= 1) {
+            const swapIndex = Math.floor(random() * (index + 1))
+            ;[cornerBag[index], cornerBag[swapIndex]] = [cornerBag[swapIndex], cornerBag[index]]
+          }
+        }
+        corner = cornerBag.pop()!
+      } else {
+        // Random draws leave the bag intact so its missing corners remain available.
+        corner = Math.floor(random() * 4) as CascadeCorner
+      }
       nextCornerIndex += 1
       return corner
     }
@@ -88,6 +107,7 @@ export function advanceCascadeGame(
       },
       nextCornerIndex,
       upcomingCorners,
+      ...(cornerSpawnMode === 'balanced' ? { cornerBag } : {}),
     }
   }
 

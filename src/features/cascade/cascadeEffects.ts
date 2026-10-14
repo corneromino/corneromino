@@ -1,5 +1,11 @@
 /** Distances are in cell widths unless specified otherwise. Times are seconds. */
 export const CASCADE_LOCK_EFFECTS = {
+  gridShakeDrop: {
+    enabled: true,
+    amplitudeCells: 0.22,
+    durationSeconds: 0.18,
+    frequencyHz: 42,
+  },
   gridShake: {
     enabled: true,
     amplitudeCells: 1,
@@ -22,5 +28,11 @@ export const CASCADE_LOCK_EFFECTS = {
     durationSeconds: 0.35,
     frequencyHz: 30,
     propagationCellsPerSecond: 10,
+  },
+  shakeDrop: {
+    enabled: true,
+    amplitudeCells: 0.14,
+    durationSeconds: 0.16,
+    frequencyHz: 36,
   },
 }

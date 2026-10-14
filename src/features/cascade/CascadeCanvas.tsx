@@ -15,10 +15,14 @@ const SELECTED_ROTATION = -0.04
 const SELECTED_SCALE = 0.92
 const MAX_SELECTED_PIECES = 4
 const CELL_MOVE_DURATION_SECONDS = 0.14
+const HORIZONTAL_SQUASH_DURATION_SECONDS = 0.05
+const HORIZONTAL_SQUASH_SCALE_X = 1.5
+const HORIZONTAL_SQUASH_SCALE_Y = 0.8
 const SELECTION_DURATION_SECONDS = 0.14
 const LOCKED_CELL_COLORS = [0x55c7df, 0x8270d8, 0xbe69d6, 0xde5d9b, 0xe4555c, 0x5fc47a, 0x4db9a7, 0x73a9ee, 0x9d71dc, 0x41ead4, 0x0b987e]
 
 interface CascadeCanvasProps {
+  cornerDifficulty: number
   cornerSpawnMode: CascadeCornerSpawnMode
   getFallIntervalMs: (gameState: CascadeGameSaveState) => number
   gridSize: CascadeGridSize
@@ -190,6 +194,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     exportDebugStateRef.current = () => JSON.stringify({
       config: {
         cornerSpawnMode: props.cornerSpawnMode,
+        cornerDifficulty: props.cornerDifficulty,
         fallIntervalMs,
         gridSize: props.gridSize,
       },
@@ -349,6 +354,22 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
             x: targetX,
             y: targetY,
           })
+          if (renderKey === 'active' && renderedPiece.column !== piece.column) {
+            const baseScale = isSelected ? SELECTED_SCALE : 1
+            gsap.timeline({ overwrite: 'auto' })
+              .to(renderedPiece.graphic.scale, {
+                duration: HORIZONTAL_SQUASH_DURATION_SECONDS,
+                ease: 'power2.out',
+                x: baseScale * HORIZONTAL_SQUASH_SCALE_X,
+                y: baseScale * HORIZONTAL_SQUASH_SCALE_Y,
+              })
+              .to(renderedPiece.graphic.scale, {
+                duration: HORIZONTAL_SQUASH_DURATION_SECONDS * 1.5,
+                ease: 'back.out(2)',
+                x: baseScale,
+                y: baseScale,
+              })
+          }
         }
 
         const targetGraphicY = cellSize / 2 + (isSelected ? SELECTED_Y_OFFSET : 0)
@@ -432,7 +453,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       elapsedSinceFall += ticker.deltaMS
       while (elapsedSinceFall >= fallIntervalMs) {
         elapsedSinceFall -= fallIntervalMs
-        setGameState(advanceCascadeGame(gameState, props.gridSize, Math.random, props.cornerSpawnMode))
+        setGameState(advanceCascadeGame(gameState, props.gridSize, Math.random, props.cornerSpawnMode, props.cornerDifficulty))
       }
     }
 
@@ -442,11 +463,11 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'ArrowDown') return
 
       event.preventDefault()
-      setGameState(
-        event.key === 'ArrowDown'
-          ? dropCascadePiece(gameState, props.gridSize)
-          : moveCascadePiece(gameState, props.gridSize, event.key === 'ArrowLeft' ? -1 : 1),
-      )
+      if (event.key === 'ArrowDown') {
+        dropActivePiece()
+      } else {
+        setGameState(moveCascadePiece(gameState, props.gridSize, event.key === 'ArrowLeft' ? -1 : 1))
+      }
     }
 
     function handlePointerDown(event: PointerEvent) {
@@ -486,7 +507,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       swipeStart = null
       if (app.canvas.hasPointerCapture(event.pointerId)) app.canvas.releasePointerCapture(event.pointerId)
       if (!hasMovedHorizontally && deltaY >= SWIPE_THRESHOLD && Math.abs(deltaY) > Math.abs(deltaX)) {
-        setGameState(dropCascadePiece(gameState, props.gridSize))
+        dropActivePiece()
         return
       }
 
@@ -513,6 +534,20 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       lockSelectionIfValid()
       syncPieces(true)
       persistGameState()
+    }
+
+    function dropActivePiece() {
+      const activePiece = gameState.activePiece
+      const landingRow = getCascadeLandingRow(gameState, props.gridSize)
+      if (!activePiece || landingRow === null) return
+
+      setGameState(dropCascadePiece(gameState, props.gridSize))
+      const landedPiece = { ...activePiece, row: landingRow }
+      gsap.delayedCall(CELL_MOVE_DURATION_SECONDS, () => {
+        if (disposed) return
+        playDropShake(landedPiece)
+        playGridShake(CASCADE_LOCK_EFFECTS.gridShakeDrop)
+      })
     }
 
     function lockSelectionIfValid() {
@@ -610,8 +645,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       })
     }
 
-    function playGridShake() {
-      const config = CASCADE_LOCK_EFFECTS.gridShake
+    function playGridShake(config = CASCADE_LOCK_EFFECTS.gridShake) {
       gsap.killTweensOf(gridShakeMotion)
       app.stage.position.set(0, 0)
       if (!config.enabled || config.durationSeconds <= 0) return
@@ -669,6 +703,35 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
           })
         }
       }
+    }
+
+    function playDropShake(landedPiece: CascadeGameState['settledPieces'][number]) {
+      const config = CASCADE_LOCK_EFFECTS.shakeDrop
+      if (!config.enabled || config.durationSeconds <= 0) return
+      const piece = renderedPieces.get(getPieceKey(landedPiece.column, landedPiece.row))
+      if (!piece) return
+
+      const target = piece.shakeLayer
+      const previous = shakes.get(target)
+      if (previous) gsap.killTweensOf(previous)
+      target.position.set(0, 0)
+      const motion = { time: 0 }
+      shakes.set(target, motion)
+      const amplitude = getBoardMetrics().cellSize * config.amplitudeCells
+      gsap.to(motion, {
+        time: config.durationSeconds,
+        duration: config.durationSeconds,
+        ease: 'none',
+        onUpdate: () => {
+          const fade = (1 - motion.time / config.durationSeconds) ** 2
+          const phase = motion.time * config.frequencyHz * Math.PI * 2
+          target.position.set(Math.sin(phase) * amplitude * fade, Math.sin(phase * 1.3) * amplitude * fade * 0.6)
+        },
+        onComplete: () => {
+          target.position.set(0, 0)
+          shakes.delete(target)
+        },
+      })
     }
 
     function handlePointerCancel(event: PointerEvent) {
@@ -741,7 +804,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         app.destroy(true)
       }
     }
-  }, [props.cornerSpawnMode, props.getFallIntervalMs, props.gridSize.columns, props.gridSize.rows, props.scorePointsPerLine, props.scorePointsPerLockedCorneromino])
+  }, [props.cornerDifficulty, props.cornerSpawnMode, props.getFallIntervalMs, props.gridSize.columns, props.gridSize.rows, props.scorePointsPerLine, props.scorePointsPerLockedCorneromino])
 
   return <div className="size-full" ref={containerRef} />
 })

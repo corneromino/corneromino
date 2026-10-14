@@ -42,7 +42,7 @@ export function CascadeMenu() {
           <Link aria-label="Back to main menu" to="/"><ArrowLeft aria-hidden="true" /></Link>
         </Button>
       </header>
-      <section className="relative z-10 mx-auto flex w-full max-w-[550px] flex-col gap-4">
+      <section className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col gap-4">
         <Button
           className="cartoon-press h-[64px] w-full text-[11px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
           onClick={() => navigate('/cascade/game/new')}
@@ -60,9 +60,11 @@ export function CascadeMenu() {
         >
           <Play aria-hidden="true" /> {hasSavedGame === null ? 'Loading…' : 'Continue'}
         </Button>
-        <div className="flex flex-col items-center p-2 text-[var(--outline-color)]">
-          <PixelTrophy />
-          <p className="-mt-1 rotate-3 text-6xl leading-none font-black [text-shadow:4px_4px_0_var(--paper)]">{bestScore}</p>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="flex flex-col items-center p-2 text-[var(--outline-color)]">
+            <PixelTrophy />
+            <p className="-mt-1 rotate-3 text-6xl leading-none font-black [text-shadow:4px_4px_0_var(--paper)]">{bestScore}</p>
+          </div>
         </div>
       </section>
     </main>

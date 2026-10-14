@@ -37,6 +37,7 @@ export interface CascadeGameSaveState {
     nextCornerIndex?: number
     settledPieces: Array<{ column: number; corner: 0 | 1 | 2 | 3; row: number }>
     upcomingCorners?: Array<0 | 1 | 2 | 3>
+    cornerBag?: Array<0 | 1 | 2 | 3>
   }
   lockedPieces: Array<{ cellKey: string; color: number; groupId: string }>
   /** Backwards compatibility for Cascade saves created before lock groups existed. */
@@ -93,6 +94,10 @@ function isCascadeGameSaveState(value: unknown): value is CascadeGameSaveState {
     && 'settledPieces' in value.gameState && Array.isArray(value.gameState.settledPieces) && value.gameState.settledPieces.every(isCascadePiece)
     && (!('nextCornerIndex' in value.gameState) || (typeof value.gameState.nextCornerIndex === 'number' && value.gameState.nextCornerIndex >= 0))
     && (!('upcomingCorners' in value.gameState) || (Array.isArray(value.gameState.upcomingCorners) && value.gameState.upcomingCorners.every((corner) => Number.isInteger(corner) && corner >= 0 && corner <= 3)))
+    && (!('cornerBag' in value.gameState) || (Array.isArray(value.gameState.cornerBag)
+      && value.gameState.cornerBag.length <= 4
+      && new Set(value.gameState.cornerBag).size === value.gameState.cornerBag.length
+      && value.gameState.cornerBag.every((corner) => Number.isInteger(corner) && corner >= 0 && corner <= 3)))
     && (!('lockedPieces' in value) || (Array.isArray(value.lockedPieces) && value.lockedPieces.every((piece) => (
       typeof piece === 'object' && piece !== null && 'cellKey' in piece && typeof piece.cellKey === 'string' && 'color' in piece && typeof piece.color === 'number' && 'groupId' in piece && typeof piece.groupId === 'string'
     ))))

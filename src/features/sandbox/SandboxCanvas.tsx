@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
-import { Application, Graphics } from 'pixi.js'
+import { Application, Graphics, Rectangle, TilingSprite, type Texture } from 'pixi.js'
 import type { SandboxWorldState } from '@/lib/db'
 import { SandboxCellSystem, type SandboxCornerMarker, updatePowerStateFromNeighbors } from './cellSystem'
 
@@ -129,6 +129,8 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
 
     const app = new Application()
     const grid = new Graphics()
+    let gridTexture: Texture | undefined
+    let gridBackground: TilingSprite | undefined
     let disposed = false
     let initialized = false
     let gridOffsetX = props.initialState?.gridOffsetX ?? 0
@@ -161,7 +163,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
 
     function getCornerMarkerPosition(corner: number, x: number, y: number, cellSize: number) {
       const markerSize = cellSize / 2
-      const markerPadding = cellSize * 0.12
+      const markerPadding = (cellSize - markerSize) / 4
       return {
         markerSize,
         x: corner === CORNER_MARKER_TOP_RIGHT || corner === CORNER_MARKER_BOTTOM_RIGHT
@@ -185,6 +187,16 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
     function drawGrid(includeSelection = true) {
       const cellSize = BASE_CELL_SIZE * zoom
       const borderWidth = 2 * zoom
+      if (gridBackground) {
+        gridBackground.width = app.screen.width
+        gridBackground.height = app.screen.height
+        // Match the actual texture frame to the logical cell spacing exactly.
+        gridBackground.tileScale.set(
+          cellSize / gridBackground.texture.frame.width,
+          cellSize / gridBackground.texture.frame.height,
+        )
+        gridBackground.tilePosition.set(gridOffsetX, gridOffsetY)
+      }
       const now = performance.now()
       // Read only visible cells; exporting every marker would make each frame
       // scale with the entire infinite world, including offscreen cells.
@@ -203,14 +215,16 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
           const cellKey = `${column},${row}`
           const state = cellSystem.getState(cellKey)
           const cornerMarker = state?.corner
-          const isCornerOn = state?.isOn ?? false
-          const cellInset = isCornerOn ? borderWidth * 1.5 : borderWidth / 2
-          const cellGraphic = grid
-            .roundRect(x + cellInset, y + cellInset, cellSize - cellInset * 2, cellSize - cellInset * 2, cellSize * 0.02)
-            .fill({ color: isCornerOn ? CORNER_MARKER_COLOR : CELL_FILL_COLOR })
-          if (!isCornerOn) cellGraphic.stroke({ color: CELL_BORDER_COLOR, width: borderWidth })
-
           if (cornerMarker === undefined) continue
+          const isCornerOn = state?.isOn ?? false
+          if (isCornerOn) {
+            // Cover the light background tile, including the inset brown gaps.
+            const cellInset = borderWidth * 1.5
+            grid.rect(x, y, cellSize, cellSize).fill({ color: CELL_BORDER_COLOR })
+            grid
+              .roundRect(x + cellInset, y + cellInset, cellSize - cellInset * 2, cellSize - cellInset * 2, cellSize * 0.02)
+              .fill({ color: CORNER_MARKER_COLOR })
+          }
 
           currentCornerStates.set(cellKey, cornerMarker)
           const previousCorner = lastCornerStates.get(cellKey)
@@ -713,7 +727,23 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
         return
       }
 
-      app.stage.addChild(grid)
+      // Bake one empty cell once; the GPU repeats it across the viewport.
+      const tile = new Graphics()
+        .rect(0, 0, BASE_CELL_SIZE, BASE_CELL_SIZE).fill({ color: CELL_BORDER_COLOR })
+        .roundRect(1, 1, BASE_CELL_SIZE - 2, BASE_CELL_SIZE - 2, BASE_CELL_SIZE * 0.02)
+        .fill({ color: CELL_FILL_COLOR })
+        .stroke({ color: CELL_BORDER_COLOR, width: 2 })
+      gridTexture = app.renderer.generateTexture({
+        target: tile,
+        frame: new Rectangle(0, 0, BASE_CELL_SIZE, BASE_CELL_SIZE),
+        // Fractional device resolutions can round the repeated tile's pixel
+        // dimensions, creating drift relative to the vector corner markers.
+        resolution: Math.max(2, Math.ceil(window.devicePixelRatio)),
+        antialias: true,
+      })
+      tile.destroy()
+      gridBackground = new TilingSprite({ texture: gridTexture, width: app.screen.width, height: app.screen.height })
+      app.stage.addChild(gridBackground, grid)
       redrawRef.current = drawGrid
       deleteSelectedCellsRef.current = deleteSelectedCells
       beginPasteRef.current = beginPaste
@@ -783,7 +813,8 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       app.canvas.removeEventListener('pointerup', handlePointerUp)
       app.canvas.removeEventListener('pointercancel', handlePointerUp)
       app.canvas.removeEventListener('wheel', handleWheel)
-      app.destroy(true)
+      app.destroy(true, { children: true })
+      gridTexture?.destroy(true)
     }
   }, [])
 
