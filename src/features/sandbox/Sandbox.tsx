@@ -40,8 +40,8 @@ export function SandboxWorldCard(props: {
             />
           }
           <div className="min-w-0 py-1">
-            <h2 className="max-w-full overflow-x-auto whitespace-nowrap text-[22px] font-black">{props.world.name}</h2>
-            <p className="poster-kicker mt-2 text-[11px] text-[var(--muted-text-color)]">{formatSavedAt(props.world.savedAt)}</p>
+            <h2 className="max-w-full overflow-x-auto whitespace-nowrap text-[25px] font-black">{props.world.name}</h2>
+            <p className="poster-kicker mt-2 text-[13px] text-[var(--muted-text-color)]">{formatSavedAt(props.world.savedAt)}</p>
           </div>
         </button>
       ) : (
@@ -57,8 +57,8 @@ export function SandboxWorldCard(props: {
           </Link>
           <div className="flex min-w-0 flex-1 flex-col py-1">
             <Link className="min-w-0" to={`/sandbox/${props.world.id}`}>
-              <h2 className="max-w-full overflow-x-auto whitespace-nowrap text-[22px] font-black">{props.world.name}</h2>
-              <p className="poster-kicker mt-2 text-[11px] text-[var(--muted-text-color)]">{formatSavedAt(props.world.savedAt)}</p>
+              <h2 className="max-w-full overflow-x-auto whitespace-nowrap text-[25px] font-black">{props.world.name}</h2>
+              <p className="poster-kicker mt-2 text-[13px] text-[var(--muted-text-color)]">{formatSavedAt(props.world.savedAt)}</p>
             </Link>
             {(props.onRename || props.onDelete) && (
               <div className="mt-2 flex gap-2">
@@ -146,14 +146,14 @@ export function Sandbox() {
       <header className="relative z-10 mx-auto flex w-full max-w-[550px] items-center justify-between gap-3 px-5 pb-6">
         <div className="min-w-0">
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
-          <h1 className="poster-title mt-2 text-[33px] leading-none">Sandbox</h1>
+          <h1 className="poster-title mt-2 text-[40px] leading-none">Sandbox</h1>
         </div>
         <Button asChild className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title="Back to main menu">
           <Link aria-label="Back to main menu" to="/"><ArrowLeft aria-hidden="true" /></Link>
         </Button>
       </header>
       <section aria-label="Sandbox worlds" className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col px-5">
-        <Button asChild className="cartoon-press h-[62px] w-full text-[11px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase" size="lg">
+        <Button asChild className="cartoon-press h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase" size="lg">
           <Link to="/sandbox/new">New</Link>
         </Button>
         <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
