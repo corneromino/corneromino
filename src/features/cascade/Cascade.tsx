@@ -22,7 +22,7 @@ const CASCADE_CONFIG: CascadeConfig = {
   // Balanced mode: 0 = shuffled four-corner bags, 1 = fully random.
   cornerDifficulty: 0.20,
   cornerSpawnMode: 'balanced',
-  gridSize: { columns: 9, rows: 18 },
+  gridSize: { columns: 7, rows: 14 },
   getFallIntervalMs: (gameState) => {
     const speedMultiplier = 1 + Math.log1p(gameState.destroyedLineCount ?? 0) * 0.1
     return Math.max(250, Math.round(1000 / speedMultiplier))

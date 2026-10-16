@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const CORNER_TRANSFORM_CLASSES = [
   'translate-x-0 translate-y-0',
@@ -23,24 +23,36 @@ function getCornerChangeInterval() {
 
 export function TetrominoBackground() {
   const [cornerIndexes, setCornerIndexes] = useState(() => MENU_BACKGROUND_CELLS.map((cell) => cell.cornerIndex))
+  const nextChangeTimesRef = useRef<number[]>([])
 
   useEffect(() => {
-    const cancelTimers = MENU_BACKGROUND_CELLS.flatMap((cell, index) => {
-      if (!cell.hasTetrominoCell) return []
+    let animationFrame = 0
+    const now = performance.now()
+    nextChangeTimesRef.current = MENU_BACKGROUND_CELLS.map((cell) => (
+      cell.hasTetrominoCell ? now + getCornerChangeInterval() : Infinity
+    ))
 
-      let timer = 0
-      const moveCorner = () => {
-        setCornerIndexes((indexes) => indexes.map((cornerIndex, cornerIndexPosition) => (
-          cornerIndexPosition === index ? (cornerIndex + 1) % CORNER_TRANSFORM_CLASSES.length : cornerIndex
-        )))
-        timer = window.setTimeout(moveCorner, getCornerChangeInterval())
+    function updateBackground(frameTime: number) {
+      const changedIndexes: number[] = []
+      for (let index = 0; index < MENU_BACKGROUND_CELLS.length; index += 1) {
+        if (frameTime < nextChangeTimesRef.current[index]!) continue
+        changedIndexes.push(index)
+        // Reset from this frame instead of catching up, avoiding a burst of
+        // updates after a backgrounded tab resumes.
+        nextChangeTimesRef.current[index] = frameTime + getCornerChangeInterval()
       }
 
-      timer = window.setTimeout(moveCorner, getCornerChangeInterval())
-      return [() => window.clearTimeout(timer)]
-    })
+      if (changedIndexes.length > 0) {
+        const changed = new Set(changedIndexes)
+        setCornerIndexes((indexes) => indexes.map((cornerIndex, index) => (
+          changed.has(index) ? (cornerIndex + 1) % CORNER_TRANSFORM_CLASSES.length : cornerIndex
+        )))
+      }
+      animationFrame = window.requestAnimationFrame(updateBackground)
+    }
 
-    return () => cancelTimers.forEach((cancelTimer) => cancelTimer())
+    animationFrame = window.requestAnimationFrame(updateBackground)
+    return () => window.cancelAnimationFrame(animationFrame)
   }, [])
 
   return (

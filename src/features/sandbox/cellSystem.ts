@@ -28,6 +28,11 @@ const NEIGHBOR_OFFSETS = [
   { x: 1, y: 0 },
   { x: 0, y: 1 },
   { x: -1, y: 0 },
+  // diagonal
+  { x: -1, y: -1 },
+  { x: -1, y: 1 },
+  { x: 1, y: -1 },
+  { x: 1, y: 1 },
 ] as const
 const EMPTY_NEIGHBOR_KEYS: readonly string[] = Object.freeze([])
 

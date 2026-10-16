@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react'
 
-const CELL_IDS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const
+const FOLLOWER_CELLS = [
+  { id: 'bottom-left', positionClass: 'col-start-1 row-start-2' },
+  { id: 'bottom-right', positionClass: 'col-start-2 row-start-2' },
+] as const
 const MARKER_SIZE = 0.5
 const MARKER_PADDING = 0.07
 const MARKER_MAX_POSITION = 1 - MARKER_SIZE - MARKER_PADDING
@@ -149,9 +152,9 @@ export function TitleTetromino() {
   }, [])
 
   return (
-    <div aria-hidden="true" className="pointer-events-none grid size-[132px] select-none grid-cols-2 gap-1" ref={rootRef}>
-      {CELL_IDS.map((id) => (
-        <div className="relative aspect-square rounded-[2%] border-4 border-[#773526] bg-[#ffd18a]" key={id}>
+    <div aria-hidden="true" className="pointer-events-none grid size-[132px] select-none grid-cols-2 grid-rows-2 gap-1" ref={rootRef}>
+      {FOLLOWER_CELLS.map((cell) => (
+        <div className={`relative aspect-square rounded-[2%] border-4 border-[#773526] bg-[#ffd18a] ${cell.positionClass}`} key={cell.id}>
           <span
             className="absolute left-0 top-0 z-10 aspect-square w-1/2 rounded-[10%] bg-[var(--outline-color)] will-change-transform"
             style={{ transform: `translate3d(${MARKER_MAX_POSITION / MARKER_SIZE * 100}%, ${MARKER_PADDING / MARKER_SIZE * 100}%, 0)` }}
