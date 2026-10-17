@@ -4,14 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { loadCascadeBestScore, loadCascadeGameState } from '@/lib/db'
 import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
-
-function PixelTrophy() {
-  return (
-    <svg aria-hidden="true" className="size-20 [filter:drop-shadow(4px_4px_0_var(--paper))]" fill="currentColor" shapeRendering="crispEdges" viewBox="0 0 16 16">
-      <path d="M4 1h8v2h2v5h-3v2H9v2h2v3H5v-3h2v-2H5V8H2V3h2V1Zm-1 4v2h2V4H3Zm8-1v3h2V5h-2Z" />
-    </svg>
-  )
-}
+import { PixelTrophyIcon } from './PixelTrophyIcon'
 
 export function CascadeMenu() {
   const navigate = useNavigate()
@@ -65,7 +58,7 @@ export function CascadeMenu() {
         </Button>
         <div className="flex flex-1 items-center justify-center">
           <div className="flex flex-col items-center p-2 text-[var(--outline-color)]">
-            <PixelTrophy />
+            <PixelTrophyIcon />
             <p className="-mt-1 rotate-3 text-6xl leading-none font-black [text-shadow:4px_4px_0_var(--paper)]">{bestScore}</p>
           </div>
         </div>

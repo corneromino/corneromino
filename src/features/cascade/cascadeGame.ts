@@ -16,6 +16,8 @@ export interface CascadeGameState {
   upcomingCorners?: CascadeCorner[]
   /** Remaining shuffled corners, consumed only by balanced draws. */
   cornerBag?: CascadeCorner[]
+  /** Most recently generated corner and its consecutive run length. */
+  generatedCornerRun?: { corner: CascadeCorner; length: number }
 }
 
 export interface CascadeGridSize {
@@ -60,6 +62,7 @@ export function advanceCascadeGame(
   random: () => number = Math.random,
   cornerSpawnMode: CascadeCornerSpawnMode = 'random',
   cornerDifficulty = 0.25,
+  maxConsecutiveSameCorner = 2,
 ): CascadeGameState {
   if (!state.activePiece) {
     const column = Math.floor(random() * gridSize.columns)
@@ -68,6 +71,21 @@ export function advanceCascadeGame(
     let nextCornerIndex = state.nextCornerIndex ?? 0
     const upcomingCorners = [...(state.upcomingCorners ?? [])]
     const cornerBag = [...(state.cornerBag ?? [])]
+    const maximumRunLength = Number.isFinite(maxConsecutiveSameCorner)
+      ? Math.max(1, Math.floor(maxConsecutiveSameCorner))
+      : Infinity
+    const legacyGeneratedCorners = upcomingCorners
+    const legacyLastCorner = legacyGeneratedCorners.at(-1)
+    let legacyRunLength = 0
+    if (legacyLastCorner !== undefined) {
+      for (let index = legacyGeneratedCorners.length - 1; index >= 0 && legacyGeneratedCorners[index] === legacyLastCorner; index -= 1) {
+        legacyRunLength += 1
+      }
+    }
+    let generatedCornerRun = state.generatedCornerRun
+      ?? (legacyLastCorner === undefined
+        ? undefined
+        : { corner: legacyLastCorner, length: legacyRunLength })
     const difficulty = Number.isNaN(cornerDifficulty) ? 0.25 : Math.max(0, Math.min(1, cornerDifficulty))
     function generateCorner(): CascadeCorner {
       let corner: CascadeCorner
@@ -87,6 +105,13 @@ export function advanceCascadeGame(
         // Random draws leave the bag intact so its missing corners remain available.
         corner = Math.floor(random() * 4) as CascadeCorner
       }
+      if (generatedCornerRun?.corner === corner && generatedCornerRun.length >= maximumRunLength) {
+        const alternatives = ([0, 1, 2, 3] as const).filter((candidate) => candidate !== corner)
+        corner = alternatives[Math.floor(random() * alternatives.length)]!
+      }
+      generatedCornerRun = generatedCornerRun?.corner === corner
+        ? { corner, length: generatedCornerRun.length + 1 }
+        : { corner, length: 1 }
       nextCornerIndex += 1
       return corner
     }
@@ -108,6 +133,7 @@ export function advanceCascadeGame(
       nextCornerIndex,
       upcomingCorners,
       ...(cornerSpawnMode === 'balanced' ? { cornerBag } : {}),
+      generatedCornerRun,
     }
   }
 

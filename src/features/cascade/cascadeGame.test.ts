@@ -35,11 +35,23 @@ describe('Cascade game', () => {
     }
   })
 
-  it('allows fully random repeats at maximum difficulty without consuming the bag', () => {
-    const state = advanceCascadeGame({ ...createCascadeGame(), cornerBag: [0, 1] }, gridSize, () => 0.6, 'balanced', 1)
+  it('allows fully random repeats at maximum difficulty without consuming the bag when the run cap is disabled', () => {
+    const state = advanceCascadeGame({ ...createCascadeGame(), cornerBag: [0, 1] }, gridSize, () => 0.6, 'balanced', 1, Infinity)
     expect(state.activePiece?.corner).toBe(2)
     expect(state.upcomingCorners).toEqual([2, 2, 2])
     expect(state.cornerBag).toEqual([0, 1])
+  })
+
+  it('never generates more than the configured number of consecutive identical corners', () => {
+    let state = createCascadeGame()
+    const corners: number[] = []
+    for (let index = 0; index < 12; index += 1) {
+      state = advanceCascadeGame({ ...state, activePiece: null }, gridSize, () => 0, 'random', 1)
+      corners.push(state.activePiece!.corner)
+    }
+
+    expect(corners).toEqual([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1])
+    expect(state.generatedCornerRun).toEqual({ corner: 1, length: 1 })
   })
 
   it('mixes random draws and bag draws at the configured probability', () => {

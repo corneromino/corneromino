@@ -3,6 +3,7 @@ import { Application, Container, Graphics } from 'pixi.js'
 import { gsap } from 'gsap'
 import { ShockwaveFilter } from 'pixi-filters'
 import { CASCADE_LOCK_EFFECTS } from './cascadeEffects'
+import { getCascadeKeyboardFocus, type CascadeFocusPosition } from './cascadeKeyboardFocus'
 import { saveCascadeGameState, type CascadeGameSaveState } from '@/lib/db'
 import { advanceCascadeGame, createCascadeGame, dropCascadePiece, getCascadeLandingRow, isValidCascadeLockSelection, moveCascadePiece, resolveCascadeLockedRows, type CascadeCorner, type CascadeCornerSpawnMode, type CascadeGameState, type CascadeGridSize } from './cascadeGame'
 
@@ -23,6 +24,7 @@ const LOCKED_CELL_COLORS = [0x55c7df, 0x8270d8, 0xbe69d6, 0xde5d9b, 0xe4555c, 0x
 
 interface CascadeCanvasProps {
   cornerDifficulty: number
+  maxConsecutiveSameCorner: number
   cornerSpawnMode: CascadeCornerSpawnMode
   getFallIntervalMs: (gameState: CascadeGameSaveState) => number
   gridSize: CascadeGridSize
@@ -125,6 +127,9 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     const cellGraphics = new Map<string, Graphics>()
     const shakes = new Map<Container, { time: number }>()
     const piecesLayer = new Container()
+    const keyboardFocusGraphic = new Graphics()
+    keyboardFocusGraphic.eventMode = 'none'
+    keyboardFocusGraphic.visible = false
     piecesLayer.sortableChildren = true
     const renderedPieces = new Map<string, RenderedPiece>()
     const selectedPieceKeys = new Set(props.initialState?.selectedPieceKeys ?? [])
@@ -142,6 +147,8 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     let elapsedSinceFall = props.initialState?.elapsedSinceFall ?? 0
     let fallIntervalMs = 0
     let isPaused = false
+    let isKeyboardFocusMode = false
+    let keyboardFocus: CascadeFocusPosition | null = null
     let swipeStart: { x: number; y: number } | null = null
     let horizontalSwipePosition = 0
     let hasMovedHorizontally = false
@@ -176,6 +183,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
 
     function pauseGame() {
       isPaused = true
+      endKeyboardFocus()
       persistGameState()
     }
 
@@ -195,6 +203,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       config: {
         cornerSpawnMode: props.cornerSpawnMode,
         cornerDifficulty: props.cornerDifficulty,
+        maxConsecutiveSameCorner: props.maxConsecutiveSameCorner,
         fallIntervalMs,
         gridSize: props.gridSize,
       },
@@ -403,6 +412,35 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         renderedPiece.lockedColor = lockedColor
         renderedPiece.row = piece.row
       }
+      syncKeyboardFocus()
+    }
+
+    function endKeyboardFocus() {
+      isKeyboardFocusMode = false
+      keyboardFocusGraphic.visible = false
+    }
+
+    function syncKeyboardFocus() {
+      if (!isKeyboardFocusMode) return
+      keyboardFocus = getCascadeKeyboardFocus(gameState.settledPieces, lockedPieceColors, keyboardFocus)
+      keyboardFocusGraphic.visible = keyboardFocus !== null
+      keyboardFocusGraphic.clear()
+      if (!keyboardFocus) return
+      const { cellSize } = getBoardMetrics()
+      const inset = cellSize * 0.1
+      const width = Math.max(2, cellSize * 0.05)
+      keyboardFocusGraphic
+        .rect(inset, inset, cellSize - inset * 2, cellSize - inset * 2)
+        .stroke({ color: 0x15100e, width: width * 2 })
+        .rect(inset, inset, cellSize - inset * 2, cellSize - inset * 2)
+        .stroke({ color: 0xffffff, width })
+      positionKeyboardFocus()
+    }
+
+    function positionKeyboardFocus() {
+      if (!isKeyboardFocusMode || !keyboardFocus) return
+      const rendered = renderedPieces.get(getPieceKey(keyboardFocus.column, keyboardFocus.row))
+      if (rendered) keyboardFocusGraphic.position.copyFrom(rendered.sprite.position)
     }
 
     function setGameState(nextGameState: CascadeGameState, animate = true) {
@@ -427,6 +465,12 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     }
 
     function applyGravityMoves(gravityMoves: ReadonlyArray<{ fromCellKey: string; toCellKey: string }>) {
+      const focusedKey = keyboardFocus && getPieceKey(keyboardFocus.column, keyboardFocus.row)
+      const focusedMove = gravityMoves.find((move) => move.fromCellKey === focusedKey)
+      if (focusedMove) {
+        const [column, row] = focusedMove.toCellKey.split(',').map(Number)
+        keyboardFocus = { column, row }
+      }
       const movingPieces = gravityMoves.flatMap((move) => {
         const renderedPiece = renderedPieces.get(move.fromCellKey)
         return renderedPiece ? [{ ...move, renderedPiece }] : []
@@ -453,13 +497,30 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       elapsedSinceFall += ticker.deltaMS
       while (elapsedSinceFall >= fallIntervalMs) {
         elapsedSinceFall -= fallIntervalMs
-        setGameState(advanceCascadeGame(gameState, props.gridSize, Math.random, props.cornerSpawnMode, props.cornerDifficulty))
+        setGameState(advanceCascadeGame(gameState, props.gridSize, Math.random, props.cornerSpawnMode, props.cornerDifficulty, props.maxConsecutiveSameCorner))
       }
+      positionKeyboardFocus()
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (isPaused) return
-      if (event.target instanceof HTMLInputElement) return
+      if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return
+      if (event.altKey || event.ctrlKey || event.metaKey) return
+
+      if (event.key === 'Shift' || event.shiftKey) {
+        isKeyboardFocusMode = true
+        syncKeyboardFocus()
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+          event.preventDefault()
+          keyboardFocus = getCascadeKeyboardFocus(gameState.settledPieces, lockedPieceColors, keyboardFocus, event.key)
+          syncKeyboardFocus()
+        } else if (event.code === 'Space') {
+          event.preventDefault()
+          if (!event.repeat && keyboardFocus) togglePieceSelectionAt(keyboardFocus.column, keyboardFocus.row)
+        }
+        return
+      }
+      endKeyboardFocus()
       if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'ArrowDown') return
 
       event.preventDefault()
@@ -470,8 +531,17 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       }
     }
 
+    function handleKeyUp(event: KeyboardEvent) {
+      if (!event.shiftKey) endKeyboardFocus()
+    }
+
+    function handleVisibilityChange() {
+      if (document.hidden) endKeyboardFocus()
+    }
+
     function handlePointerDown(event: PointerEvent) {
       if (isPaused) return
+      app.canvas.focus({ preventScroll: true })
       swipeStart = { x: event.clientX, y: event.clientY }
       horizontalSwipePosition = event.clientX
       hasMovedHorizontally = false
@@ -523,6 +593,10 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       const { cellSize, offsetX, offsetY } = getBoardMetrics()
       const column = Math.floor((canvasX - offsetX) / cellSize)
       const row = Math.floor((canvasY - offsetY) / cellSize)
+      togglePieceSelectionAt(column, row)
+    }
+
+    function togglePieceSelectionAt(column: number, row: number) {
       const pieceKey = getPieceKey(column, row)
 
       if (lockedPieceColors.has(pieceKey) || !gameState.settledPieces.some((piece) => getPieceKey(piece.column, piece.row) === pieceKey)) return
@@ -756,12 +830,17 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         return
       }
 
-      app.stage.addChild(boardGraphics, boardCells, piecesLayer)
+      app.stage.addChild(boardGraphics, boardCells, piecesLayer, keyboardFocusGraphic)
       stableContainer.appendChild(app.canvas)
       app.canvas.className = 'size-full touch-none'
+      app.canvas.tabIndex = 0
+      app.canvas.setAttribute('aria-label', 'Cascade board. Hold Shift and use arrow keys to focus unlocked pieces. Press Space while holding Shift to select. Release Shift to move and drop the falling piece.')
       resizeObserver.observe(stableContainer)
       app.ticker.add(update)
       window.addEventListener('keydown', handleKeyDown)
+      window.addEventListener('keyup', handleKeyUp)
+      window.addEventListener('blur', endKeyboardFocus)
+      document.addEventListener('visibilitychange', handleVisibilityChange)
       app.canvas.addEventListener('pointerdown', handlePointerDown)
       app.canvas.addEventListener('pointermove', handlePointerMove)
       app.canvas.addEventListener('pointerup', handlePointerUp)
@@ -780,6 +859,9 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       saveRef.current = null
       resizeObserver.disconnect()
       window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+      window.removeEventListener('blur', endKeyboardFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
       if (initialized) {
         gsap.killTweensOf(gridShakeMotion)
         for (const motion of shakes.values()) gsap.killTweensOf(motion)
@@ -804,7 +886,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         app.destroy(true)
       }
     }
-  }, [props.cornerDifficulty, props.cornerSpawnMode, props.getFallIntervalMs, props.gridSize.columns, props.gridSize.rows, props.scorePointsPerLine, props.scorePointsPerLockedCorneromino])
+  }, [props.cornerDifficulty, props.cornerSpawnMode, props.getFallIntervalMs, props.gridSize.columns, props.gridSize.rows, props.maxConsecutiveSameCorner, props.scorePointsPerLine, props.scorePointsPerLockedCorneromino])
 
   return <div className="size-full" ref={containerRef} />
 })

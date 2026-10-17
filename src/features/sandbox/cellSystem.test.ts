@@ -63,6 +63,24 @@ describe('SandboxCellSystem', () => {
     expect(system.getMarkers().find((marker) => marker.cellKey === '1,0')?.sourceKey).toBeNull()
   })
 
+  it('uses diagonal neighbors only for the activating off-corner rule', () => {
+    const diagonalPoweredMatch = new SandboxCellSystem([
+      { cellKey: '0,0', corner: 0 },
+      { cellKey: '1,1', corner: 1, isOn: true },
+    ], [updatePowerStateFromNeighbors])
+
+    diagonalPoweredMatch.rotateCornerFromUser('0,0')
+    expect(diagonalPoweredMatch.getState('0,0')).toEqual({ corner: 1, isOn: false, sourceKey: null })
+
+    const diagonalOffMatch = new SandboxCellSystem([
+      { cellKey: '0,0', corner: 0 },
+      { cellKey: '1,1', corner: 2 },
+    ], [updatePowerStateFromNeighbors])
+
+    diagonalOffMatch.rotateCornerFromUser('0,0')
+    expect(diagonalOffMatch.getState('0,0')).toEqual({ corner: 1, isOn: true, sourceKey: '1,1' })
+  })
+
   it('turns a corner on when it touches the same type that is on', () => {
     const system = new SandboxCellSystem([
       { cellKey: '0,0', corner: 0 },
@@ -75,6 +93,40 @@ describe('SandboxCellSystem', () => {
     expect(system.getState('0,0')?.corner).toBe(1)
     expect(system.getState('0,0')?.isOn).toBe(true)
     expect(system.getMarkers().find((marker) => marker.cellKey === '0,0')?.sourceKey).toBe('1,0')
+  })
+
+  it.each(['0,-1', '1,1'])('prioritizes an ON activating corner at %s over all power sources', (blockerKey) => {
+    const system = new SandboxCellSystem([
+      { cellKey: '0,0', corner: 1, isOn: true, sourceKey: '-1,0' },
+      { cellKey: '-1,0', corner: 1, isOn: true },
+      { cellKey: '1,-1', corner: 2 },
+      { cellKey: blockerKey, corner: 2, isOn: true },
+    ], [updatePowerStateFromNeighbors])
+
+    const previousState = system.getState('0,0')!
+    expect(updatePowerStateFromNeighbors(system, '0,0', previousState, previousState)).toBe(true)
+    expect(system.getState('0,0')).toEqual({ corner: 1, isOn: false, sourceKey: null })
+
+    const offState = system.getState('0,0')!
+    expect(updatePowerStateFromNeighbors(system, '0,0', offState, offState)).toBe(false)
+
+    // Removing either an orthogonal or diagonal blocker notifies the target
+    // and allows its remaining OFF activating neighbor to power it again.
+    system.removeCornerFromUser(blockerKey)
+    expect(system.processTick()).toBeGreaterThan(0)
+    expect(system.getState('0,0')).toEqual({ corner: 1, isOn: true, sourceKey: '1,-1' })
+  })
+
+  it('falls back to an OFF activating corner when no ON activating corner is present', () => {
+    const system = new SandboxCellSystem([
+      { cellKey: '0,0', corner: 0 },
+      { cellKey: '1,0', corner: 1, isOn: true },
+      { cellKey: '0,-1', corner: 2 },
+    ], [updatePowerStateFromNeighbors])
+
+    system.rotateCornerFromUser('0,0')
+
+    expect(system.getState('0,0')).toEqual({ corner: 1, isOn: true, sourceKey: '0,-1' })
   })
 
   it('does not update a neighbor when removing a corner', () => {
@@ -197,10 +249,15 @@ describe('SandboxCellSystem', () => {
   })
 
   it('preserves FIFO order and duplicate notifications when the queue grows and wraps', () => {
-    const neighbors = new Map([
-      ['0,0', ['0,-1', '1,0', '0,1', '-1,0']],
-      ['0,-1', ['0,0']], ['1,0', ['0,0']], ['0,1', ['0,0']], ['-1,0', ['0,0']],
-    ])
+    const keys = ['0,0', '0,-1', '1,0', '0,1', '-1,0']
+    const keySet = new Set(keys)
+    const offsets = [[0, -1], [1, 0], [0, 1], [-1, 0], [-1, -1], [-1, 1], [1, -1], [1, 1]]
+    const neighbors = new Map(keys.map((key) => {
+      const [x, y] = key.split(',').map(Number)
+      return [key, offsets
+        .map(([offsetX, offsetY]) => `${x + offsetX},${y + offsetY}`)
+        .filter((neighborKey) => keySet.has(neighborKey))]
+    }))
     const expected: string[] = []
     const referenceQueue = ['0,0']
     while (referenceQueue.length > 0) {

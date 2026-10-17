@@ -19,16 +19,19 @@ export type SandboxCellUpdateHandler = (
 interface SandboxCellRecord {
   state: Readonly<SandboxCornerState>
   neighborKeys: readonly string[]
+  activationNeighborKeys: readonly string[]
+  orthogonalNeighborKeys: readonly string[]
 }
 
 const CORNER_COUNT = 4
 const TOP_RIGHT_CORNER = 1
-const NEIGHBOR_OFFSETS = [
+const ORTHOGONAL_NEIGHBOR_OFFSETS = [
   { x: 0, y: -1 },
   { x: 1, y: 0 },
   { x: 0, y: 1 },
   { x: -1, y: 0 },
-  // diagonal
+] as const
+const DIAGONAL_NEIGHBOR_OFFSETS = [
   { x: -1, y: -1 },
   { x: -1, y: 1 },
   { x: 1, y: -1 },
@@ -36,28 +39,53 @@ const NEIGHBOR_OFFSETS = [
 ] as const
 const EMPTY_NEIGHBOR_KEYS: readonly string[] = Object.freeze([])
 
-function createNeighborKeys(cellKey: string): readonly string[] {
+function createNeighborKeys(cellKey: string): Pick<SandboxCellRecord, 'activationNeighborKeys' | 'neighborKeys' | 'orthogonalNeighborKeys'> {
   const separator = cellKey.indexOf(',')
   const x = Number(cellKey.slice(0, separator))
   const y = Number(cellKey.slice(separator + 1))
-  return Object.freeze(NEIGHBOR_OFFSETS.map((offset) => `${x + offset.x},${y + offset.y}`))
+  const toCellKey = (offset: { x: number; y: number }) => `${x + offset.x},${y + offset.y}`
+  const orthogonalNeighborKeys = Object.freeze(ORTHOGONAL_NEIGHBOR_OFFSETS.map(toCellKey))
+  const allNeighborKeys = Object.freeze([...orthogonalNeighborKeys, ...DIAGONAL_NEIGHBOR_OFFSETS.map(toCellKey)])
+  return {
+    // Both propagation and OFF-corner activation include diagonals.
+    neighborKeys: allNeighborKeys,
+    activationNeighborKeys: allNeighborKeys,
+    orthogonalNeighborKeys,
+  }
 }
 
 export const updatePowerStateFromNeighbors: SandboxCellUpdateHandler = (system, cellKey, state, previousState) => {
   const activatingOffCorner = (state.corner + 1) % CORNER_COUNT
-  const neighborKeys = system.getNeighborKeys(cellKey)
+  const neighborKeys = system.getActivationNeighborKeys(cellKey)
+  const orthogonalNeighborCount = system.getOrthogonalNeighborKeys(cellKey).length
   let sourceKey: string | null = null
+  let hasPoweredActivatingCorner = false
 
-  // Preserve the rule's last-match priority (left, bottom, right, top),
-  // stopping as soon as that highest-priority source is found.
+  // An ON activating corner forces this cell OFF, even if another neighbor
+  // could power it. Keep the last OFF match as a fallback while checking all
+  // orthogonal and diagonal neighbors for an ON activating corner.
   for (let index = neighborKeys.length - 1; index >= 0; index -= 1) {
     const neighborCellKey = neighborKeys[index]
     const neighborState = system.getState(neighborCellKey)
     if (!neighborState || neighborState.sourceKey === cellKey) continue
-    if ((neighborState.corner === state.corner && neighborState.isOn)
-      || (neighborState.corner === activatingOffCorner && !neighborState.isOn)) {
-      sourceKey = neighborCellKey
+    if (neighborState.corner !== activatingOffCorner) continue
+    if (neighborState.isOn) {
+      hasPoweredActivatingCorner = true
+      sourceKey = null
       break
+    }
+    sourceKey ??= neighborCellKey
+  }
+
+  if (!hasPoweredActivatingCorner && sourceKey === null) {
+    for (let index = orthogonalNeighborCount - 1; index >= 0; index -= 1) {
+      const neighborCellKey = neighborKeys[index]
+      const neighborState = system.getState(neighborCellKey)
+      if (!neighborState || neighborState.sourceKey === cellKey) continue
+      if (neighborState.corner === state.corner && neighborState.isOn) {
+        sourceKey = neighborCellKey
+        break
+      }
     }
   }
 
@@ -88,7 +116,7 @@ export class SandboxCellSystem {
           isOn: marker.isOn ?? false,
           sourceKey: marker.sourceKey ?? null,
         }),
-        neighborKeys: createNeighborKeys(marker.cellKey),
+        ...createNeighborKeys(marker.cellKey),
       })
     }
     this.updateHandlers = updateHandlers
@@ -105,9 +133,19 @@ export class SandboxCellSystem {
     return this.cells.get(cellKey)?.state
   }
 
-  /** Cached geometric neighbors in top, right, bottom, left order. */
+  /** Cached orthogonal and diagonal propagation neighbors. */
   getNeighborKeys(cellKey: string): readonly string[] {
     return this.cells.get(cellKey)?.neighborKeys ?? EMPTY_NEIGHBOR_KEYS
+  }
+
+  /** Orthogonal neighbors followed by diagonals, for power-rule evaluation. */
+  getActivationNeighborKeys(cellKey: string): readonly string[] {
+    return this.cells.get(cellKey)?.activationNeighborKeys ?? EMPTY_NEIGHBOR_KEYS
+  }
+
+  /** Cached top, right, bottom, left neighbors only. */
+  getOrthogonalNeighborKeys(cellKey: string): readonly string[] {
+    return this.cells.get(cellKey)?.orthogonalNeighborKeys ?? EMPTY_NEIGHBOR_KEYS
   }
 
   setCornerStateFromUpdate(cellKey: string, state: SandboxCornerState): void {
@@ -124,7 +162,7 @@ export class SandboxCellSystem {
     if (cell) {
       cell.state = state
     } else {
-      cell = { state, neighborKeys: createNeighborKeys(cellKey) }
+      cell = { state, ...createNeighborKeys(cellKey) }
       this.cells.set(cellKey, cell)
     }
     if (this.runUpdateHandlers(cellKey, previousState)) this.sendUpdateToNeighbors(cell.neighborKeys)
@@ -154,7 +192,7 @@ export class SandboxCellSystem {
       const previousState = this.cells.get(move.toCellKey)?.state
       const cell: SandboxCellRecord = {
         state: Object.freeze({ ...move.state }),
-        neighborKeys: createNeighborKeys(move.toCellKey),
+        ...createNeighborKeys(move.toCellKey),
       }
       this.cells.set(move.toCellKey, cell)
       if (this.runUpdateHandlers(move.toCellKey, previousState)) this.sendUpdateToNeighbors(cell.neighborKeys)

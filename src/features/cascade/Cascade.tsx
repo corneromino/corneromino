@@ -6,9 +6,13 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { clearCascadeGameState, loadCascadeGameState, recordCascadeBestScore, type CascadeGameSaveState } from '@/lib/db'
 import type { CascadeCorner, CascadeCornerSpawnMode } from './cascadeGame'
 import { CascadeCanvas, type CascadeCanvasHandle } from './CascadeCanvas'
+import { PixelLinesIcon } from './PixelLinesIcon'
+import { PixelLockIcon } from './PixelLockIcon'
+import { PixelNextIcon } from './PixelNextIcon'
 
 interface CascadeConfig {
   cornerDifficulty: number
+  maxConsecutiveSameCorner: number
   cornerSpawnMode: CascadeCornerSpawnMode
   getFallIntervalMs: (gameState: CascadeGameSaveState) => number
   gridSize: { columns: number; rows: number }
@@ -21,6 +25,7 @@ interface CascadeConfig {
 const CASCADE_CONFIG: CascadeConfig = {
   // Balanced mode: 0 = shuffled four-corner bags, 1 = fully random.
   cornerDifficulty: 0.20,
+  maxConsecutiveSameCorner: 2,
   cornerSpawnMode: 'balanced',
   gridSize: { columns: 7, rows: 14 },
   getFallIntervalMs: (gameState) => {
@@ -198,6 +203,7 @@ export function Cascade(props: { startNew?: boolean }) {
             {initialState !== undefined && (
               <CascadeCanvas
                 cornerDifficulty={CASCADE_CONFIG.cornerDifficulty}
+                maxConsecutiveSameCorner={CASCADE_CONFIG.maxConsecutiveSameCorner}
                 cornerSpawnMode={CASCADE_CONFIG.cornerSpawnMode}
                 getFallIntervalMs={CASCADE_CONFIG.getFallIntervalMs}
                 gridSize={CASCADE_CONFIG.gridSize}
@@ -211,17 +217,17 @@ export function Cascade(props: { startNew?: boolean }) {
             )}
             {isPaused && <div aria-hidden="true" className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--outline-color)]"><Pause className="size-10 text-[var(--paper)]" /></div>}
           </section>
-          <aside aria-label="Cascade statistics" className="flex w-[25%] shrink-0 flex-col gap-5 rounded-xs bg-[var(--outline-color)] p-1 py-5 text-center text-[var(--canvas)] sm:w-[96px]">
+          <aside aria-label="Cascade statistics" className="flex shrink-0 flex-col gap-5 rounded-xs bg-[var(--outline-color)] p-1 py-5 text-center text-[var(--canvas)] sm:w-[96px]">
             <div>
-              <p className="poster-kicker text-[11px]">Lines</p>
+              <p><span className="sr-only">Lines</span><PixelLinesIcon /></p>
               <p className="mt-2 text-[22px] leading-none">{stats.destroyedLineCount}</p>
             </div>
             <div>
-              <p className="poster-kicker text-[11px]">Locked</p>
+              <p><span className="sr-only">Locked</span><PixelLockIcon /></p>
               <p className="mt-2 text-[22px] leading-none">{stats.lockedCornerominoCount}</p>
             </div>
             <div className="mt-auto pb-2">
-              <p className="poster-kicker text-[11px] text-[var(--paper)]">Nexts</p>
+              <PixelNextIcon />
               <div className="mt-3 flex flex-col items-center gap-2">
                 {stats.upcomingCorners.slice(0, 2).map((corner, index) => (
                   <div className="flex items-center gap-2" key={`${corner}-${index}`}>
@@ -234,7 +240,10 @@ export function Cascade(props: { startNew?: boolean }) {
           </aside>
         </div>
       </div>
-      <p className="poster-kicker pt-3 text-center text-[11px] text-[var(--muted-text-color)]">Drag ← → to move · Swipe ↓ to drop</p>
+      <p className="poster-kicker px-2 pt-3 text-center text-[11px] text-[var(--muted-text-color)]">
+        <span className="[@media(pointer:fine)]:hidden">Drag ← → to move · Swipe ↓ to drop</span>
+        <span className="hidden [@media(pointer:fine)]:inline">← → Move · ↓ Drop · Hold Shift: arrows focus, Space selects</span>
+      </p>
       <Dialog onOpenChange={handlePauseDialogChange} open={isPaused}>
         <DialogContent>
           <DialogHeader>
