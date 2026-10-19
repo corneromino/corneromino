@@ -33,6 +33,13 @@ export function MainMenu() {
         >
           <Link to="/sandbox">Sandbox</Link>
         </Button>
+        <Button
+          asChild
+          className="cartoon-press h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+          size="lg"
+        >
+          <Link to="/vs">VS</Link>
+        </Button>
       </section>
     </main>
   )

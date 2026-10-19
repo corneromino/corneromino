@@ -1,5 +1,10 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
-import { Application, Container, Graphics } from 'pixi.js'
+import { Application, Container, Graphics, Sprite } from 'pixi.js'
+import { GridSurface } from '@/rendering/grid/GridSurface'
+import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
+import { GAME_COLORS } from '@/rendering/colors'
+import { attachGridInput } from '@/rendering/grid/gridInput'
+import { drawCorneromino as drawSharedCorneromino } from '@/rendering/grid/drawCorneromino'
 import { gsap } from 'gsap'
 import { ShockwaveFilter } from 'pixi-filters'
 import { CASCADE_LOCK_EFFECTS } from './cascadeEffects'
@@ -7,9 +12,9 @@ import { getCascadeKeyboardFocus, type CascadeFocusPosition } from './cascadeKey
 import { saveCascadeGameState, type CascadeGameSaveState } from '@/lib/db'
 import { advanceCascadeGame, createCascadeGame, dropCascadePiece, getCascadeLandingRow, isValidCascadeLockSelection, moveCascadePiece, resolveCascadeLockedRows, type CascadeCorner, type CascadeCornerSpawnMode, type CascadeGameState, type CascadeGridSize } from './cascadeGame'
 
-const CELL_FILL_COLOR = 0xffd18a
-const CELL_BORDER_COLOR = 0x773526
-const CORNER_MARKER_COLOR = 0x713324
+const CELL_FILL_COLOR = GAME_COLORS.cellFill
+const CELL_BORDER_COLOR = GAME_COLORS.cellBorder
+const CORNER_MARKER_COLOR = GAME_COLORS.cornerMarker
 const SWIPE_THRESHOLD = 36
 const SELECTED_Y_OFFSET = -2
 const SELECTED_ROTATION = -0.04
@@ -67,32 +72,18 @@ function invertColor(color: number): number {
 }
 
 function drawCorneromino(graphics: Graphics, corner: CascadeCorner, cellSize: number, borderWidth: number, isSelected: boolean, lockedColor: number | undefined) {
-  const markerSize = cellSize / 2
-  const padding = cellSize * 0.16
-  const markerX = corner === 1 || corner === 2 ? cellSize - padding - markerSize : padding
-  const markerY = corner === 2 || corner === 3 ? cellSize - padding - markerSize : padding
-
-  if (lockedColor !== undefined) {
-    const lockedCellInset = borderWidth * 1.5
-    graphics.rect(0, 0, cellSize, cellSize).fill({ color: CELL_BORDER_COLOR })
-    graphics
-      .rect(lockedCellInset, lockedCellInset, cellSize - lockedCellInset * 2, cellSize - lockedCellInset * 2)
-      .fill({ color: lockedColor })
-    graphics.rect(markerX, markerY, markerSize, markerSize).fill({ color: CORNER_MARKER_COLOR })
-    return
-  }
-
   const pieceColor = isSelected ? invertColor(CORNER_MARKER_COLOR) : CORNER_MARKER_COLOR
   const detailColor = isSelected ? invertColor(CELL_FILL_COLOR) : CELL_FILL_COLOR
-
-  graphics.rect(0, 0, cellSize, cellSize).fill({ color: pieceColor })
-
-  const insideBorderInset = borderWidth * 1.5
-  graphics
-    .rect(insideBorderInset, insideBorderInset, cellSize - insideBorderInset * 2, cellSize - insideBorderInset * 2)
-    .stroke({ color: detailColor, width: borderWidth })
-
-  graphics.rect(markerX, markerY, markerSize, markerSize).fill({ color: detailColor })
+  drawSharedCorneromino(graphics, corner, cellSize, cellSize, {
+    fillColor: lockedColor ?? pieceColor,
+    borderColor: lockedColor !== undefined ? CELL_BORDER_COLOR : pieceColor,
+    borderSize: lockedColor !== undefined ? borderWidth * 1.5 : 0,
+    borderRadius: 0,
+    outline: lockedColor === undefined ? { color: detailColor, width: borderWidth, inset: borderWidth * 1.5 } : undefined,
+  }, {
+    color: lockedColor !== undefined ? CORNER_MARKER_COLOR : detailColor,
+    size: cellSize / 2, paddingX: cellSize * 0.16, paddingY: cellSize * 0.16, radius: 0,
+  })
 }
 
 export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>(function CascadeCanvas(props, ref) {
@@ -121,10 +112,12 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     const stableContainer: HTMLDivElement = container
 
     const app = new Application()
+    let host: PixiCanvasHost | undefined
     const gridShakeMotion = { time: 0 }
     const boardGraphics = new Graphics()
     const boardCells = new Container()
-    const cellGraphics = new Map<string, Graphics>()
+    const cellGraphics = new Map<string, Sprite>()
+    let surface: GridSurface | undefined
     const shakes = new Map<Container, { time: number }>()
     const piecesLayer = new Container()
     const keyboardFocusGraphic = new Graphics()
@@ -142,16 +135,14 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     let score = props.initialState?.score ?? 0
     const lockWaves = new Set<ShockwaveFilter>()
     let disposed = false
-    let initialized = false
     let gameState: CascadeGameState = props.initialState?.gameState ?? createCascadeGame()
     let elapsedSinceFall = props.initialState?.elapsedSinceFall ?? 0
     let fallIntervalMs = 0
     let isPaused = false
     let isKeyboardFocusMode = false
     let keyboardFocus: CascadeFocusPosition | null = null
-    let swipeStart: { x: number; y: number } | null = null
-    let horizontalSwipePosition = 0
-    let hasMovedHorizontally = false
+    let detachInput: (() => void) | undefined
+    let canvasReady = false
 
     function getPieceKey(column: number, row: number): string {
       return `${column},${row}`
@@ -231,21 +222,24 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     }
 
     function getBoardMetrics(): BoardMetrics {
-      const cellSize = Math.min(app.renderer.width / props.gridSize.columns, app.renderer.height / props.gridSize.rows)
+      const { cellWidth: cellSize, offsetX, offsetY } = surface!.metrics
       return {
         borderWidth: Math.max(1, cellSize * 0.035),
         cellSize,
-        offsetX: (app.renderer.width - cellSize * props.gridSize.columns) / 2,
-        offsetY: (app.renderer.height - cellSize * props.gridSize.rows) / 2,
+        offsetX,
+        offsetY,
       }
     }
 
     function drawBoard() {
+      surface!.update({ width: app.screen.width, height: app.screen.height, cellSize: 56, fit: 'contain' })
       const { borderWidth, cellSize, offsetX, offsetY } = getBoardMetrics()
       const landingRow = getCascadeLandingRow(gameState, props.gridSize)
       const landingColumn = gameState.activePiece?.column
       boardGraphics.clear()
-      boardGraphics.rect(0, 0, app.renderer.width, app.renderer.height).fill({ color: CELL_BORDER_COLOR })
+      if (landingColumn !== undefined && landingRow !== null) {
+        boardGraphics.rect(offsetX + landingColumn * cellSize + borderWidth, offsetY + landingRow * cellSize + borderWidth, cellSize - borderWidth * 2, cellSize - borderWidth * 2).fill(0xffffff)
+      }
 
       for (let row = 0; row < props.gridSize.rows; row += 1) {
         for (let column = 0; column < props.gridSize.columns; column += 1) {
@@ -254,15 +248,15 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
           const key = getPieceKey(column, row)
           let cell = cellGraphics.get(key)
           if (!cell) {
-            cell = new Graphics()
+            cell = new Sprite(surface!.texture)
             cellGraphics.set(key, cell)
             boardCells.addChild(cell)
           }
-          cell.clear()
-          cell
-            .rect(x + borderWidth / 2, y + borderWidth / 2, cellSize - borderWidth, cellSize - borderWidth)
-            .fill({ color: column === landingColumn && row === landingRow ? 0xffffff : CELL_FILL_COLOR })
-            .stroke({ color: CELL_BORDER_COLOR, width: borderWidth })
+          cell.texture = surface!.texture
+          cell.position.set(x, y)
+          cell.width = cellSize
+          cell.height = cellSize
+          cell.visible = shakes.has(cell)
         }
       }
     }
@@ -431,7 +425,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       const width = Math.max(2, cellSize * 0.05)
       keyboardFocusGraphic
         .rect(inset, inset, cellSize - inset * 2, cellSize - inset * 2)
-        .stroke({ color: 0x15100e, width: width * 2 })
+        .stroke({ color: GAME_COLORS.ink, width: width * 2 })
         .rect(inset, inset, cellSize - inset * 2, cellSize - inset * 2)
         .stroke({ color: 0xffffff, width })
       positionKeyboardFocus()
@@ -484,10 +478,6 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     }
 
     function resize() {
-      const width = stableContainer.clientWidth
-      const height = stableContainer.clientHeight
-      if (width === 0 || height === 0) return
-      app.renderer.resize(width, height)
       drawBoard()
       syncPieces(false)
     }
@@ -539,61 +529,10 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       if (document.hidden) endKeyboardFocus()
     }
 
-    function handlePointerDown(event: PointerEvent) {
-      if (isPaused) return
-      app.canvas.focus({ preventScroll: true })
-      swipeStart = { x: event.clientX, y: event.clientY }
-      horizontalSwipePosition = event.clientX
-      hasMovedHorizontally = false
-      app.canvas.setPointerCapture(event.pointerId)
-    }
-
-    function handlePointerMove(event: PointerEvent) {
-      if (isPaused) return
-      if (!swipeStart) return
-
-      const totalDeltaX = event.clientX - swipeStart.x
-      const totalDeltaY = event.clientY - swipeStart.y
-      if (Math.abs(totalDeltaX) <= Math.abs(totalDeltaY)) return
-
-      const deltaX = event.clientX - horizontalSwipePosition
-      const steps = Math.floor(Math.abs(deltaX) / SWIPE_THRESHOLD)
-      if (steps === 0) return
-
-      const direction = deltaX < 0 ? -1 : 1
+    function moveFromSwipe(direction: -1 | 1, steps: number) {
       for (let step = 0; step < steps; step += 1) {
         setGameState(moveCascadePiece(gameState, props.gridSize, direction))
       }
-      horizontalSwipePosition += direction * steps * SWIPE_THRESHOLD
-      hasMovedHorizontally = true
-    }
-
-    function handlePointerUp(event: PointerEvent) {
-      if (isPaused) return
-      if (!swipeStart) return
-
-      const deltaX = event.clientX - swipeStart.x
-      const deltaY = event.clientY - swipeStart.y
-      swipeStart = null
-      if (app.canvas.hasPointerCapture(event.pointerId)) app.canvas.releasePointerCapture(event.pointerId)
-      if (!hasMovedHorizontally && deltaY >= SWIPE_THRESHOLD && Math.abs(deltaY) > Math.abs(deltaX)) {
-        dropActivePiece()
-        return
-      }
-
-      if (!hasMovedHorizontally && Math.abs(deltaX) < SWIPE_THRESHOLD && Math.abs(deltaY) < SWIPE_THRESHOLD) {
-        togglePieceSelection(event)
-      }
-    }
-
-    function togglePieceSelection(event: PointerEvent) {
-      const bounds = app.canvas.getBoundingClientRect()
-      const canvasX = (event.clientX - bounds.left) * (app.renderer.width / bounds.width)
-      const canvasY = (event.clientY - bounds.top) * (app.renderer.height / bounds.height)
-      const { cellSize, offsetX, offsetY } = getBoardMetrics()
-      const column = Math.floor((canvasX - offsetX) / cellSize)
-      const row = Math.floor((canvasY - offsetY) / cellSize)
-      togglePieceSelectionAt(column, row)
     }
 
     function togglePieceSelectionAt(column: number, row: number) {
@@ -751,12 +690,15 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         const distance = Math.min(...lockedPieces.map((piece) => Math.hypot(piece.column - column, piece.row - row)))
         if (distance === 0 || distance > config.radiusCells) continue
         const targets: Container[] = [cell]
+        cell.visible = true
         const piece = renderedPieces.get(key)
         if (piece) targets.push(piece.shakeLayer)
         for (const target of targets) {
           const previous = shakes.get(target)
           if (previous) gsap.killTweensOf(previous)
-          target.position.set(0, 0)
+          const baseX = target === cell ? getBoardMetrics().offsetX + column * cellSize : 0
+          const baseY = target === cell ? getBoardMetrics().offsetY + row * cellSize : 0
+          target.position.set(baseX, baseY)
           const motion = { time: 0 }
           shakes.set(target, motion)
           const amplitude = cellSize * config.amplitudeCells * (1 - distance / (config.radiusCells + 1))
@@ -768,10 +710,11 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
             onUpdate: () => {
               const fade = (1 - motion.time / config.durationSeconds) ** 2
               const phase = motion.time * config.frequencyHz * Math.PI * 2
-              target.position.set(Math.sin(phase) * amplitude * fade, Math.sin(phase * 1.3) * amplitude * fade * 0.6)
+              target.position.set(baseX + Math.sin(phase) * amplitude * fade, baseY + Math.sin(phase * 1.3) * amplitude * fade * 0.6)
             },
             onComplete: () => {
-              target.position.set(0, 0)
+              target.position.set(baseX, baseY)
+              if (target === cell) cell.visible = false
               shakes.delete(target)
             },
           })
@@ -808,45 +751,42 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       })
     }
 
-    function handlePointerCancel(event: PointerEvent) {
-      swipeStart = null
-      if (app.canvas.hasPointerCapture(event.pointerId)) app.canvas.releasePointerCapture(event.pointerId)
-    }
-
-    const resizeObserver = new ResizeObserver(resize)
-
     async function start() {
-      await app.init({
-        antialias: true,
-        autoDensity: true,
-        background: CELL_BORDER_COLOR,
-        height: Math.max(1, stableContainer.clientHeight),
-        resolution: window.devicePixelRatio,
-        width: Math.max(1, stableContainer.clientWidth),
+      host = new PixiCanvasHost({
+        app, container: stableContainer, canvasClassName: 'size-full touch-none', init: { background: CELL_BORDER_COLOR },
+        onReady: () => {
+          surface = new GridSurface(app, { infinite: false, ...props.gridSize }, {
+            width: app.screen.width, height: app.screen.height, cellSize: 56, fit: 'contain',
+          }, { cellColor: CELL_FILL_COLOR, borderColor: CELL_BORDER_COLOR, backgroundColor: CELL_BORDER_COLOR, borderSize: 56 * 0.035, borderRadius: 0, gap: 0 })
+          surface.layers.underPieces.addChild(boardGraphics, boardCells)
+          surface.layers.pieces.addChild(piecesLayer)
+          surface.layers.overlay.addChild(keyboardFocusGraphic)
+          app.stage.addChild(surface.root)
+          app.canvas.tabIndex = 0
+          app.canvas.setAttribute('aria-label', 'Cascade board. Hold Shift and use arrow keys to focus unlocked pieces. Press Space while holding Shift to select. Release Shift to move and drop the falling piece.')
+          app.ticker.add(update)
+          window.addEventListener('keydown', handleKeyDown)
+          window.addEventListener('keyup', handleKeyUp)
+          window.addEventListener('blur', endKeyboardFocus)
+          document.addEventListener('visibilitychange', handleVisibilityChange)
+          detachInput = attachGridInput(app.canvas, {
+            enabled: () => !isPaused,
+            cellAt: (event) => surface!.pointerToCell(event),
+            threshold: SWIPE_THRESHOLD,
+            horizontalSteps: true,
+            callbacks: {
+              onPointerDown: () => app.canvas.focus({ preventScroll: true }),
+              onCellTap: ({ column, row }) => togglePieceSelectionAt(column, row),
+              onSwipeLeft: ({ steps }) => moveFromSwipe(-1, steps),
+              onSwipeRight: ({ steps }) => moveFromSwipe(1, steps),
+              onSwipeDown: dropActivePiece,
+            },
+          })
+          canvasReady = true
+        },
+        onResize: resize,
       })
-      initialized = true
-      if (disposed) {
-        app.destroy(true)
-        return
-      }
-
-      app.stage.addChild(boardGraphics, boardCells, piecesLayer, keyboardFocusGraphic)
-      stableContainer.appendChild(app.canvas)
-      app.canvas.className = 'size-full touch-none'
-      app.canvas.tabIndex = 0
-      app.canvas.setAttribute('aria-label', 'Cascade board. Hold Shift and use arrow keys to focus unlocked pieces. Press Space while holding Shift to select. Release Shift to move and drop the falling piece.')
-      resizeObserver.observe(stableContainer)
-      app.ticker.add(update)
-      window.addEventListener('keydown', handleKeyDown)
-      window.addEventListener('keyup', handleKeyUp)
-      window.addEventListener('blur', endKeyboardFocus)
-      document.addEventListener('visibilitychange', handleVisibilityChange)
-      app.canvas.addEventListener('pointerdown', handlePointerDown)
-      app.canvas.addEventListener('pointermove', handlePointerMove)
-      app.canvas.addEventListener('pointerup', handlePointerUp)
-      app.canvas.addEventListener('pointercancel', handlePointerCancel)
-      resize()
-      notifyStats()
+      if (await host.start()) notifyStats()
     }
 
     void start()
@@ -857,12 +797,11 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       pauseRef.current = null
       resumeRef.current = null
       saveRef.current = null
-      resizeObserver.disconnect()
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
       window.removeEventListener('blur', endKeyboardFocus)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
-      if (initialized) {
+      if (canvasReady) {
         gsap.killTweensOf(gridShakeMotion)
         for (const motion of shakes.values()) gsap.killTweensOf(motion)
         shakes.clear()
@@ -873,18 +812,16 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         lockWaves.clear()
         app.stage.filters = []
         app.ticker.remove(update)
-        app.canvas.removeEventListener('pointerdown', handlePointerDown)
-        app.canvas.removeEventListener('pointermove', handlePointerMove)
-        app.canvas.removeEventListener('pointerup', handlePointerUp)
-        app.canvas.removeEventListener('pointercancel', handlePointerCancel)
+        detachInput?.()
         for (const renderedPiece of renderedPieces.values()) {
           gsap.killTweensOf(renderedPiece.sprite)
           gsap.killTweensOf(renderedPiece.graphic)
           gsap.killTweensOf(renderedPiece.graphic.scale)
           gsap.killTweensOf(renderedPiece.shine)
         }
-        app.destroy(true)
+        surface?.destroy()
       }
+      host?.destroy()
     }
   }, [props.cornerDifficulty, props.cornerSpawnMode, props.getFallIntervalMs, props.gridSize.columns, props.gridSize.rows, props.maxConsecutiveSameCorner, props.scorePointsPerLine, props.scorePointsPerLockedCorneromino])
 

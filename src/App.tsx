@@ -6,6 +6,8 @@ import { Sandbox } from '@/features/sandbox/Sandbox'
 import { SandboxWorld } from '@/features/sandbox/SandboxWorld'
 import { Cascade } from '@/features/cascade/Cascade'
 import { CascadeMenu } from '@/features/cascade/CascadeMenu'
+import { VsLocalGrid } from '@/features/vs/VsLocalGrid'
+import { VsMenu } from '@/features/vs/VsMenu'
 
 function App() {
   return (
@@ -20,6 +22,8 @@ function App() {
         <Route element={<CascadeMenu />} path="/cascade" />
         <Route element={<Cascade startNew />} path="/cascade/game/new" />
         <Route element={<Cascade />} path="/cascade/game/continue" />
+        <Route element={<VsMenu />} path="/vs" />
+        <Route element={<VsLocalGrid />} path="/vs/local" />
         <Route element={<MainMenu />} path="*" />
       </Routes>
     </HashRouter>

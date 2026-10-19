@@ -1,17 +1,19 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
-import { Application, Graphics, Rectangle, TilingSprite, type Texture } from 'pixi.js'
+import { Application, Graphics } from 'pixi.js'
+import { GridSurface } from '@/rendering/grid/GridSurface'
+import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
+import { GAME_COLORS } from '@/rendering/colors'
+import { attachGridInput } from '@/rendering/grid/gridInput'
+import { drawCellBody, drawCornerMarker, getCornerMarkerPosition as getSharedMarkerPosition } from '@/rendering/grid/drawCorneromino'
 import type { SandboxWorldState } from '@/lib/db'
 import { SandboxCellSystem, type SandboxCornerMarker, updatePowerStateFromNeighbors } from './cellSystem'
 
 const BASE_CELL_SIZE = 56
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 5
-const CELL_FILL_COLOR = 0xffd18a
-const CELL_BORDER_COLOR = 0x773526
-const CORNER_MARKER_COLOR = 0x713324
-const CORNER_MARKER_TOP_RIGHT = 1
-const CORNER_MARKER_BOTTOM_RIGHT = 2
-const CORNER_MARKER_BOTTOM_LEFT = 3
+const CELL_FILL_COLOR = GAME_COLORS.cellFill
+const CELL_BORDER_COLOR = GAME_COLORS.cellBorder
+const CORNER_MARKER_COLOR = GAME_COLORS.cornerMarker
 const PAN_THRESHOLD = 4
 const SANDBOX_TICK_INTERVAL_MS = 2
 const MAX_UPDATES_PER_TICK = 10_000
@@ -128,10 +130,10 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
     const stableCanvasContainer: HTMLDivElement = canvasContainer
 
     const app = new Application()
+    let host: PixiCanvasHost | undefined
     const grid = new Graphics()
-    let gridTexture: Texture | undefined
-    let gridBackground: TilingSprite | undefined
-    let disposed = false
+    let surface: GridSurface | undefined
+    let detachInput: (() => void) | undefined
     let initialized = false
     let gridOffsetX = props.initialState?.gridOffsetX ?? 0
     let gridOffsetY = props.initialState?.gridOffsetY ?? 0
@@ -164,14 +166,11 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
     function getCornerMarkerPosition(corner: number, x: number, y: number, cellSize: number) {
       const markerSize = cellSize / 2
       const markerPadding = (cellSize - markerSize) / 4
+      const position = getSharedMarkerPosition(corner, cellSize, cellSize, { size: markerSize, paddingX: markerPadding, paddingY: markerPadding })
       return {
         markerSize,
-        x: corner === CORNER_MARKER_TOP_RIGHT || corner === CORNER_MARKER_BOTTOM_RIGHT
-          ? x + cellSize - markerPadding - markerSize
-          : x + markerPadding,
-        y: corner === CORNER_MARKER_BOTTOM_RIGHT || corner === CORNER_MARKER_BOTTOM_LEFT
-          ? y + cellSize - markerPadding - markerSize
-          : y + markerPadding,
+        x: x + position.x,
+        y: y + position.y,
       }
     }
 
@@ -187,16 +186,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
     function drawGrid(includeSelection = true) {
       const cellSize = BASE_CELL_SIZE * zoom
       const borderWidth = 2 * zoom
-      if (gridBackground) {
-        gridBackground.width = app.screen.width
-        gridBackground.height = app.screen.height
-        // Match the actual texture frame to the logical cell spacing exactly.
-        gridBackground.tileScale.set(
-          cellSize / gridBackground.texture.frame.width,
-          cellSize / gridBackground.texture.frame.height,
-        )
-        gridBackground.tilePosition.set(gridOffsetX, gridOffsetY)
-      }
+      surface?.update({ width: app.screen.width, height: app.screen.height, cellSize: BASE_CELL_SIZE, fit: 'manual', zoom, offsetX: gridOffsetX, offsetY: gridOffsetY })
       const now = performance.now()
       // Read only visible cells; exporting every marker would make each frame
       // scale with the entire infinite world, including offscreen cells.
@@ -220,10 +210,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
           if (isCornerOn) {
             // Cover the light background tile, including the inset brown gaps.
             const cellInset = borderWidth * 1.5
-            grid.rect(x, y, cellSize, cellSize).fill({ color: CELL_BORDER_COLOR })
-            grid
-              .roundRect(x + cellInset, y + cellInset, cellSize - cellInset * 2, cellSize - cellInset * 2, cellSize * 0.02)
-              .fill({ color: CORNER_MARKER_COLOR })
+            drawCellBody(grid, x, y, cellSize, cellSize, { fillColor: CORNER_MARKER_COLOR, borderColor: CELL_BORDER_COLOR, borderSize: cellInset, borderRadius: 0, innerRadius: cellSize * 0.02 })
           }
 
           currentCornerStates.set(cellKey, cornerMarker)
@@ -240,9 +227,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
 
           if (transition && transitionProgress === 1) cornerTransitions.delete(cellKey)
 
-          grid
-            .roundRect(markerX, markerY, toPosition.markerSize, toPosition.markerSize, toPosition.markerSize * 0.1)
-            .fill({ color: isCornerOn ? CELL_FILL_COLOR : CORNER_MARKER_COLOR })
+          drawCornerMarker(grid, markerX, markerY, { color: isCornerOn ? CELL_FILL_COLOR : CORNER_MARKER_COLOR, size: toPosition.markerSize, paddingX: 0, paddingY: 0, radius: toPosition.markerSize * 0.1 })
         }
       }
       lastCornerStates = currentCornerStates
@@ -315,9 +300,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
           if (!state.isOn) cellGraphic.stroke({ color: CELL_BORDER_COLOR, width: borderWidth, alpha: 0.72 })
 
           const markerPosition = getCornerMarkerPosition(state.corner, targetX, targetY, cellSize)
-          grid
-            .roundRect(markerPosition.x, markerPosition.y, markerPosition.markerSize, markerPosition.markerSize, markerPosition.markerSize * 0.1)
-            .fill({ color: state.isOn ? CELL_FILL_COLOR : CORNER_MARKER_COLOR, alpha: 0.72 })
+          drawCornerMarker(grid, markerPosition.x, markerPosition.y, { color: state.isOn ? CELL_FILL_COLOR : CORNER_MARKER_COLOR, alpha: 0.72, size: markerPosition.markerSize, paddingX: 0, paddingY: 0, radius: markerPosition.markerSize * 0.1 })
         }
       }
 
@@ -327,12 +310,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
     }
 
     function getCellPosition(event: PointerEvent): CellPosition {
-      const bounds = app.canvas.getBoundingClientRect()
-      const cellSize = BASE_CELL_SIZE * zoom
-      return {
-        column: Math.floor((event.clientX - bounds.left - gridOffsetX) / cellSize),
-        row: Math.floor((event.clientY - bounds.top - gridOffsetY) / cellSize),
-      }
+      return surface!.pointerToCell(event)
     }
 
     function isSameCell(first: CellPosition, second: CellPosition | null): boolean {
@@ -518,15 +496,10 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
     }
 
     function resizeCanvas() {
-      const width = stableCanvasContainer.clientWidth
-      const height = stableCanvasContainer.clientHeight
-      if (width === 0 || height === 0) return
-
-      app.renderer.resize(width, height)
       if (!hasInitialPosition) {
         const cellSize = BASE_CELL_SIZE * zoom
-        gridOffsetX = width / 2 - cellSize / 2
-        gridOffsetY = height / 2 - cellSize / 2
+        gridOffsetX = app.screen.width / 2 - cellSize / 2
+        gridOffsetY = app.screen.height / 2 - cellSize / 2
         hasInitialPosition = true
       }
       drawGrid()
@@ -674,6 +647,13 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       pinchGridY = (canvasCenterY - gridOffsetY) / cellSize
     }
 
+    function handlePointerCancel(event: PointerEvent) {
+      // Cancellation must never place, rotate or delete a cell.
+      hasPanned = true
+      interactionWasPinch = true
+      handlePointerUp(event)
+    }
+
     function updatePinch() {
       const pointers = [...activePointers.values()]
       const firstPointer = pointers[0]
@@ -709,94 +689,70 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       drawGrid()
     }
 
-    const resizeObserver = new ResizeObserver(resizeCanvas)
-
     async function startCanvas() {
-      await app.init({
-        antialias: true,
-        autoDensity: true,
-        background: CELL_BORDER_COLOR,
-        height: Math.max(1, stableCanvasContainer.clientHeight),
-        preserveDrawingBuffer: true,
-        resolution: window.devicePixelRatio,
-        width: Math.max(1, stableCanvasContainer.clientWidth),
-      })
-      initialized = true
-      if (disposed) {
-        app.destroy(true)
-        return
-      }
-
-      // Bake one empty cell once; the GPU repeats it across the viewport.
-      const tile = new Graphics()
-        .rect(0, 0, BASE_CELL_SIZE, BASE_CELL_SIZE).fill({ color: CELL_BORDER_COLOR })
-        .roundRect(1, 1, BASE_CELL_SIZE - 2, BASE_CELL_SIZE - 2, BASE_CELL_SIZE * 0.02)
-        .fill({ color: CELL_FILL_COLOR })
-        .stroke({ color: CELL_BORDER_COLOR, width: 2 })
-      gridTexture = app.renderer.generateTexture({
-        target: tile,
-        frame: new Rectangle(0, 0, BASE_CELL_SIZE, BASE_CELL_SIZE),
-        // Fractional device resolutions can round the repeated tile's pixel
-        // dimensions, creating drift relative to the vector corner markers.
-        resolution: Math.max(2, Math.ceil(window.devicePixelRatio)),
-        antialias: true,
-      })
-      tile.destroy()
-      gridBackground = new TilingSprite({ texture: gridTexture, width: app.screen.width, height: app.screen.height })
-      app.stage.addChild(gridBackground, grid)
-      redrawRef.current = drawGrid
-      deleteSelectedCellsRef.current = deleteSelectedCells
-      beginPasteRef.current = beginPaste
-      commitMoveRef.current = commitMove
-      cancelMoveRef.current = cancelMove
-      captureSelectedWorldRef.current = captureSelectedWorld
-      setSelectModeRef.current = (enabled) => {
-        if (enabled) {
-          // beginPaste establishes the imported world's full bounds before
-          // React enables Select; keep them instead of creating a 2x2 area.
-          if (pastedMarkers) {
-            drawGrid()
-            return
+      host = new PixiCanvasHost({
+        app, container: stableCanvasContainer, canvasClassName: 'size-full touch-none',
+        init: { background: CELL_BORDER_COLOR, preserveDrawingBuffer: true },
+        onReady: () => {
+          initialized = true
+          surface = new GridSurface(app, { infinite: true }, {
+            width: app.screen.width, height: app.screen.height, cellSize: BASE_CELL_SIZE,
+            fit: 'manual', zoom, offsetX: gridOffsetX, offsetY: gridOffsetY,
+          }, { cellColor: CELL_FILL_COLOR, borderColor: CELL_BORDER_COLOR, backgroundColor: CELL_BORDER_COLOR, borderSize: 2, borderRadius: BASE_CELL_SIZE * 0.02, gap: 0 })
+          surface.layers.pieces.addChild(grid)
+          app.stage.addChild(surface.root)
+          redrawRef.current = drawGrid
+          deleteSelectedCellsRef.current = deleteSelectedCells
+          beginPasteRef.current = beginPaste
+          commitMoveRef.current = commitMove
+          cancelMoveRef.current = cancelMove
+          captureSelectedWorldRef.current = captureSelectedWorld
+          setSelectModeRef.current = (enabled) => {
+            if (enabled) {
+              // beginPaste establishes the imported world's full bounds before
+              // React enables Select; keep them instead of creating a 2x2 area.
+              if (pastedMarkers) {
+                drawGrid()
+                return
+              }
+              const cellSize = BASE_CELL_SIZE * zoom
+              const centerColumn = Math.floor((app.renderer.width / 2 - gridOffsetX) / cellSize)
+              const centerRow = Math.floor((app.renderer.height / 2 - gridOffsetY) / cellSize)
+              upperSelectionBound = { column: centerColumn - 1, row: centerRow - 1 }
+              lowerSelectionBound = { column: centerColumn, row: centerRow }
+            } else {
+              upperSelectionBound = null
+              lowerSelectionBound = null
+              draggedSelectionBound = null
+              cancelMove()
+            }
+            if (initialized) drawGrid()
           }
-          const cellSize = BASE_CELL_SIZE * zoom
-          const centerColumn = Math.floor((app.renderer.width / 2 - gridOffsetX) / cellSize)
-          const centerRow = Math.floor((app.renderer.height / 2 - gridOffsetY) / cellSize)
-          upperSelectionBound = { column: centerColumn - 1, row: centerRow - 1 }
-          lowerSelectionBound = { column: centerColumn, row: centerRow }
-        } else {
-          upperSelectionBound = null
-          lowerSelectionBound = null
-          draggedSelectionBound = null
-          cancelMove()
-        }
-        if (initialized) drawGrid()
-      }
-      captureWorldRef.current = async () => ({
-        screenshot: await canvasToBlob(app.canvas),
-        state: {
-          cornerMarkers: cellSystem.getMarkers(),
-          gridOffsetX,
-          gridOffsetY,
-          zoom,
+          captureWorldRef.current = async () => ({
+            screenshot: await canvasToBlob(app.canvas),
+            state: { cornerMarkers: cellSystem.getMarkers(), gridOffsetX, gridOffsetY, zoom },
+          })
+          detachInput = attachGridInput(app.canvas, {
+            gestures: false,
+            cellAt: getCellPosition,
+            callbacks: {
+              onPointerDown: handlePointerDown,
+              onPointerMove: handlePointerMove,
+              onPointerUp: handlePointerUp,
+              onPointerCancel: handlePointerCancel,
+              onWheel: handleWheel,
+            },
+          })
+          updateTimer = window.setInterval(processUpdateTick, SANDBOX_TICK_INTERVAL_MS)
         },
+        onResize: resizeCanvas,
       })
-      app.canvas.className = 'size-full touch-none'
-      stableCanvasContainer.appendChild(app.canvas)
-      app.canvas.addEventListener('pointerdown', handlePointerDown)
-      app.canvas.addEventListener('pointermove', handlePointerMove)
-      app.canvas.addEventListener('pointerup', handlePointerUp)
-      app.canvas.addEventListener('pointercancel', handlePointerUp)
-      app.canvas.addEventListener('wheel', handleWheel, { passive: false })
-      resizeObserver.observe(stableCanvasContainer)
-      resizeCanvas()
-      updateTimer = window.setInterval(processUpdateTick, SANDBOX_TICK_INTERVAL_MS)
+      await host.start()
     }
 
     void startCanvas()
 
     return () => {
-      disposed = true
-      resizeObserver.disconnect()
       captureWorldRef.current = null
       captureSelectedWorldRef.current = null
       beginPasteRef.current = null
@@ -807,14 +763,10 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       redrawRef.current = null
       window.clearInterval(updateTimer)
       if (cornerAnimationFrame !== 0) window.cancelAnimationFrame(cornerAnimationFrame)
-      if (!initialized) return
-      app.canvas.removeEventListener('pointerdown', handlePointerDown)
-      app.canvas.removeEventListener('pointermove', handlePointerMove)
-      app.canvas.removeEventListener('pointerup', handlePointerUp)
-      app.canvas.removeEventListener('pointercancel', handlePointerUp)
-      app.canvas.removeEventListener('wheel', handleWheel)
-      app.destroy(true, { children: true })
-      gridTexture?.destroy(true)
+      if (!host) return
+      detachInput?.()
+      surface?.destroy()
+      host.destroy()
     }
   }, [])
 

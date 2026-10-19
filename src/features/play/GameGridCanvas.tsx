@@ -1,5 +1,11 @@
 import { useEffect, useRef } from 'react'
-import { Application, Container, Graphics, Text, TextStyle } from 'pixi.js'
+import { Application, Container, Graphics, Sprite, Text, TextStyle } from 'pixi.js'
+import { GridSurface } from '@/rendering/grid/GridSurface'
+import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
+import { GAME_COLORS } from '@/rendering/colors'
+import { attachGridInput, type GridCellEvent } from '@/rendering/grid/gridInput'
+import { drawCellBody, drawCornerMarker, getCornerMarkerPosition } from '@/rendering/grid/drawCorneromino'
+import { CELL_CORNERS } from '@/game/gameConfig'
 import { ShockwaveFilter } from 'pixi-filters'
 import { gsap } from 'gsap'
 import type { CellMarkerColor, GameConfig, LockedCellGroup, PlacedTetromino } from '@/game/gameConfig'
@@ -16,11 +22,11 @@ interface GameGridCanvasProps {
   showCellIds: boolean
 }
 
-const BOARD_COLOR = 0x773526
-const CELL_COLOR = 0xffd18a
-const OUTLINE_COLOR = 0x713324
-const TEXT_COLOR = 0x15100e
-const MARKER_COLORS: Record<CellMarkerColor, number> = { black: 0x15100e, white: 0x8d8d8d }
+const BOARD_COLOR = GAME_COLORS.cellBorder
+const CELL_COLOR = GAME_COLORS.cellFill
+const OUTLINE_COLOR = GAME_COLORS.cornerMarker
+const TEXT_COLOR = GAME_COLORS.ink
+const MARKER_COLORS: Record<CellMarkerColor, number> = { black: GAME_COLORS.ink, white: GAME_COLORS.markerWhite }
 
 function cellKey(x: number, y: number): string {
   return `${x},${y}`
@@ -60,26 +66,39 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
 
     const app = new Application()
     const board = new Container()
+    let surface: GridSurface | undefined
+    let host: PixiCanvasHost | undefined
+    let detachInput: (() => void) | undefined
+    let canvasReady = false
     board.sortableChildren = true
-    const resizeObserver = new ResizeObserver(() => {
-      if (!appRef.current) return
-      app.renderer.resize(Math.max(1, stableContainer.clientWidth), Math.max(1, stableContainer.clientHeight))
-      drawRef.current()
-    })
     let disposed = false
-    let initialized = false
     let shineLayers: Array<{ layer: Container; size: number }> = []
     let cellShakeLayers = new Map<string, Container>()
+    let emptyCellSprites = new Map<Container, Sprite>()
     const gridShakeMotion = { time: 0 }
     const lockWaves = new Set<ShockwaveFilter>()
+    const cellShakeMotions = new Set<{ time: number }>()
+
+    function stopCellAnimations() {
+      for (const motion of cellShakeMotions) gsap.killTweensOf(motion)
+      cellShakeMotions.clear()
+      for (const child of board.children) {
+        gsap.killTweensOf(child)
+        gsap.killTweensOf(child.scale)
+      }
+    }
 
     function draw() {
       if (disposed || !appRef.current || !boardRef.current) return
       const current = propsRef.current
-      const width = app.renderer.width
-      const height = app.renderer.height
-      const cellWidth = width / current.config.columns
-      const cellHeight = height / current.config.rows
+      const width = app.screen.width
+      const height = app.screen.height
+      const baseCellSize = Math.min(width / current.config.columns, height / current.config.rows)
+      surface!.update({ width, height, cellSize: baseCellSize, fit: 'stretch' }, {
+        cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR,
+        borderSize: 1.5, borderRadius: baseCellSize * 0.02, gap: 0,
+      })
+      const { cellWidth, cellHeight } = surface!.metrics
       const cellSize = Math.min(cellWidth, cellHeight)
       const pieceMap = createPieceMap(current.pieces)
       const lockedCellMap = createLockedCellMap(current.lockedCellGroups)
@@ -87,16 +106,13 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
       const nextSelectedKeys = new Set<string>()
       const newlyLockedCellKeys: string[] = []
 
+      stopCellAnimations()
       for (const child of board.removeChildren()) {
-        gsap.killTweensOf(child)
-        if (child instanceof Container) gsap.killTweensOf(child.scale)
         child.destroy({ children: true })
       }
       shineLayers = []
       cellShakeLayers = new Map()
-
-      const background = new Graphics().rect(0, 0, width, height).fill({ color: BOARD_COLOR })
-      board.addChild(background)
+      emptyCellSprites = new Map()
 
       for (let y = 0; y < current.config.rows; y += 1) {
         for (let x = 0; x < current.config.columns; x += 1) {
@@ -116,6 +132,19 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
           cellShakeLayers.set(key, shakeLayer)
           cellContainer.zIndex = selected ? 1 : 0
           cellContainer.position.set(x * cellWidth, y * cellHeight)
+
+          if (!cell && !lockedGroup && !selected && !current.markers.has(key)) {
+            // The repeated texture draws empty cells. A hidden tile is used
+            // only when a nearby lock effect shakes this individual cell.
+            const tile = new Sprite(surface!.texture)
+            tile.width = cellWidth
+            tile.height = cellHeight
+            tile.visible = false
+            shakeLayer.addChild(tile)
+            emptyCellSprites.set(shakeLayer, tile)
+            board.addChild(cellContainer)
+            continue
+          }
 
           if (selected) {
             cellContainer.pivot.set(cellWidth / 2, cellHeight / 2)
@@ -146,12 +175,14 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
           const radius = cellSize * 0.02
           const outerColor = selected ? CELL_COLOR : BOARD_COLOR
           const fillColor = selected ? BOARD_COLOR : lockedGroup ? lockedColorToNumber(lockedGroup.color) : CELL_COLOR
-          const cellGraphic = new Graphics()
-            .roundRect(0, 0, cellWidth, cellHeight, radius)
-            .fill({ color: outerColor })
-            .roundRect(borderSize, borderSize, cellWidth - borderSize * 2, cellHeight - borderSize * 2, Math.max(0, radius - borderSize))
-            .fill({ color: fillColor })
-          shakeLayer.addChild(cellGraphic)
+          const cellGraphic = new Graphics();
+          drawCellBody(cellGraphic, 0, 0, cellWidth, cellHeight, {
+            fillColor,
+            borderColor: outerColor,
+            borderSize,
+            borderRadius: radius
+          });
+          shakeLayer.addChild(cellGraphic);
 
           if (lockedGroup && !selected) {
             const shineMask = new Graphics()
@@ -185,11 +216,11 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
             const markerSize = cellWidth * 0.45
             const offsetX = Math.max(3, cellWidth * 0.12)
             const offsetY = Math.max(3, cellHeight * 0.12)
-            const markerX = cell.corner === 'top-right' || cell.corner === 'bottom-right' ? cellWidth - offsetX - markerSize : offsetX
-            const markerY = cell.corner === 'bottom-left' || cell.corner === 'bottom-right' ? cellHeight - offsetY - markerSize : offsetY
-            shakeLayer.addChild(new Graphics()
-              .roundRect(markerX, markerY, markerSize, markerSize, markerSize * 0.1)
-              .fill({ color: selected ? CELL_COLOR : OUTLINE_COLOR }))
+            const style = { color: selected ? CELL_COLOR : OUTLINE_COLOR, size: markerSize, paddingX: offsetX, paddingY: offsetY, radius: markerSize * 0.1 }
+            const position = getCornerMarkerPosition(CELL_CORNERS.indexOf(cell.corner), cellWidth, cellHeight, style)
+            const markerGraphic = new Graphics()
+            drawCornerMarker(markerGraphic, position.x, position.y, style)
+            shakeLayer.addChild(markerGraphic)
           }
 
           board.addChild(cellContainer)
@@ -254,7 +285,10 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
         const [column, row] = key.split(',').map(Number)
         const distance = Math.min(...lockedCells.map(([lockedColumn, lockedRow]) => Math.hypot(column - lockedColumn!, row - lockedRow!)))
         if (distance === 0 || distance > config.radiusCells) continue
+        const emptyTile = emptyCellSprites.get(layer)
+        if (emptyTile) emptyTile.visible = true
         const motion = { time: 0 }
+        cellShakeMotions.add(motion)
         gsap.killTweensOf(layer.position)
         layer.position.set(0, 0)
         const amplitude = cellSize * config.amplitudeCells * (1 - distance / (config.radiusCells + 1))
@@ -268,7 +302,11 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
             const phase = motion.time * config.frequencyHz * Math.PI * 2
             layer.position.set(Math.sin(phase) * amplitude * fade, Math.sin(phase * 1.3) * amplitude * fade * 0.6)
           },
-          onComplete: () => layer.position.set(0, 0),
+          onComplete: () => {
+            layer.position.set(0, 0)
+            if (emptyTile) emptyTile.visible = false
+            cellShakeMotions.delete(motion)
+          },
         })
       }
     }
@@ -312,51 +350,55 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
       }
     }
 
-    function handlePointerUp(event: PointerEvent) {
-      const bounds = app.canvas.getBoundingClientRect()
-      const x = Math.floor((event.clientX - bounds.left) * app.renderer.width / bounds.width / (app.renderer.width / propsRef.current.config.columns))
-      const y = Math.floor((event.clientY - bounds.top) * app.renderer.height / bounds.height / (app.renderer.height / propsRef.current.config.rows))
-      if (x < 0 || y < 0 || x >= propsRef.current.config.columns || y >= propsRef.current.config.rows) return
+    function handleCellTap({ column: x, row: y }: GridCellEvent) {
+      if (!surface!.contains(x, y)) return
       propsRef.current.onToggle(cellKey(x, y))
     }
 
     drawRef.current = draw
 
     async function start() {
-      await app.init({
-        antialias: true,
-        autoDensity: true,
-        background: BOARD_COLOR,
-        height: Math.max(1, stableContainer.clientHeight),
-        preserveDrawingBuffer: true,
-        resolution: window.devicePixelRatio,
-        width: Math.max(1, stableContainer.clientWidth),
+      host = new PixiCanvasHost({
+        app, container: stableContainer, canvasClassName: 'size-full touch-manipulation',
+        init: { background: BOARD_COLOR, preserveDrawingBuffer: true },
+        onReady: () => {
+          appRef.current = app
+          boardRef.current = board
+          surface = new GridSurface(app, { infinite: false, columns: propsRef.current.config.columns, rows: propsRef.current.config.rows }, {
+            width: app.screen.width, height: app.screen.height,
+            cellSize: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows), fit: 'stretch',
+          }, { cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR, borderSize: 1.5, borderRadius: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows) * 0.02, gap: 0 })
+          surface.layers.pieces.addChild(board)
+          app.stage.addChild(surface.root)
+          detachInput = attachGridInput(app.canvas, {
+            cellAt: (event) => surface!.pointerToCell(event),
+            callbacks: { onCellTap: handleCellTap },
+          })
+          app.ticker.add(update)
+          canvasReady = true
+        },
+        onResize: () => drawRef.current(),
       })
-      if (disposed) {
-        app.destroy(true)
-        return
-      }
-      initialized = true
-      appRef.current = app
-      boardRef.current = board
-      app.stage.addChild(board)
-      stableContainer.appendChild(app.canvas)
-      app.canvas.className = 'size-full touch-manipulation'
-      app.canvas.addEventListener('pointerup', handlePointerUp)
-      app.ticker.add(update)
-      resizeObserver.observe(stableContainer)
-      draw()
+      await host.start()
     }
 
     void start()
     return () => {
       disposed = true
-      resizeObserver.disconnect()
-      if (initialized) {
-        app.canvas.removeEventListener('pointerup', handlePointerUp)
+      if (canvasReady) {
+        detachInput?.()
         app.ticker.remove(update)
-        app.destroy(true)
+        stopCellAnimations()
+        gsap.killTweensOf(gridShakeMotion)
+        for (const wave of lockWaves) {
+          gsap.killTweensOf(wave)
+          wave.destroy()
+        }
+        lockWaves.clear()
+        app.stage.filters = []
+        surface?.destroy()
       }
+      host?.destroy()
       appRef.current = null
       boardRef.current = null
       drawRef.current = () => undefined

@@ -48,6 +48,15 @@ export interface CascadeGameSaveState {
   selectedPieceKeys: string[]
 }
 
+export interface VsLocalGameSaveState {
+  activePlayer: 0 | 1
+  lockedCornerominoes: Array<{ cellKeys: readonly string[]; id: string; player: 0 | 1 }>
+  nextMoveConstraint: { direction: 'orthogonal' | 'diagonal'; originColumn: number; originRow: number } | null
+  pendingMoveDirection: 'orthogonal' | 'diagonal'
+  pendingPlacement: { column: number; corner: 0 | 1 | 2 | 3; row: number } | null
+  placedCornerominoes: Array<{ column: number; corner: 0 | 1 | 2 | 3; lockedBy?: 0 | 1; player: 0 | 1; row: number }>
+}
+
 interface CornerominoDatabase {
   games: {
     key: string
@@ -76,6 +85,51 @@ function selectionStorageKey(gameMode: GameMode, gameId: string): string {
 
 const CASCADE_STORAGE_KEY = 'cascade:current'
 const CASCADE_BEST_SCORE_STORAGE_KEY = 'cascade:best-score'
+const VS_LOCAL_STORAGE_KEY = 'vs:local:current'
+
+function isVsPlayer(value: unknown): value is 0 | 1 {
+  return value === 0 || value === 1
+}
+
+function isVsPlacement(value: unknown): value is { column: number; corner: 0 | 1 | 2 | 3; row: number } {
+  return typeof value === 'object'
+    && value !== null
+    && 'column' in value && typeof value.column === 'number' && Number.isInteger(value.column) && value.column >= 0 && value.column < 10
+    && 'row' in value && typeof value.row === 'number' && Number.isInteger(value.row) && value.row >= 0 && value.row < 10
+    && 'corner' in value && (value.corner === 0 || value.corner === 1 || value.corner === 2 || value.corner === 3)
+}
+
+function isVsMoveDirection(value: unknown): value is 'orthogonal' | 'diagonal' {
+  return value === 'orthogonal' || value === 'diagonal'
+}
+
+function isVsMoveConstraint(value: unknown): value is { direction: 'orthogonal' | 'diagonal'; originColumn: number; originRow: number } {
+  return typeof value === 'object'
+    && value !== null
+    && 'direction' in value && isVsMoveDirection(value.direction)
+    && 'originColumn' in value && typeof value.originColumn === 'number' && Number.isInteger(value.originColumn) && value.originColumn >= 0 && value.originColumn < 10
+    && 'originRow' in value && typeof value.originRow === 'number' && Number.isInteger(value.originRow) && value.originRow >= 0 && value.originRow < 10
+}
+
+function isVsLocalGameSaveState(value: unknown): value is VsLocalGameSaveState {
+  return typeof value === 'object'
+    && value !== null
+    && 'activePlayer' in value && isVsPlayer(value.activePlayer)
+    && (!('pendingMoveDirection' in value) || isVsMoveDirection(value.pendingMoveDirection))
+    && (!('nextMoveConstraint' in value) || value.nextMoveConstraint === null || isVsMoveConstraint(value.nextMoveConstraint))
+    && 'pendingPlacement' in value && (value.pendingPlacement === null || isVsPlacement(value.pendingPlacement))
+    && 'placedCornerominoes' in value && Array.isArray(value.placedCornerominoes) && value.placedCornerominoes.every((placement) => (
+      isVsPlacement(placement)
+      && 'player' in placement && isVsPlayer(placement.player)
+      && (!('lockedBy' in placement) || isVsPlayer(placement.lockedBy))
+    ))
+    && 'lockedCornerominoes' in value && Array.isArray(value.lockedCornerominoes) && value.lockedCornerominoes.every((corneromino) => (
+      typeof corneromino === 'object' && corneromino !== null
+      && 'id' in corneromino && typeof corneromino.id === 'string'
+      && 'player' in corneromino && isVsPlayer(corneromino.player)
+      && 'cellKeys' in corneromino && Array.isArray(corneromino.cellKeys) && corneromino.cellKeys.length === 4 && corneromino.cellKeys.every((cellKey: unknown) => typeof cellKey === 'string')
+    ))
+}
 
 function isCascadePiece(value: unknown): value is { column: number; corner: 0 | 1 | 2 | 3; row: number } {
   return typeof value === 'object'
@@ -244,6 +298,24 @@ export async function saveCascadeGameState(state: CascadeGameSaveState): Promise
 
 export async function clearCascadeGameState(): Promise<void> {
   await (await db).delete('games', CASCADE_STORAGE_KEY)
+}
+
+export async function loadVsLocalGameState(): Promise<VsLocalGameSaveState | null> {
+  const storedState = await (await db).get('games', VS_LOCAL_STORAGE_KEY)
+  if (!storedState || !isVsLocalGameSaveState(storedState.state)) return null
+  return {
+    ...storedState.state,
+    nextMoveConstraint: 'nextMoveConstraint' in storedState.state ? storedState.state.nextMoveConstraint : null,
+    pendingMoveDirection: 'pendingMoveDirection' in storedState.state ? storedState.state.pendingMoveDirection : 'orthogonal',
+  }
+}
+
+export async function saveVsLocalGameState(state: VsLocalGameSaveState): Promise<void> {
+  await (await db).put('games', { id: VS_LOCAL_STORAGE_KEY, state, updatedAt: Date.now() })
+}
+
+export async function clearVsLocalGameState(): Promise<void> {
+  await (await db).delete('games', VS_LOCAL_STORAGE_KEY)
 }
 
 export async function loadCascadeBestScore(): Promise<number> {
