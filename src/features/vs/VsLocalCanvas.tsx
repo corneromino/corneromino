@@ -1,14 +1,19 @@
 import { useEffect, useRef } from 'react'
-import { Application, Graphics } from 'pixi.js'
+import { Application, Container, Graphics } from 'pixi.js'
+import { gsap } from 'gsap'
+import { ShockwaveFilter } from 'pixi-filters'
 import { GAME_COLORS } from '@/rendering/colors'
 import { drawCellBody, drawCornerMarker, getCornerMarkerPosition } from '@/rendering/grid/drawCorneromino'
 import { GridSurface } from '@/rendering/grid/GridSurface'
 import { attachGridInput } from '@/rendering/grid/gridInput'
 import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
 import { getVsNextTurnPreviewCells, getVsTargetedCells, VS_PLAYERS, type VsLocalGameState, type VsPlayerId } from './vsLocalGame'
+import { getVsLockedShapeBridges } from './vsLockedShapeBridges'
+import { CASCADE_LOCK_EFFECTS } from '@/features/cascade/cascadeEffects'
 
-const TARGET_DOT_RADIUS_RATIO = 0.18
+const TARGET_DOT_RADIUS_RATIO = 0.25
 const TARGET_DOT_ALPHA = 0.5
+const CELL_BORDER_SIZE = 1.5
 
 interface VsLocalCanvasProps {
   game: VsLocalGameState
@@ -22,7 +27,7 @@ function drawPlacement(graphics: Graphics, surface: GridSurface, column: number,
   drawCellBody(graphics, x, y, cellWidth, cellHeight, {
     fillColor: pending ? GAME_COLORS.cornerMarker : lockedBy === undefined ? GAME_COLORS.cellFill : VS_PLAYERS[lockedBy].lockedColor,
     borderColor: GAME_COLORS.cellBorder,
-    borderSize: 1.5,
+    borderSize: CELL_BORDER_SIZE,
     // Match Normal mode: a cell radius is 2% of its size.
     borderRadius: cellSize * 0.02,
   })
@@ -57,8 +62,99 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
 
     const app = new Application()
     const pieces = new Graphics()
+    const lockImpactLayer = new Container()
     let surface: GridSurface | undefined
     let detachInput: (() => void) | undefined
+    let hasDrawn = false
+    let previousLockedCellKeys = new Set<string>()
+    const lockWaves = new Set<ShockwaveFilter>()
+    const gridShakeMotion = { time: 0 }
+    const impactMotions = new Set<{ time: number }>()
+
+    function playGridShake() {
+      const config = CASCADE_LOCK_EFFECTS.gridShake
+      if (!config.enabled || config.durationSeconds <= 0 || !surface) return
+      gsap.killTweensOf(gridShakeMotion)
+      app.stage.position.set(0, 0)
+      gridShakeMotion.time = 0
+      const amplitude = Math.min(surface.metrics.cellWidth, surface.metrics.cellHeight) * config.amplitudeCells
+      gsap.to(gridShakeMotion, {
+        duration: config.durationSeconds,
+        ease: 'none',
+        time: config.durationSeconds,
+        onUpdate: () => {
+          const fade = (1 - gridShakeMotion.time / config.durationSeconds) ** 2
+          const phase = gridShakeMotion.time * config.frequencyHz * Math.PI * 2
+          app.stage.position.set(Math.sin(phase) * amplitude * fade, Math.sin(phase * 1.3) * amplitude * fade * 0.6)
+        },
+        onComplete: () => app.stage.position.set(0, 0),
+      })
+    }
+
+    function playLockRipple(lockedCellKeys: readonly string[]) {
+      const config = CASCADE_LOCK_EFFECTS.ripple
+      if (!config.enabled || !surface || lockedCellKeys.length === 0) return
+      const { cellHeight, cellWidth, offsetX, offsetY } = surface.metrics
+      const cells = lockedCellKeys.map((key) => key.split(',').map(Number))
+      const center = cells.reduce((total, [column, row]) => ({
+        x: total.x + offsetX + (column! + 0.5) * cellWidth,
+        y: total.y + offsetY + (row! + 0.5) * cellHeight,
+      }), { x: 0, y: 0 })
+      const cellSize = Math.min(cellWidth, cellHeight)
+      const wave = new ShockwaveFilter({
+        amplitude: cellSize * config.amplitudeCells,
+        brightness: config.brightness,
+        center: { x: center.x / cells.length, y: center.y / cells.length },
+        radius: cellSize * config.radiusCells,
+        speed: cellSize * config.speedCellsPerSecond,
+        wavelength: cellSize * config.wavelengthCells,
+      })
+      lockWaves.add(wave)
+      app.stage.filters = [...lockWaves]
+      gsap.to(wave, {
+        amplitude: 0,
+        brightness: 1,
+        duration: config.durationSeconds,
+        ease: 'none',
+        time: config.durationSeconds,
+        onComplete: () => {
+          lockWaves.delete(wave)
+          app.stage.filters = [...lockWaves]
+          wave.destroy()
+        },
+      })
+    }
+
+    function playLockedCellImpacts(lockedCellKeys: readonly string[]) {
+      const config = CASCADE_LOCK_EFFECTS.shakeDrop
+      if (!config.enabled || config.durationSeconds <= 0 || !surface) return
+      const placements = new Map(gameRef.current.placedCornerominoes.map((placement) => [`${placement.column},${placement.row}`, placement]))
+      const amplitude = Math.min(surface.metrics.cellWidth, surface.metrics.cellHeight) * config.amplitudeCells
+      for (const key of lockedCellKeys) {
+        const placement = placements.get(key)
+        if (!placement) continue
+        const impact = new Graphics()
+        drawPlacement(impact, surface, placement.column, placement.row, placement.corner, false, placement.lockedBy)
+        lockImpactLayer.addChild(impact)
+        const motion = { time: 0 }
+        impactMotions.add(motion)
+        gsap.to(motion, {
+          duration: config.durationSeconds,
+          ease: 'none',
+          time: config.durationSeconds,
+          onUpdate: () => {
+            const fade = (1 - motion.time / config.durationSeconds) ** 2
+            const phase = motion.time * config.frequencyHz * Math.PI * 2
+            impact.position.set(Math.sin(phase) * amplitude * fade, Math.sin(phase * 1.3) * amplitude * fade * 0.6)
+          },
+          onComplete: () => {
+            impactMotions.delete(motion)
+            impact.destroy()
+          },
+        })
+      }
+    }
+
     const draw = () => {
       if (!surface) return
       pieces.clear()
@@ -78,8 +174,23 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
       for (const placement of gameRef.current.placedCornerominoes) {
         drawPlacement(pieces, surface, placement.column, placement.row, placement.corner, false, placement.lockedBy)
       }
+      // Draw joins after all bodies so neighbouring cell borders cannot cover them.
+      for (const bridge of getVsLockedShapeBridges(gameRef.current.lockedCornerominoes, surface.metrics, CELL_BORDER_SIZE)) {
+        pieces.rect(bridge.x, bridge.y, bridge.width, bridge.height).fill(VS_PLAYERS[bridge.player].lockedColor)
+      }
       const pending = gameRef.current.pendingPlacement
       if (pending) drawPlacement(pieces, surface, pending.column, pending.row, pending.corner, true)
+      const lockedCellKeys = new Set(gameRef.current.placedCornerominoes
+        .filter((placement) => placement.lockedBy !== undefined)
+        .map((placement) => `${placement.column},${placement.row}`))
+      const newlyLockedCellKeys = [...lockedCellKeys].filter((key) => !previousLockedCellKeys.has(key))
+      if (hasDrawn && newlyLockedCellKeys.length > 0) {
+        playGridShake()
+        playLockRipple(newlyLockedCellKeys)
+        playLockedCellImpacts(newlyLockedCellKeys)
+      }
+      previousLockedCellKeys = lockedCellKeys
+      hasDrawn = true
     }
     drawRef.current = draw
 
@@ -99,11 +210,12 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
           cellColor: GAME_COLORS.cellFill,
           borderColor: GAME_COLORS.cellBorder,
           backgroundColor: GAME_COLORS.cellBorder,
-          borderSize: 1.5,
+          borderSize: CELL_BORDER_SIZE,
           borderRadius: cellSize * 0.02,
           gap: 0,
         })
         surface.layers.pieces.addChild(pieces)
+        surface.layers.effects.addChild(lockImpactLayer)
         app.stage.addChild(surface.root)
         detachInput = attachGridInput(app.canvas, {
           cellAt: (event) => surface!.pointerToCell(event),
@@ -117,7 +229,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
           cellColor: GAME_COLORS.cellFill,
           borderColor: GAME_COLORS.cellBorder,
           backgroundColor: GAME_COLORS.cellBorder,
-          borderSize: 1.5,
+          borderSize: CELL_BORDER_SIZE,
           borderRadius: cellSize * 0.02,
           gap: 0,
         })
@@ -129,6 +241,15 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
     return () => {
       drawRef.current = null
       detachInput?.()
+      gsap.killTweensOf(gridShakeMotion)
+      for (const motion of impactMotions) gsap.killTweensOf(motion)
+      impactMotions.clear()
+      for (const wave of lockWaves) {
+        gsap.killTweensOf(wave)
+        wave.destroy()
+      }
+      lockWaves.clear()
+      app.stage.filters = []
       surface?.destroy()
       host.destroy()
     }
