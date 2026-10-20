@@ -94,7 +94,7 @@ function rotateClockwise(cells: readonly TetrominoCell[]): TetrominoCell[] {
   }))
 }
 
-function rotationKey(cells: readonly TetrominoCell[]): string {
+function rotationKey(cells: readonly GridPosition[]): string {
   return cells
     .map(({ x, y }) => `${x},${y}`)
     .sort()
@@ -129,21 +129,26 @@ export const TETROMINOES: Readonly<Record<TetrominoKind, TetrominoDefinition>> =
   ]),
 ) as Readonly<Record<TetrominoKind, TetrominoDefinition>>
 
-const TETROMINO_SHAPE_KEYS = new Set(
-  Object.values(TETROMINOES).flatMap((tetromino) => tetromino.rotations.map((rotation) => rotationKey(rotation.cells))),
+const TETROMINO_SHAPE_KINDS = new Map(
+  Object.values(TETROMINOES).flatMap((tetromino) => tetromino.rotations.map((rotation) => [rotationKey(rotation.cells), tetromino.kind] as const)),
 )
 
-/** Checks whether four coordinates match a tetromino rotation after translation. */
-export function isTetrominoShape(cells: readonly GridPosition[]): boolean {
+/** Identifies a shape regardless of position or rotation; mirrored kinds remain distinct. */
+export function getTetrominoKind(cells: readonly GridPosition[]): TetrominoKind | null {
   if (cells.length !== 4 || new Set(cells.map((cell) => `${cell.x},${cell.y}`)).size !== 4) {
-    return false
+    return null
   }
 
   const minX = Math.min(...cells.map((cell) => cell.x))
   const minY = Math.min(...cells.map((cell) => cell.y))
-  const normalizedCells = cells.map((cell) => ({ id: 'a' as const, x: cell.x - minX, y: cell.y - minY }))
+  const normalizedCells = cells.map((cell) => ({ x: cell.x - minX, y: cell.y - minY }))
 
-  return TETROMINO_SHAPE_KEYS.has(rotationKey(normalizedCells))
+  return TETROMINO_SHAPE_KINDS.get(rotationKey(normalizedCells)) ?? null
+}
+
+/** Checks whether four coordinates match a tetromino rotation after translation. */
+export function isTetrominoShape(cells: readonly GridPosition[]): boolean {
+  return getTetrominoKind(cells) !== null
 }
 
 /** Returns a copy that gameplay code may decorate (for example, with per-cell colors). */

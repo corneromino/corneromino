@@ -1,4 +1,4 @@
-import { TETROMINOES } from '@/game/tetrominoes'
+import { getTetrominoKind, TETROMINOES, type TetrominoKind } from '@/game/tetrominoes'
 
 export type VsCorner = 0 | 1 | 2 | 3
 export type VsPlayerId = 0 | 1
@@ -109,9 +109,43 @@ function cellKey(column: number, row: number) {
 
 const CORNEROMINO_PATTERNS = [...new Map(
   Object.values(TETROMINOES)
-    .flatMap((tetromino) => tetromino.rotations.map((rotation) => rotation.cells))
-    .map((cells) => [cells.map(({ x, y }) => cellKey(x, y)).sort().join('|'), cells] as const),
+    .flatMap((tetromino) => tetromino.rotations.map((rotation) => ({ kind: tetromino.kind, cells: rotation.cells })))
+    .map((pattern) => [pattern.cells.map(({ x, y }) => cellKey(x, y)).sort().join('|'), pattern] as const),
 ).values()]
+
+const ORTHOGONAL_NEIGHBORS = [[-1, 0], [1, 0], [0, -1], [0, 1]] as const
+
+function indexFriendlyLockedShapes(groups: readonly VsLockedCorneromino[], player: VsPlayerId): Map<string, Set<TetrominoKind>> {
+  const index = new Map<string, Set<TetrominoKind>>()
+  for (const group of groups) {
+    if (group.player !== player) continue
+    // Stored group coordinates also identify shapes from existing saved games.
+    const kind = getTetrominoKind(group.cellKeys.map((key) => {
+      const [x, y] = key.split(',').map(Number)
+      return { x, y }
+    }))
+    if (kind === null) continue
+    for (const key of group.cellKeys) {
+      const kinds = index.get(key) ?? new Set<TetrominoKind>()
+      kinds.add(kind)
+      index.set(key, kinds)
+    }
+  }
+  return index
+}
+
+function matchesFriendlyShapeRule(cells: readonly VsPlacement[], kind: TetrominoKind, friendlyShapes: ReadonlyMap<string, ReadonlySet<TetrominoKind>>): boolean {
+  let touchesFriendlyShape = false
+  for (const { column, row } of cells) {
+    for (const [dx, dy] of ORTHOGONAL_NEIGHBORS) {
+      const neighboringKinds = friendlyShapes.get(cellKey(column + dx, row + dy))
+      if (!neighboringKinds) continue
+      if (neighboringKinds.has(kind)) return true
+      touchesFriendlyShape = true
+    }
+  }
+  return !touchesFriendlyShape
+}
 
 interface ShapeCandidate {
   cellKeys: string[]
@@ -187,13 +221,15 @@ function selectMaximumVsShapes(
  * set of tetromino rotations anchored at that piece, instead of searching all
  * combinations of four cells on the board, then chooses the largest compatible
  * set. Shapes may share only the latest cell: N shapes lock exactly 1 + 3N cells.
+ * Only friendly shapes locked before this turn impose adjacency restrictions.
  */
-export function findValidatedVsShapes(placed: readonly VsPlacedCorneromino[], latest: VsPlacedCorneromino): string[][] {
+export function findValidatedVsShapes(placed: readonly VsPlacedCorneromino[], latest: VsPlacedCorneromino, previouslyLocked: readonly VsLockedCorneromino[]): string[][] {
   const available = new Map(placed.filter((placement) => placement.lockedBy === undefined).map((placement) => [cellKey(placement.column, placement.row), placement]))
+  const friendlyShapes = indexFriendlyLockedShapes(previouslyLocked, latest.player)
   const validShapes: string[][] = []
   const seenShapes = new Set<string>()
 
-  for (const pattern of CORNEROMINO_PATTERNS) {
+  for (const { cells: pattern, kind } of CORNEROMINO_PATTERNS) {
     for (const pivot of pattern) {
       const offsetColumn = latest.column - pivot.x
       const offsetRow = latest.row - pivot.y
@@ -201,6 +237,7 @@ export function findValidatedVsShapes(placed: readonly VsPlacedCorneromino[], la
       if (shape.some((placement) => placement === undefined)) continue
       const completedShape = shape as VsPlacedCorneromino[]
       if (new Set(completedShape.map((placement) => placement.corner)).size !== 4) continue
+      if (!matchesFriendlyShapeRule(completedShape, kind, friendlyShapes)) continue
       const shapeKey = completedShape.map((placement) => cellKey(placement.column, placement.row)).sort().join('|')
       if (seenShapes.has(shapeKey)) continue
       seenShapes.add(shapeKey)
@@ -211,8 +248,8 @@ export function findValidatedVsShapes(placed: readonly VsPlacedCorneromino[], la
   return selectMaximumVsShapes(validShapes, available, cellKey(latest.column, latest.row))
 }
 
-export function findValidatedVsCellKeys(placed: readonly VsPlacedCorneromino[], latest: VsPlacedCorneromino): string[] {
-  return [...new Set(findValidatedVsShapes(placed, latest).flat())]
+export function findValidatedVsCellKeys(placed: readonly VsPlacedCorneromino[], latest: VsPlacedCorneromino, previouslyLocked: readonly VsLockedCorneromino[]): string[] {
+  return [...new Set(findValidatedVsShapes(placed, latest, previouslyLocked).flat())]
 }
 
 /** Places a new corner at top-right, then rotates clockwise on repeated presses. */
@@ -236,7 +273,7 @@ export function finishVsTurn(state: VsLocalGameState): VsLocalGameState {
   if (!pending) return state
   const latest: VsPlacedCorneromino = { ...pending, player: state.activePlayer }
   const placedCornerominoes = [...state.placedCornerominoes, latest]
-  const validatedShapes = findValidatedVsShapes(placedCornerominoes, latest)
+  const validatedShapes = findValidatedVsShapes(placedCornerominoes, latest, state.lockedCornerominoes)
   const validatedCellKeys = new Set(validatedShapes.flat())
   const lockedCornerominoes = [
     ...state.lockedCornerominoes,

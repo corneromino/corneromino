@@ -43,7 +43,7 @@ describe('local VS game', () => {
       { column: 0, row: 1, corner: 3, player: 1 },
     ]
     const latest = { column: 1, row: 1, corner: 2, player: 0 } as const
-    expect(findValidatedVsCellKeys([...pieces, latest], latest)).toEqual(['0,0', '1,0', '0,1', '1,1'])
+    expect(findValidatedVsCellKeys([...pieces, latest], latest, [])).toEqual(['0,0', '1,0', '0,1', '1,1'])
 
     const game = finishVsTurn({ activePlayer: 0, lockedCornerominoes: [], nextMoveConstraint: null, pendingMoveDirection: 'orthogonal', pendingPlacement: latest, placedCornerominoes: pieces })
     expect(game.placedCornerominoes.every((placement) => placement.lockedBy === 0)).toBe(true)
@@ -57,7 +57,7 @@ describe('local VS game', () => {
       { column: 0, row: 1, corner: 3, player: 0 },
     ]
     const latest = { column: 1, row: 1, corner: 2, player: 1 } as const
-    expect(findValidatedVsCellKeys([...pieces, latest], latest)).toEqual([])
+    expect(findValidatedVsCellKeys([...pieces, latest], latest, [])).toEqual([])
   })
 
   it('locks the union when one placement completes multiple shapes', () => {

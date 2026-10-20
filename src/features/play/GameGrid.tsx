@@ -7,6 +7,7 @@ import type { CellMarkerColor, GameConfig, GameMode, GameSelectionState, LockedC
 import { isTetrominoShape } from '@/game/tetrominoes'
 import { clearGameSelection, loadGameSelection, saveGameSelection } from '@/lib/db'
 import { cn } from '@/lib/utils'
+import { CorrectGameDialog } from './CorrectGameDialog'
 import { SaveGameDialog } from './SaveGameDialog'
 import { GameGridCanvas } from './GameGridCanvas'
 
@@ -16,6 +17,7 @@ interface GameGridProps {
   gameMode: GameMode
   onElapsedSecondsChange: (elapsedSeconds: number) => void
   onMoveCountChange: (moveCount: number) => void
+  onNextGame: () => void
   pieces: readonly PlacedTetromino[]
 }
 
@@ -70,7 +72,7 @@ export function GameGrid(props: GameGridProps) {
   const [gameGridScreenshot, setGameGridScreenshot] = useState<Blob | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [isCompleted, setIsCompleted] = useState(false)
-  const [completionVisible, setCompletionVisible] = useState(false)
+  const [completionScreenshot, setCompletionScreenshot] = useState<string | null>(null)
   const [moveCount, setMoveCount] = useState(0)
   const [savedAt, setSavedAt] = useState<number | null>(null)
   const gameBoardRef = useRef<HTMLElement>(null)
@@ -98,7 +100,7 @@ export function GameGrid(props: GameGridProps) {
     setValidationResult(null)
     setGameGridScreenshot(null)
     setIsCompleted(false)
-    setCompletionVisible(false)
+    setCompletionScreenshot(null)
     setSavedAt(null)
     savedSelectionRef.current = null
   }
@@ -166,6 +168,10 @@ export function GameGrid(props: GameGridProps) {
     void exitGame(true)
   }
 
+  function handleCompletionOpenChange(open: boolean) {
+    if (!open) setCompletionScreenshot(null)
+  }
+
   function toggleCellSelection(cellKey: string) {
     if (!cellMap.has(cellKey)) return
 
@@ -225,7 +231,7 @@ export function GameGrid(props: GameGridProps) {
     const nextMoveCount = moveCount + 1
     setLockedCellGroups((groups) => [...groups, { cellKeys, color, id: crypto.randomUUID() }])
     setIsCompleted(false)
-    setCompletionVisible(false)
+    setCompletionScreenshot(null)
     setSelectedCellKeys(new Set())
     setValidationResult(null)
     setMoveCount(nextMoveCount)
@@ -240,7 +246,7 @@ export function GameGrid(props: GameGridProps) {
 
     setLockedCellGroups((groups) => groups.filter((lockedGroup) => lockedGroup.id !== group.id))
     setIsCompleted(false)
-    setCompletionVisible(false)
+    setCompletionScreenshot(null)
     setSelectedCellKeys(new Set(group.cellKeys))
     setSelectedLockedGroupId(null)
     setValidationResult(null)
@@ -264,7 +270,9 @@ export function GameGrid(props: GameGridProps) {
       validLockCount,
     })
     setIsCompleted(isCorrect)
-    setCompletionVisible(isCorrect)
+    // Capture the rendered board before opening the dialog over it.
+    const canvas = gameBoardRef.current?.querySelector('canvas')
+    setCompletionScreenshot(isCorrect && canvas ? canvas.toDataURL('image/png') : null)
   }
 
   useEffect(() => {
@@ -294,7 +302,7 @@ export function GameGrid(props: GameGridProps) {
     setElapsedSeconds(0)
     props.onElapsedSecondsChange(0)
     setIsCompleted(false)
-    setCompletionVisible(false)
+    setCompletionScreenshot(null)
     setMoveCount(0)
     props.onMoveCountChange(0)
     setSavedAt(null)
@@ -311,7 +319,7 @@ export function GameGrid(props: GameGridProps) {
           setElapsedSeconds(storedSelection.elapsedSeconds)
           props.onElapsedSecondsChange(storedSelection.elapsedSeconds)
           setIsCompleted(storedSelection.isCompleted)
-          setCompletionVisible(false)
+          setCompletionScreenshot(null)
           setMoveCount(storedSelection.moveCount)
           props.onMoveCountChange(storedSelection.moveCount)
           setSavedAt(storedSelection.savedAt)
@@ -331,16 +339,6 @@ export function GameGrid(props: GameGridProps) {
       active = false
     }
   }, [props.gameId, props.gameMode])
-
-  useEffect(() => {
-    if (!completionVisible) return
-
-    const dismissTimer = window.setTimeout(() => {
-      setCompletionVisible(false)
-    }, 10_000)
-
-    return () => window.clearTimeout(dismissTimer)
-  }, [completionVisible])
 
   useEffect(() => {
     if (!selectionLoaded || isCompleted || isExiting) return
@@ -372,13 +370,6 @@ export function GameGrid(props: GameGridProps) {
 
   return (
     <div className="space-y-4 px-1">
-      {completionVisible && (
-        <>
-          <div aria-hidden="true" className="completion-dim fixed inset-0 z-20 pointer-events-none bg-[#160b09]" />
-          <button aria-label="Dismiss win message" className="fixed inset-0 z-[35] cursor-default border-0 bg-transparent p-0" onClick={() => setCompletionVisible(false)} type="button" />
-          <p className="completion-message poster-title pointer-events-none fixed inset-0 z-40 grid place-items-center text-[66px] leading-none text-[#7CFF9F] [-webkit-text-stroke:10px_#030505] [paint-order:stroke_fill]">Win!</p>
-        </>
-      )}
       <section aria-label="Game board" className="mx-auto max-w-[550px]" ref={gameBoardRef} style={boardStyle}>
         <div className="size-full border-2 border-[#773526] bg-[#773526]">
           <GameGridCanvas
@@ -515,6 +506,11 @@ export function GameGrid(props: GameGridProps) {
           )}
         </Button>
       </div>
+      <CorrectGameDialog
+        onNext={props.onNextGame}
+        onOpenChange={handleCompletionOpenChange}
+        screenshot={completionScreenshot}
+      />
       <SaveGameDialog
         isSaving={isExiting}
         onDiscard={discardAndExit}

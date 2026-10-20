@@ -195,6 +195,39 @@
   background: color-mix(in srgb, var(--outline-color) 72%, var(--canvas-deep));
 }
 
+.dialog-overlay[data-state='open'] {
+  animation: dialog-fade-in 240ms ease-out both;
+}
+
+.dialog-content[data-state='open'] {
+  animation: dialog-slide-up 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes dialog-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dialog-slide-up {
+  from {
+    opacity: 0;
+    /* Tailwind's separate translate property keeps the dialog centered. */
+    transform: translateY(calc(50dvh + 50%));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog-overlay[data-state='open'],
+  .dialog-content[data-state='open'] {
+    animation: none;
+  }
+}
+
 .locked-tetromino-cell {
   isolation: isolate;
   overflow: hidden;
@@ -209,36 +242,6 @@
   background: linear-gradient(115deg, transparent 42%, rgb(255 255 255 / 12%) 47%, rgb(255 255 255 / 72%) 50%, rgb(255 255 255 / 12%) 53%, transparent 58%);
   transform: translateX(-60%);
   animation: locked-cell-shine 4s linear infinite;
-}
-
-.completion-dim {
-  animation: completion-dim 450ms ease-out forwards;
-}
-
-.completion-message {
-  animation: completion-message 500ms 150ms both;
-}
-
-@keyframes completion-dim {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 0.68;
-  }
-}
-
-@keyframes completion-message {
-  from {
-    opacity: 0;
-    transform: scale(0.8);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
 }
 
 @keyframes locked-cell-shine {

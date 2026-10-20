@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createTetrominoCells, isTetrominoShape, TETROMINOES, TETROMINO_KINDS } from './tetrominoes'
+import { createTetrominoCells, getTetrominoKind, isTetrominoShape, TETROMINOES, TETROMINO_KINDS } from './tetrominoes'
 
 const rotationCounts = {
   I: 2,
@@ -42,6 +42,7 @@ describe('tetromino definitions', () => {
     for (const kind of TETROMINO_KINDS) {
       for (const rotation of TETROMINOES[kind].rotations) {
         expect(isTetrominoShape(rotation.cells.map((cell) => ({ x: cell.x + 7, y: cell.y + 11 })))).toBe(true)
+        expect(getTetrominoKind(rotation.cells.map((cell) => ({ x: cell.x + 7, y: cell.y + 11 })).reverse())).toBe(kind)
       }
     }
   })
@@ -53,5 +54,11 @@ describe('tetromino definitions', () => {
       { x: 3, y: 0 },
       { x: 4, y: 0 },
     ])).toBe(false)
+  })
+
+  it('does not identify incomplete or duplicate-cell shapes', () => {
+    const cells = createTetrominoCells('T')
+    expect(getTetrominoKind(cells.slice(0, 3))).toBeNull()
+    expect(getTetrominoKind([cells[0]!, cells[1]!, cells[1]!, cells[3]!])).toBeNull()
   })
 })

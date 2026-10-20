@@ -55,6 +55,10 @@ function GameSession(props: GameSessionProps) {
   const seed = props.requestedSeed || generatedSeed
   const config = GAME_CONFIGS[props.gameMode]
 
+  function nextGame() {
+    navigate(`/play?mode=${props.gameMode}&seed=${encodeURIComponent(createRandomSeed())}`)
+  }
+
   useEffect(() => {
     if (!props.requestedSeed) {
       void clearGameSelection(props.gameMode, generatedSeed)
@@ -104,7 +108,7 @@ function GameSession(props: GameSessionProps) {
       </header>
 
       <div className="relative z-10 min-h-0 flex-1">
-        {pieces && <GameGrid config={config} gameId={seed} gameMode={props.gameMode} key={`${props.gameMode}:${seed}`} onElapsedSecondsChange={setElapsedSeconds} onMoveCountChange={setMoveCount} pieces={pieces} />}
+        {pieces && <GameGrid config={config} gameId={seed} gameMode={props.gameMode} key={`${props.gameMode}:${seed}`} onElapsedSecondsChange={setElapsedSeconds} onMoveCountChange={setMoveCount} onNextGame={nextGame} pieces={pieces} />}
         {!pieces && !generationError && <p className="px-5 text-center text-[11px] font-bold uppercase">Generating game…</p>}
         {generationError && <p className="px-5 text-center text-[11px] font-bold text-[var(--coral)]" role="alert">{generationError}</p>}
       </div>
@@ -115,10 +119,11 @@ function GameSession(props: GameSessionProps) {
 export function Play() {
   const [searchParams] = useSearchParams()
   const gameMode = searchParams.get('mode')
+  const requestedSeed = searchParams.get('seed')
 
   if (!isGameMode(gameMode)) {
     return <GameModeMenu />
   }
 
-  return <GameSession gameMode={gameMode} requestedSeed={searchParams.get('seed')} />
+  return <GameSession gameMode={gameMode} key={`${gameMode}:${requestedSeed ?? 'new'}`} requestedSeed={requestedSeed} />
 }
