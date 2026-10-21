@@ -1,7 +1,7 @@
 import { openDB } from 'idb'
 import { isGameMode, type CellMarker, type GameMode, type GameSelectionState, type LockedCellGroup } from '@/game/gameConfig'
 import { isVsTrapResolution, isVsWinCount, VS_LOCAL_CONFIG } from '@/features/vs/vsLocalConfig'
-import { getVsAllowedCells, getVsPlayerScores, type VsCaptureStreak, type VsGameResult, type VsLocalGameState } from '@/features/vs/vsLocalGame'
+import { getVsAllowedCells, getVsHistoryPosition, getVsPlayerScores, type VsCaptureStreak, type VsGameResult, type VsLocalGameState, type VsLocalPosition, type VsMoveHistory } from '@/features/vs/vsLocalGame'
 
 export interface StoredGame {
   id: string
@@ -52,7 +52,7 @@ export interface CascadeGameSaveState {
 
 export type VsLocalGameSaveState = VsLocalGameState
 
-type OptionalLegacyVsFields = 'captureStreak' | 'combinationWinCount' | 'consecutiveTurnWinCount' | 'result' | 'nextMoveConstraint' | 'pendingMoveDirection' | 'trapResolution'
+type OptionalLegacyVsFields = 'allowHistoryRewrite' | 'history' | 'captureStreak' | 'combinationWinCount' | 'consecutiveTurnWinCount' | 'result' | 'nextMoveConstraint' | 'pendingMoveDirection' | 'trapResolution'
 type LegacyVsLocalGameSaveState = Omit<VsLocalGameSaveState, OptionalLegacyVsFields>
   & Partial<Pick<VsLocalGameSaveState, OptionalLegacyVsFields>>
 
@@ -133,18 +133,13 @@ function isVsGameResult(value: unknown): value is VsGameResult {
   }
 }
 
-function isVsLocalGameSaveState(value: unknown): value is LegacyVsLocalGameSaveState {
+function isVsLocalPosition(value: unknown): value is Pick<LegacyVsLocalGameSaveState, keyof VsLocalPosition> {
   return typeof value === 'object'
     && value !== null
     && 'activePlayer' in value && isVsPlayer(value.activePlayer)
-    && (!('combinationWinCount' in value) || isVsWinCount(value.combinationWinCount))
-    && (!('consecutiveTurnWinCount' in value) || isVsWinCount(value.consecutiveTurnWinCount))
-    && (!('trapResolution' in value) || isVsTrapResolution(value.trapResolution))
     && (!('captureStreak' in value) || value.captureStreak === null || isVsCaptureStreak(value.captureStreak))
     && (!('result' in value) || value.result === null || isVsGameResult(value.result))
-    && (!('pendingMoveDirection' in value) || isVsMoveDirection(value.pendingMoveDirection))
     && (!('nextMoveConstraint' in value) || value.nextMoveConstraint === null || isVsMoveConstraint(value.nextMoveConstraint))
-    && 'pendingPlacement' in value && (value.pendingPlacement === null || isVsPlacement(value.pendingPlacement))
     && 'placedCornerominoes' in value && Array.isArray(value.placedCornerominoes) && value.placedCornerominoes.every((placement) => (
       isVsPlacement(placement)
       && 'player' in placement && isVsPlayer(placement.player)
@@ -156,6 +151,27 @@ function isVsLocalGameSaveState(value: unknown): value is LegacyVsLocalGameSaveS
       && 'player' in corneromino && isVsPlayer(corneromino.player)
       && 'cellKeys' in corneromino && Array.isArray(corneromino.cellKeys) && corneromino.cellKeys.length === 4 && corneromino.cellKeys.every((cellKey: unknown) => typeof cellKey === 'string')
     ))
+}
+
+function isVsMoveHistory(value: unknown): value is VsMoveHistory {
+  return typeof value === 'object' && value !== null
+    && 'positions' in value && Array.isArray(value.positions)
+    && value.positions.length > 0 && value.positions.length <= 101
+    && 'index' in value && typeof value.index === 'number' && Number.isInteger(value.index)
+    && value.index >= 0 && value.index < value.positions.length
+    && value.positions.every((position) => isVsLocalPosition(position)
+      && 'captureStreak' in position && 'nextMoveConstraint' in position && 'result' in position)
+}
+
+function isVsLocalGameSaveState(value: unknown): value is LegacyVsLocalGameSaveState {
+  return isVsLocalPosition(value)
+    && (!('allowHistoryRewrite' in value) || typeof value.allowHistoryRewrite === 'boolean')
+    && (!('history' in value) || isVsMoveHistory(value.history))
+    && (!('combinationWinCount' in value) || isVsWinCount(value.combinationWinCount))
+    && (!('consecutiveTurnWinCount' in value) || isVsWinCount(value.consecutiveTurnWinCount))
+    && (!('trapResolution' in value) || isVsTrapResolution(value.trapResolution))
+    && (!('pendingMoveDirection' in value) || isVsMoveDirection(value.pendingMoveDirection))
+    && 'pendingPlacement' in value && (value.pendingPlacement === null || isVsPlacement(value.pendingPlacement))
 }
 
 function hasValidVsResult(state: VsLocalGameSaveState): boolean {
@@ -182,6 +198,25 @@ function hasValidVsResult(state: VsLocalGameSaveState): boolean {
       return result.winner === expectedWinner
     }
   }
+}
+
+function hasValidVsHistory(state: VsLocalGameSaveState): boolean {
+  const { index, positions } = state.history
+  if (JSON.stringify(getVsHistoryPosition(state)) !== JSON.stringify(getVsHistoryPosition(positions[index]))) return false
+  if (!state.allowHistoryRewrite && index < positions.length - 1 && state.pendingPlacement !== null) return false
+  return positions.every((position, positionIndex) => {
+    if (position.placedCornerominoes.length > 100) return false
+    if (position.result && positionIndex !== positions.length - 1) return false
+    if (!hasValidVsResult({ ...state, ...position, pendingPlacement: null })) return false
+    if (positionIndex === 0) return true
+    const previous = positions[positionIndex - 1]
+    if (position.placedCornerominoes.length !== previous.placedCornerominoes.length + 1) return false
+    return previous.placedCornerominoes.every((cell, cellIndex) => {
+      const next = position.placedCornerominoes[cellIndex]
+      return cell.column === next.column && cell.row === next.row && cell.corner === next.corner && cell.player === next.player
+        && (cell.lockedBy === undefined || cell.lockedBy === next.lockedBy)
+    })
+  })
 }
 
 function isCascadePiece(value: unknown): value is { column: number; corner: 0 | 1 | 2 | 3; row: number } {
@@ -356,19 +391,28 @@ export async function clearCascadeGameState(): Promise<void> {
 export async function loadVsLocalGameState(): Promise<VsLocalGameSaveState | null> {
   const storedState = await (await db).get('games', VS_LOCAL_STORAGE_KEY)
   if (!storedState || !isVsLocalGameSaveState(storedState.state)) return null
-  const state: VsLocalGameSaveState = {
-    ...storedState.state,
+  const position: VsLocalPosition = {
+    activePlayer: storedState.state.activePlayer,
     // Earlier saves cannot reconstruct a capture streak from locked groups alone.
     captureStreak: storedState.state.captureStreak ?? null,
-    combinationWinCount: storedState.state.combinationWinCount ?? VS_LOCAL_CONFIG.combinationWinCount,
-    consecutiveTurnWinCount: storedState.state.consecutiveTurnWinCount ?? VS_LOCAL_CONFIG.consecutiveTurnWinCount,
+    lockedCornerominoes: storedState.state.lockedCornerominoes,
     nextMoveConstraint: storedState.state.nextMoveConstraint ?? null,
-    pendingMoveDirection: storedState.state.pendingMoveDirection ?? 'orthogonal',
+    placedCornerominoes: storedState.state.placedCornerominoes,
     // Older saves have no turn history from which to infer a combination victory.
     result: storedState.state.result ?? null,
+  }
+  const state: VsLocalGameSaveState = {
+    ...storedState.state,
+    ...position,
+    allowHistoryRewrite: storedState.state.allowHistoryRewrite ?? VS_LOCAL_CONFIG.allowHistoryRewrite,
+    combinationWinCount: storedState.state.combinationWinCount ?? VS_LOCAL_CONFIG.combinationWinCount,
+    consecutiveTurnWinCount: storedState.state.consecutiveTurnWinCount ?? VS_LOCAL_CONFIG.consecutiveTurnWinCount,
+    // Old saves lack the per-turn direction choices needed to rebuild earlier positions.
+    history: storedState.state.history ?? { positions: [position], index: 0 },
+    pendingMoveDirection: storedState.state.pendingMoveDirection ?? 'orthogonal',
     trapResolution: storedState.state.trapResolution ?? VS_LOCAL_CONFIG.trapResolution,
   }
-  return hasValidVsResult(state) ? state : null
+  return hasValidVsResult(state) && hasValidVsHistory(state) ? state : null
 }
 
 export async function saveVsLocalGameState(state: VsLocalGameSaveState): Promise<void> {

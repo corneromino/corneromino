@@ -65,11 +65,25 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
     const lockImpactLayer = new Container()
     let surface: GridSurface | undefined
     let detachInput: (() => void) | undefined
-    let hasDrawn = false
+    let previousGame: VsLocalGameState | undefined
     let previousLockedCellKeys = new Set<string>()
     const lockWaves = new Set<ShockwaveFilter>()
     const gridShakeMotion = { time: 0 }
     const impactMotions = new Set<{ time: number }>()
+
+    function clearLockEffects() {
+      gsap.killTweensOf(gridShakeMotion)
+      app.stage.position.set(0, 0)
+      for (const motion of impactMotions) gsap.killTweensOf(motion)
+      impactMotions.clear()
+      for (const child of lockImpactLayer.removeChildren()) child.destroy()
+      for (const wave of lockWaves) {
+        gsap.killTweensOf(wave)
+        wave.destroy()
+      }
+      lockWaves.clear()
+      app.stage.filters = []
+    }
 
     function playGridShake() {
       const config = CASCADE_LOCK_EFFECTS.gridShake
@@ -157,6 +171,12 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
 
     const draw = () => {
       if (!surface) return
+      const game = gameRef.current
+      const confirmedMove = previousGame
+        && game.history.positions !== previousGame.history.positions
+        && game.history.index === previousGame.history.index + 1
+        && game.placedCornerominoes.length === previousGame.placedCornerominoes.length + 1
+      if (previousGame && game.history !== previousGame.history && !confirmedMove) clearLockEffects()
       pieces.clear()
       const previewCells = getVsNextTurnPreviewCells(gameRef.current)
       for (const cell of previewCells) {
@@ -184,13 +204,13 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
         .filter((placement) => placement.lockedBy !== undefined)
         .map((placement) => `${placement.column},${placement.row}`))
       const newlyLockedCellKeys = [...lockedCellKeys].filter((key) => !previousLockedCellKeys.has(key))
-      if (hasDrawn && newlyLockedCellKeys.length > 0) {
+      if (confirmedMove && newlyLockedCellKeys.length > 0) {
         playGridShake()
         playLockRipple(newlyLockedCellKeys)
         playLockedCellImpacts(newlyLockedCellKeys)
       }
       previousLockedCellKeys = lockedCellKeys
-      hasDrawn = true
+      previousGame = game
     }
     drawRef.current = draw
 
@@ -241,15 +261,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
     return () => {
       drawRef.current = null
       detachInput?.()
-      gsap.killTweensOf(gridShakeMotion)
-      for (const motion of impactMotions) gsap.killTweensOf(motion)
-      impactMotions.clear()
-      for (const wave of lockWaves) {
-        gsap.killTweensOf(wave)
-        wave.destroy()
-      }
-      lockWaves.clear()
-      app.stage.filters = []
+      clearLockEffects()
       surface?.destroy()
       host.destroy()
     }

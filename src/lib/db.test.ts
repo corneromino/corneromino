@@ -11,7 +11,7 @@ vi.mock('idb', () => ({
 }))
 
 import { clearVsLocalGameState, db, loadVsLocalGameState, saveVsLocalGameState, type VsLocalGameSaveState } from './db'
-import { createVsLocalGame, finishVsTurn, selectVsCell } from '@/features/vs/vsLocalGame'
+import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsHistoryPosition, goToVsHistory, selectVsCell, toggleVsMoveDirection } from '@/features/vs/vsLocalGame'
 import { VS_LOCAL_CONFIG, type VsTrapResolution } from '@/features/vs/vsLocalConfig'
 
 function finishedVsGame() {
@@ -56,6 +56,7 @@ describe('Local VS persistence', () => {
         { column: 5, row: 6, corner: 2, player: 1 },
       ],
     }
+    state.history = { positions: [getVsHistoryPosition(state)], index: 0 }
 
     await saveVsLocalGameState(state)
     await expect(loadVsLocalGameState()).resolves.toEqual(state)
@@ -105,9 +106,9 @@ describe('Local VS persistence', () => {
   })
 
   it('does not infer a victory from historical locks in a save predating victory rules', async () => {
-    const { combinationWinCount: _threshold, consecutiveTurnWinCount: _turnThreshold, captureStreak: _streak, result: _result, ...legacy } = finishedVsGame()
+    const { combinationWinCount: _threshold, consecutiveTurnWinCount: _turnThreshold, captureStreak: _streak, result: _result, history: _history, ...legacy } = finishedVsGame()
     await (await db).put('games', { id: 'vs:local:current', state: legacy, updatedAt: Date.now() })
-    await expect(loadVsLocalGameState()).resolves.toEqual({
+    await expect(loadVsLocalGameState()).resolves.toMatchObject({
       ...legacy,
       captureStreak: null,
       combinationWinCount: VS_LOCAL_CONFIG.combinationWinCount,
@@ -132,9 +133,9 @@ describe('Local VS persistence', () => {
   })
 
   it('preserves earlier combination victories while initializing the new streak fields', async () => {
-    const { consecutiveTurnWinCount: _threshold, captureStreak: _streak, ...legacy } = finishedVsGame()
+    const { consecutiveTurnWinCount: _threshold, captureStreak: _streak, history: _history, ...legacy } = finishedVsGame()
     await (await db).put('games', { id: 'vs:local:current', state: legacy, updatedAt: Date.now() })
-    await expect(loadVsLocalGameState()).resolves.toEqual({
+    await expect(loadVsLocalGameState()).resolves.toMatchObject({
       ...legacy,
       captureStreak: null,
       consecutiveTurnWinCount: VS_LOCAL_CONFIG.consecutiveTurnWinCount,
@@ -226,6 +227,104 @@ describe('Local VS persistence', () => {
     const { trapResolution: _rule, ...legacy } = finishedVsGame()
     await (await db).put('games', { id: 'vs:local:current', state: legacy, updatedAt: Date.now() })
     await expect(loadVsLocalGameState()).resolves.toEqual({ ...legacy, trapResolution: VS_LOCAL_CONFIG.trapResolution })
+  })
+
+  it('restores the full future, current history position, and draft after a reload', async () => {
+    const latest = finishedVsGame()
+    const earlier = goToVsHistory(latest, 0)
+    const draft = toggleVsMoveDirection(selectVsCell(earlier, 9, 9))
+    // Exercise a real serialization boundary rather than sharing references with the mock DB.
+    await saveVsLocalGameState(structuredClone(draft))
+    const restored = await loadVsLocalGameState()
+    expect(restored).toEqual(draft)
+    expect(goToVsHistory(restored!, latest.history.index)).toEqual(latest)
+
+    const branch = finishVsTurn(restored!)
+    expect(branch.result).toBeNull()
+    expect(branch.history.positions.at(-1)?.result).toBeNull()
+    await saveVsLocalGameState(branch)
+    expect(await loadVsLocalGameState()).toEqual(branch)
+  })
+
+  it('keeps restored historical positions view-only with rewriting disabled', async () => {
+    let latest = createVsLocalGame(() => 0, { allowHistoryRewrite: false })
+    latest = finishVsTurn(selectVsCell(latest, 4, 4))
+    latest = finishVsTurn(selectVsCell(latest, 4, 5))
+    const past = goToVsHistory(latest, 1)
+    await saveVsLocalGameState(past)
+    const restored = await loadVsLocalGameState()
+    expect(restored).toEqual(past)
+    expect(canPlayVsTurn(restored!)).toBe(false)
+    expect(selectVsCell(restored!, 4, 6)).toBe(restored)
+    expect(canPlayVsTurn(goToVsHistory(restored!, 2))).toBe(true)
+  })
+
+  it('starts legacy history at the saved board and records subsequent turns', async () => {
+    const latest = finishVsTurn(selectVsCell(createVsLocalGame(() => 0), 4, 4))
+    const { history: _history, allowHistoryRewrite: _rewrite, ...legacy } = latest
+    await (await db).put('games', { id: 'vs:local:current', state: legacy, updatedAt: Date.now() })
+    const restored = await loadVsLocalGameState()
+    expect(restored).toEqual({
+      ...legacy,
+      allowHistoryRewrite: VS_LOCAL_CONFIG.allowHistoryRewrite,
+      history: { positions: [getVsHistoryPosition(latest)], index: 0 },
+    })
+    const continued = finishVsTurn(selectVsCell(restored!, 4, 5))
+    expect(continued.history.positions).toHaveLength(2)
+    expect(continued.placedCornerominoes).toHaveLength(2)
+    expect(goToVsHistory(continued, 0).placedCornerominoes).toEqual(latest.placedCornerominoes)
+  })
+
+  it('preserves a finished result when migrating a pre-history save', async () => {
+    const latest = trappedVsGame('draw')
+    const { history: _history, allowHistoryRewrite: _rewrite, ...legacy } = latest
+    await (await db).put('games', { id: 'vs:local:current', state: legacy, updatedAt: Date.now() })
+    const restored = await loadVsLocalGameState()
+    expect(restored?.history.positions).toEqual([getVsHistoryPosition(latest)])
+    expect(restored?.result).toEqual({ reason: 'trap', winner: null })
+  })
+
+  it.each([
+    { allowHistoryRewrite: 'yes' },
+    { history: null },
+    { history: { positions: [], index: 0 } },
+    { history: { positions: [null], index: 0 } },
+    { history: { positions: [{}], index: 0 } },
+    { history: { positions: [getVsHistoryPosition(createVsLocalGame(() => 0))], index: -1 } },
+    { history: { positions: [getVsHistoryPosition(createVsLocalGame(() => 0))], index: 1 } },
+    { history: { positions: [getVsHistoryPosition(createVsLocalGame(() => 0))], index: 0.5 } },
+    { history: { positions: [{ ...getVsHistoryPosition(createVsLocalGame(() => 0)), activePlayer: 3 }], index: 0 } },
+  ])('rejects malformed history or rewriting configuration: %j', async (overrides) => {
+    await (await db).put('games', { id: 'vs:local:current', state: { ...createVsLocalGame(() => 0), ...overrides }, updatedAt: Date.now() })
+    await expect(loadVsLocalGameState()).resolves.toBeNull()
+  })
+
+  it('rejects a save whose displayed board disagrees with its history cursor', async () => {
+    const game = finishVsTurn(selectVsCell(createVsLocalGame(() => 0), 4, 4))
+    await saveVsLocalGameState({ ...game, history: { ...game.history, index: 0 } })
+    await expect(loadVsLocalGameState()).resolves.toBeNull()
+  })
+
+  it('rejects corrupted future positions even when the displayed position is valid', async () => {
+    const game = finishVsTurn(selectVsCell(createVsLocalGame(() => 0), 4, 4))
+    const past = goToVsHistory(game, 0)
+    const future = game.history.positions[1]
+    await saveVsLocalGameState({
+      ...past,
+      history: { index: 0, positions: [past.history.positions[0], { ...future, placedCornerominoes: [] }] },
+    })
+    await expect(loadVsLocalGameState()).resolves.toBeNull()
+    await saveVsLocalGameState({
+      ...past,
+      history: { index: 0, positions: [past.history.positions[0], { ...future, result: { reason: 'trap', winner: 0 } }] },
+    })
+    await expect(loadVsLocalGameState()).resolves.toBeNull()
+  })
+
+  it('rejects drafts in view-only historical positions', async () => {
+    const latest = finishVsTurn(selectVsCell(createVsLocalGame(() => 0, { allowHistoryRewrite: false }), 4, 4))
+    await saveVsLocalGameState({ ...goToVsHistory(latest, 0), pendingPlacement: { column: 5, row: 5, corner: 1 } })
+    await expect(loadVsLocalGameState()).resolves.toBeNull()
   })
 
   it.each([

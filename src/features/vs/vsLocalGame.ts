@@ -1,5 +1,5 @@
 import { getTetrominoKind, TETROMINOES, type TetrominoKind } from '@/game/tetrominoes'
-import { isVsTrapResolution, isVsWinCount, VS_LOCAL_CONFIG, type VsLocalConfig, type VsTrapResolution } from './vsLocalConfig'
+import { isVsTrapResolution, isVsWinCount, VS_LOCAL_CONFIG, type VsLocalConfig } from './vsLocalConfig'
 
 export type VsCorner = 0 | 1 | 2 | 3
 export type VsPlayerId = 0 | 1
@@ -64,22 +64,33 @@ export interface VsCaptureStreak {
   turnCount: number
 }
 
-export interface VsLocalGameState {
+/** A committed board position; drafts and match settings are not history entries. */
+export interface VsLocalPosition {
   activePlayer: VsPlayerId
   captureStreak: VsCaptureStreak | null
-  combinationWinCount: number
-  consecutiveTurnWinCount: number
   lockedCornerominoes: VsLockedCorneromino[]
   nextMoveConstraint: VsMoveConstraint | null
-  pendingMoveDirection: VsMoveDirection
-  pendingPlacement: VsPlacement | null
   placedCornerominoes: VsPlacedCorneromino[]
   result: VsGameResult | null
-  trapResolution: VsTrapResolution
+}
+
+export interface VsMoveHistory {
+  /** Includes the starting position, followed by one position per confirmed turn. */
+  positions: readonly VsLocalPosition[]
+  index: number
+}
+
+export interface VsLocalGameState extends VsLocalPosition, VsLocalConfig {
+  history: VsMoveHistory
+  pendingMoveDirection: VsMoveDirection
+  pendingPlacement: VsPlacement | null
 }
 
 export function createVsLocalGame(random = Math.random, config: Readonly<Partial<VsLocalConfig>> = {}): VsLocalGameState {
-  const { combinationWinCount, consecutiveTurnWinCount, trapResolution } = { ...VS_LOCAL_CONFIG, ...config }
+  const { allowHistoryRewrite, combinationWinCount, consecutiveTurnWinCount, trapResolution } = { ...VS_LOCAL_CONFIG, ...config }
+  if (typeof allowHistoryRewrite !== 'boolean') {
+    throw new TypeError('Allow history rewrite must be a boolean.')
+  }
   if (!isVsWinCount(combinationWinCount)) {
     throw new RangeError('Combination victory requires an integer of at least 2 tetrominoes.')
   }
@@ -89,18 +100,44 @@ export function createVsLocalGame(random = Math.random, config: Readonly<Partial
   if (!isVsTrapResolution(trapResolution)) {
     throw new RangeError('Trap resolution must be points or draw.')
   }
-  return {
+  const position: VsLocalPosition = {
     activePlayer: random() < 0.5 ? 0 : 1,
     captureStreak: null,
-    combinationWinCount,
-    consecutiveTurnWinCount,
     lockedCornerominoes: [],
     nextMoveConstraint: null,
-    pendingMoveDirection: 'orthogonal',
-    pendingPlacement: null,
     placedCornerominoes: [],
     result: null,
+  }
+  return {
+    ...position,
+    allowHistoryRewrite,
+    combinationWinCount,
+    consecutiveTurnWinCount,
+    history: { positions: [position], index: 0 },
+    pendingMoveDirection: 'orthogonal',
+    pendingPlacement: null,
     trapResolution,
+  }
+}
+
+export function getVsHistoryPosition(state: VsLocalPosition): VsLocalPosition {
+  const { activePlayer, captureStreak, lockedCornerominoes, nextMoveConstraint, placedCornerominoes, result } = state
+  return { activePlayer, captureStreak, lockedCornerominoes, nextMoveConstraint, placedCornerominoes, result }
+}
+
+export function canPlayVsTurn(state: VsLocalGameState): boolean {
+  return state.result === null && (state.allowHistoryRewrite || state.history.index === state.history.positions.length - 1)
+}
+
+/** Browsing discards the unconfirmed draft, but keeps the entire future until confirmation. */
+export function goToVsHistory(state: VsLocalGameState, index: number): VsLocalGameState {
+  if (!Number.isInteger(index) || index < 0 || index >= state.history.positions.length || index === state.history.index) return state
+  return {
+    ...state,
+    ...state.history.positions[index],
+    history: { ...state.history, index },
+    pendingMoveDirection: 'orthogonal',
+    pendingPlacement: null,
   }
 }
 
@@ -315,7 +352,7 @@ export function findValidatedVsCellKeys(placed: readonly VsPlacedCorneromino[], 
 
 /** Places a new corner at top-right, then rotates clockwise on repeated presses. */
 export function selectVsCell(state: VsLocalGameState, column: number, row: number): VsLocalGameState {
-  if (state.result) return state
+  if (!canPlayVsTurn(state)) return state
   if (!isInsideVsBoard(column, row) || isOccupied(state, column, row)) return state
   if (state.nextMoveConstraint && !matchesVsMoveConstraint(state.nextMoveConstraint, column, row)) return state
   const pending = state.pendingPlacement
@@ -326,13 +363,28 @@ export function selectVsCell(state: VsLocalGameState, column: number, row: numbe
 }
 
 export function toggleVsMoveDirection(state: VsLocalGameState): VsLocalGameState {
-  if (state.result || !state.pendingPlacement) return state
+  if (!canPlayVsTurn(state) || !state.pendingPlacement) return state
   return { ...state, pendingMoveDirection: state.pendingMoveDirection === 'orthogonal' ? 'diagonal' : 'orthogonal' }
 }
 
 export function finishVsTurn(state: VsLocalGameState): VsLocalGameState {
   const pending = state.pendingPlacement
-  if (state.result || !pending) return state
+  if (!canPlayVsTurn(state) || !pending) return state
+  const nextState = resolveVsTurn(state, pending)
+  return {
+    ...nextState,
+    history: {
+      positions: [
+        ...state.history.positions.slice(0, state.history.index),
+        getVsHistoryPosition(state),
+        getVsHistoryPosition(nextState),
+      ],
+      index: state.history.index + 1,
+    },
+  }
+}
+
+function resolveVsTurn(state: VsLocalGameState, pending: VsPlacement): VsLocalGameState {
   const latest: VsPlacedCorneromino = { ...pending, player: state.activePlayer }
   const placedCornerominoes = [...state.placedCornerominoes, latest]
   const validatedShapes = findValidatedVsShapes(placedCornerominoes, latest, state.lockedCornerominoes)
@@ -357,6 +409,7 @@ export function finishVsTurn(state: VsLocalGameState): VsLocalGameState {
       ? { reason: 'consecutive-turns', turnCount: captureStreak.turnCount, winner: state.activePlayer }
       : null
   const nextState: VsLocalGameState = {
+    ...state,
     activePlayer: result ? state.activePlayer : state.activePlayer === 0 ? 1 : 0,
     captureStreak,
     combinationWinCount: state.combinationWinCount,
