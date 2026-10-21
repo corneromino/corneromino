@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Check, ChevronLeft, ChevronRight, Pause } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { clearVsLocalGameState, loadVsLocalGameState, saveVsLocalGameState } from '@/lib/db'
 import { VsLocalCanvas } from './VsLocalCanvas'
+import { VsMoveList } from './VsMoveList'
 import { VsVictoryDialog } from './VsVictoryDialog'
 import { VS_LOCAL_CONFIG } from './vsLocalConfig'
-import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsPlayerScores, goToVsHistory, selectVsCell, toggleVsMoveDirection, VS_PLAYERS, type VsGameResult, type VsLocalGameState, type VsMoveDirection, type VsPlayerId } from './vsLocalGame'
+import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsPlayerScores, goToVsHistory, selectVsCell, VS_PLAYERS, type VsGameResult, type VsLocalGameState, type VsPlayerId } from './vsLocalGame'
 
 interface PlayerBandProps {
   active: boolean
   canFinishTurn: boolean
   facingOpponent?: boolean
-  moveDirection: VsMoveDirection
-  onToggleMoveDirection: () => void
   points: number
   onFinishTurn: () => void
   player: VsPlayerId
@@ -22,7 +22,7 @@ interface PlayerBandProps {
   result: VsGameResult | null
 }
 
-function PlayerBand({ active, canFinishTurn, facingOpponent = false, moveDirection, onFinishTurn, onToggleMoveDirection, player, pointDifference, points, result }: PlayerBandProps) {
+function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTurn, player, pointDifference, points, result }: PlayerBandProps) {
   const playerStyle = VS_PLAYERS[player]
   return (
     <section
@@ -48,17 +48,6 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, moveDirecti
         {pointDifference !== 0 && <span>{pointDifference > 0 ? `+${pointDifference}` : pointDifference}</span>}
       </p>
       <Button
-        aria-label={moveDirection === 'orthogonal' ? 'Allow orthogonal cells' : 'Allow diagonal cells'}
-        className="cartoon-press ml-3 size-10 text-[var(--canvas-foreground)] disabled:opacity-50"
-        disabled={!active || !canFinishTurn}
-        onClick={onToggleMoveDirection}
-        size="icon"
-        title={moveDirection === 'orthogonal' ? 'Allow orthogonal cells' : 'Allow diagonal cells'}
-        type="button"
-      >
-        {moveDirection === 'orthogonal' ? <Plus aria-hidden="true" /> : <X aria-hidden="true" />}
-      </Button>
-      <Button
         aria-label="Finish turn"
         className="cartoon-press cartoon-press--green ml-3 size-10 text-[var(--canvas-foreground)] disabled:opacity-50"
         disabled={!active || !canFinishTurn}
@@ -75,6 +64,7 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, moveDirecti
 
 export function VsLocalGrid() {
   const [game, setGame] = useState<VsLocalGameState | null>(null)
+  const [pauseOpen, setPauseOpen] = useState(false)
   const [victoryDialogDismissed, setVictoryDialogDismissed] = useState(false)
   const persistenceQueueRef = useRef<Promise<void>>(Promise.resolve())
   const location = useLocation()
@@ -123,15 +113,16 @@ export function VsLocalGrid() {
     setGame((current) => current && finishVsTurn(current))
     setVictoryDialogDismissed(false)
   }, [])
-  const toggleMoveDirection = useCallback(() => {
-    setGame((current) => current && toggleVsMoveDirection(current))
-  }, [])
   const previousMove = useCallback(() => {
     setGame((current) => current && goToVsHistory(current, current.history.index - 1))
     setVictoryDialogDismissed(true)
   }, [])
   const nextMove = useCallback(() => {
     setGame((current) => current && goToVsHistory(current, current.history.index + 1))
+    setVictoryDialogDismissed(true)
+  }, [])
+  const selectHistoryMove = useCallback((index: number) => {
+    setGame((current) => current && goToVsHistory(current, index))
     setVictoryDialogDismissed(true)
   }, [])
   const [playerOnePoints, playerTwoPoints] = getVsPlayerScores(game?.placedCornerominoes ?? [])
@@ -154,9 +145,17 @@ export function VsLocalGrid() {
     setVictoryDialogDismissed(false)
   }
 
+  async function quitMatch() {
+    // Finish any earlier autosave before deleting the match, so it cannot be
+    // written back after the player has quit.
+    await persistenceQueueRef.current.catch(() => undefined)
+    await clearVsLocalGameState().catch(() => undefined)
+    navigate('/vs')
+  }
+
   return (
     <main className="poster-page flex h-dvh flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
-      <header className="mx-auto flex w-full max-w-[550px] items-end justify-between gap-4 px-5 pb-5">
+      <header className="mx-auto flex w-full max-w-[550px] shrink-0 flex-wrap items-end justify-between gap-x-4 gap-y-2 px-5 pb-3">
         <div>
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
           <h1 className="poster-title mt-2 text-[33px] leading-none">VS</h1>
@@ -169,23 +168,34 @@ export function VsLocalGrid() {
             <Button aria-label="Next move" className="cartoon-press size-10 text-[var(--canvas-foreground)] disabled:opacity-50" disabled={!game || !viewingPast} onClick={nextMove} size="icon" title="Next move" type="button">
               <ChevronRight aria-hidden="true" />
             </Button>
-            <Button asChild className="cartoon-press size-10 text-[var(--canvas-foreground)]" size="icon" title="Back to VS menu">
-              <Link aria-label="Back to VS menu" to="/vs"><ArrowLeft aria-hidden="true" /></Link>
+            <Button aria-label="Pause Local VS" className="cartoon-press size-10 text-[var(--canvas-foreground)]" disabled={!game} onClick={() => setPauseOpen(true)} size="icon" title="Pause" type="button">
+              <Pause aria-hidden="true" />
             </Button>
           </div>
-          <p aria-live="polite" className="text-[10px] leading-none text-[var(--muted-text-color)]">
-            Move {game?.placedCornerominoes.length ?? 0} / {game?.history.positions[lastHistoryIndex].placedCornerominoes.length ?? 0}{viewingPast && !allowHistoryRewrite ? ' · View only' : ''}
-          </p>
+          {viewingPast && !allowHistoryRewrite && <p className="text-[10px] leading-none text-[var(--muted-text-color)]">View only</p>}
         </div>
+        {game && <VsMoveList history={game.history} onSelect={selectHistoryMove} />}
       </header>
       <div className="flex min-h-0 flex-1 flex-col gap-2 px-1">
-        <PlayerBand active={result === null && game?.activePlayer === 0} canFinishTurn={canFinishTurn} facingOpponent moveDirection={game?.pendingMoveDirection ?? 'orthogonal'} onFinishTurn={endTurn} onToggleMoveDirection={toggleMoveDirection} player={0} pointDifference={playerOnePoints - playerTwoPoints} points={playerOnePoints} result={result} />
+        <PlayerBand active={result === null && game?.activePlayer === 0} canFinishTurn={canFinishTurn} facingOpponent onFinishTurn={endTurn} player={0} pointDifference={playerOnePoints - playerTwoPoints} points={playerOnePoints} result={result} />
         <section aria-label="Local VS board" className="min-h-0 flex-1 border-4 border-[var(--grid-border-color)] bg-[var(--grid-border-color)]">
           {game && <VsLocalCanvas game={game} onCellTap={selectCell} />}
         </section>
-        <PlayerBand active={result === null && game?.activePlayer === 1} canFinishTurn={canFinishTurn} moveDirection={game?.pendingMoveDirection ?? 'orthogonal'} onFinishTurn={endTurn} onToggleMoveDirection={toggleMoveDirection} player={1} pointDifference={playerTwoPoints - playerOnePoints} points={playerTwoPoints} result={result} />
+        <PlayerBand active={result === null && game?.activePlayer === 1} canFinishTurn={canFinishTurn} onFinishTurn={endTurn} player={1} pointDifference={playerTwoPoints - playerOnePoints} points={playerTwoPoints} result={result} />
       </div>
       {result && <VsVictoryDialog onNewGame={startNewMatch} onOpenChange={handleVictoryOpenChange} open={!victoryDialogDismissed} result={result} />}
+      <Dialog onOpenChange={setPauseOpen} open={pauseOpen}>
+        <DialogContent aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Paused</DialogTitle>
+          </DialogHeader>
+          <DialogFooter className="grid-cols-1">
+            <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => void quitMatch()} size="lg" type="button">
+              Quit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }

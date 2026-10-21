@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Application, Container, Graphics } from 'pixi.js'
+import { Application, Container, Graphics, Text } from 'pixi.js'
 import { gsap } from 'gsap'
 import { ShockwaveFilter } from 'pixi-filters'
 import { GAME_COLORS } from '@/rendering/colors'
@@ -14,6 +14,14 @@ import { CASCADE_LOCK_EFFECTS } from '@/features/cascade/cascadeEffects'
 const TARGET_DOT_RADIUS_RATIO = 0.25
 const TARGET_DOT_ALPHA = 0.5
 const CELL_BORDER_SIZE = 1.5
+const COORDINATE_FONT_SIZE = 24
+
+interface CoordinateLabel {
+  kind: 'column' | 'row'
+  index: number
+  text: Text
+  backgroundColor?: number
+}
 
 interface VsLocalCanvasProps {
   game: VsLocalGameState
@@ -63,6 +71,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
     const app = new Application()
     const pieces = new Graphics()
     const lockImpactLayer = new Container()
+    const coordinateLabels: CoordinateLabel[] = []
     let surface: GridSurface | undefined
     let detachInput: (() => void) | undefined
     let previousGame: VsLocalGameState | undefined
@@ -70,6 +79,43 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
     const lockWaves = new Set<ShockwaveFilter>()
     const gridShakeMotion = { time: 0 }
     const impactMotions = new Set<{ time: number }>()
+
+    function drawCoordinates() {
+      if (!surface) return
+      const game = gameRef.current
+      // Player 1 sits above the board. Coordinates stay fixed while the axis
+      // labels rotate and move to the player-facing edge.
+      const facingTop = game.activePlayer === 0
+      const { cellWidth, cellHeight } = surface.metrics
+      const cellSize = Math.min(cellWidth, cellHeight)
+      const inset = Math.min(4, Math.max(2, cellSize * 0.1))
+      const fontSize = Math.min(10, Math.max(6, cellSize * 0.19))
+      const placements = new Map(game.placedCornerominoes.map((cell) => [`${cell.column},${cell.row}`, cell]))
+
+      for (const label of coordinateLabels) {
+        const column = label.kind === 'column' ? label.index : facingTop ? 9 : 0
+        const row = label.kind === 'row' ? label.index : facingTop ? 0 : 9
+        const { x, y } = surface.cellToScreen(column, row)
+        const upperLeft = label.kind === 'row' ? !facingTop : facingTop
+        label.text.position.set(
+          x + (upperLeft ? inset : cellWidth - inset),
+          y + (upperLeft ? inset : cellHeight - inset),
+        )
+        label.text.rotation = facingTop ? Math.PI : 0
+        label.text.scale.set(fontSize / COORDINATE_FONT_SIZE)
+
+        const pending = game.pendingPlacement?.column === column && game.pendingPlacement.row === row
+        const owner = placements.get(`${column},${row}`)?.lockedBy
+        const backgroundColor = pending ? GAME_COLORS.cornerMarker : owner === undefined ? GAME_COLORS.cellFill : VS_PLAYERS[owner].lockedColor
+        if (label.backgroundColor !== backgroundColor) {
+          label.backgroundColor = backgroundColor
+          label.text.style.fill = pending ? GAME_COLORS.cellFill : GAME_COLORS.ink
+          // A fine, cell-coloured outline keeps the small labels readable even
+          // when a corner marker passes underneath them.
+          label.text.style.stroke = { color: backgroundColor, width: 2.5 }
+        }
+      }
+    }
 
     function clearLockEffects() {
       gsap.killTweensOf(gridShakeMotion)
@@ -200,6 +246,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
       }
       const pending = gameRef.current.pendingPlacement
       if (pending) drawPlacement(pieces, surface, pending.column, pending.row, pending.corner, true)
+      drawCoordinates()
       const lockedCellKeys = new Set(gameRef.current.placedCornerominoes
         .filter((placement) => placement.lockedBy !== undefined)
         .map((placement) => `${placement.column},${placement.row}`))
@@ -236,6 +283,22 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
         })
         surface.layers.pieces.addChild(pieces)
         surface.layers.effects.addChild(lockImpactLayer)
+        // One in-cell number per row and letter per column, reused on redraw.
+        for (const kind of ['row', 'column'] as const) {
+          for (let index = 0; index < 10; index += 1) {
+            const text = new Text({
+              text: kind === 'column' ? String.fromCharCode(65 + index) : String(index),
+              resolution: Math.max(2, app.renderer.resolution),
+              style: { fontFamily: 'Pixform', fontSize: COORDINATE_FONT_SIZE, fontWeight: '700', fill: GAME_COLORS.ink },
+            })
+            const upperLeft = kind === 'row'
+            text.anchor.set(upperLeft ? 0 : 1, upperLeft ? 0 : 1)
+            text.alpha = 0.52
+            text.eventMode = 'none'
+            coordinateLabels.push({ kind, index, text })
+            surface.layers.overlay.addChild(text)
+          }
+        }
         app.stage.addChild(surface.root)
         detachInput = attachGridInput(app.canvas, {
           cellAt: (event) => surface!.pointerToCell(event),

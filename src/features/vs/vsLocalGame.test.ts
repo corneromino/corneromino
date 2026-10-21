@@ -21,10 +21,23 @@ describe('local VS game', () => {
     expect(game.pendingPlacement?.corner).toBe(1)
   })
 
-  it('moves an unconfirmed corner to another selected cell', () => {
+  it('keeps an unconfirmed corner fixed and toggles its direction when another board cell is tapped', () => {
     let game = selectVsCell(createVsLocalGame(() => 0), 3, 4)
     game = selectVsCell(game, 5, 6)
-    expect(game.pendingPlacement).toEqual({ column: 5, row: 6, corner: 1 })
+    expect(game.pendingPlacement).toEqual({ column: 3, row: 4, corner: 1 })
+    expect(game.pendingMoveDirection).toBe('diagonal')
+    game = selectVsCell(game, 9, 9)
+    expect(game.pendingMoveDirection).toBe('orthogonal')
+  })
+
+  it('only permits the first pending corner to be placed on a legal empty cell', () => {
+    const game = selectVsCell(createVsLocalGame(() => 0), -1, 4)
+    expect(game.pendingPlacement).toBeNull()
+    const occupied = {
+      ...createVsLocalGame(() => 0),
+      placedCornerominoes: [{ column: 3, row: 4, corner: 0 as const, player: 1 as const }],
+    }
+    expect(selectVsCell(occupied, 3, 4)).toBe(occupied)
   })
 
   it('locks the pending corner and passes the turn', () => {

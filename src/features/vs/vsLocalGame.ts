@@ -350,15 +350,17 @@ export function findValidatedVsCellKeys(placed: readonly VsPlacedCorneromino[], 
   return [...new Set(findValidatedVsShapes(placed, latest, previouslyLocked).flat())]
 }
 
-/** Places a new corner at top-right, then rotates clockwise on repeated presses. */
+/** Places a fixed corner at top-right. Tap it to rotate; tap elsewhere to choose + or ×. */
 export function selectVsCell(state: VsLocalGameState, column: number, row: number): VsLocalGameState {
   if (!canPlayVsTurn(state)) return state
-  if (!isInsideVsBoard(column, row) || isOccupied(state, column, row)) return state
-  if (state.nextMoveConstraint && !matchesVsMoveConstraint(state.nextMoveConstraint, column, row)) return state
   const pending = state.pendingPlacement
+  if (!isInsideVsBoard(column, row)) return state
   if (pending?.column === column && pending.row === row) {
     return { ...state, pendingPlacement: { ...pending, corner: ((pending.corner + 1) % 4) as VsCorner } }
   }
+  if (pending) return toggleVsMoveDirection(state)
+  if (isOccupied(state, column, row)) return state
+  if (state.nextMoveConstraint && !matchesVsMoveConstraint(state.nextMoveConstraint, column, row)) return state
   return { ...state, pendingPlacement: { column, row, corner: 1 } }
 }
 
