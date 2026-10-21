@@ -45,9 +45,10 @@ describe('local VS game', () => {
     const latest = { column: 1, row: 1, corner: 2, player: 0 } as const
     expect(findValidatedVsCellKeys([...pieces, latest], latest, [])).toEqual(['0,0', '1,0', '0,1', '1,1'])
 
-    const game = finishVsTurn({ activePlayer: 0, lockedCornerominoes: [], nextMoveConstraint: null, pendingMoveDirection: 'orthogonal', pendingPlacement: latest, placedCornerominoes: pieces })
+    const game = finishVsTurn({ ...createVsLocalGame(() => 0), pendingPlacement: latest, placedCornerominoes: pieces })
     expect(game.placedCornerominoes.every((placement) => placement.lockedBy === 0)).toBe(true)
     expect(game.lockedCornerominoes).toHaveLength(1)
+    expect(game.result).toBeNull()
   })
 
   it('does not validate a shape whose corners are not all different', () => {
@@ -70,7 +71,7 @@ describe('local VS game', () => {
       { column: 2, row: 2, corner: 0, player: 1 },
     ]
     const latest = { column: 1, row: 1, corner: 3, player: 1 } as const
-    const game = finishVsTurn({ activePlayer: 1, lockedCornerominoes: [], nextMoveConstraint: null, pendingMoveDirection: 'orthogonal', pendingPlacement: latest, placedCornerominoes: pieces })
+    const game = finishVsTurn({ ...createVsLocalGame(() => 0.9), pendingPlacement: latest, placedCornerominoes: pieces })
 
     expect(game.placedCornerominoes).toHaveLength(7)
     expect(game.placedCornerominoes.every((placement) => placement.lockedBy === 1)).toBe(true)
@@ -103,7 +104,8 @@ describe('local VS game', () => {
     expect(game.lockedCornerominoes).toHaveLength(expectedShapeCount)
     expect(game.placedCornerominoes.filter((piece) => piece.lockedBy === 1)).toHaveLength(1 + 3 * expectedShapeCount)
     expect(game.placedCornerominoes.filter((piece) => piece.lockedBy === 0)).toHaveLength(0)
-    expect(game.activePlayer).toBe(0)
+    expect(game.activePlayer).toBe(1)
+    expect(game.result).toEqual({ reason: 'combination', winner: 1, shapeCount: expectedShapeCount })
     expect(game.pendingPlacement).toBeNull()
 
     const usedCells = new Set<string>()
@@ -130,9 +132,10 @@ describe('local VS game', () => {
       { column: 2, row: 1, corner: 3, player: 1 },
     ]
     const latest = { column: 1, row: 1, corner: 2, player: 1 } as const
-    const game = finishVsTurn({ activePlayer: 1, lockedCornerominoes: [], nextMoveConstraint: null, pendingMoveDirection: 'orthogonal', pendingPlacement: latest, placedCornerominoes: pieces })
+    const game = finishVsTurn({ ...createVsLocalGame(() => 0.9), pendingPlacement: latest, placedCornerominoes: pieces })
 
     expect(game.placedCornerominoes.filter((placement) => placement.lockedBy === 1)).toHaveLength(4)
+    expect(game.result).toBeNull()
   })
 
   it('restricts the next player to the selected orthogonal or diagonal lines', () => {

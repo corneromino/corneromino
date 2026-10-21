@@ -47,6 +47,8 @@ describe('Local VS friendly shape restrictions', () => {
     expect(after.pendingPlacement).toBeNull()
     expect(after.nextMoveConstraint).toMatchObject({ originColumn: before.pendingPlacement!.column, originRow: before.pendingPlacement!.row })
     expect(after.lockedCornerominoes[0]).toEqual(previousLock)
+    // Historical locks never count towards a simultaneous combination victory.
+    expect(after.result).toBeNull()
     expect(before.lockedCornerominoes).toHaveLength(1)
   })
 
@@ -155,5 +157,6 @@ describe('Local VS friendly shape restrictions', () => {
     expect(after.placedCornerominoes.filter((cell) => cell.lockedBy === 0)).toHaveLength(11)
     expect(after.placedCornerominoes.find((cell) => cell.column === 4 && cell.row === 5)!.lockedBy).toBeUndefined()
     expect(after.placedCornerominoes.find((cell) => cell.column === 5 && cell.row === 3)!.lockedBy).toBe(0)
+    expect(after.result).toEqual({ reason: 'combination', winner: 0, shapeCount: 2 })
   })
 })

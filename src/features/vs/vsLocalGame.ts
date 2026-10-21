@@ -1,4 +1,5 @@
 import { getTetrominoKind, TETROMINOES, type TetrominoKind } from '@/game/tetrominoes'
+import { isVsTrapResolution, isVsWinCount, VS_LOCAL_CONFIG, type VsLocalConfig, type VsTrapResolution } from './vsLocalConfig'
 
 export type VsCorner = 0 | 1 | 2 | 3
 export type VsPlayerId = 0 | 1
@@ -33,24 +34,83 @@ export interface VsLockedCorneromino {
   player: VsPlayerId
 }
 
+export interface VsCombinationVictory {
+  reason: 'combination'
+  shapeCount: number
+  winner: VsPlayerId
+}
+
+export interface VsConsecutiveTurnVictory {
+  reason: 'consecutive-turns'
+  turnCount: number
+  winner: VsPlayerId
+}
+
+export interface VsTrapResult {
+  reason: 'trap'
+  winner: VsPlayerId | null
+}
+
+export interface VsNoLegalMovesDraw {
+  reason: 'no-legal-moves'
+  winner: null
+}
+
+export type VsGameResult = VsCombinationVictory | VsConsecutiveTurnVictory | VsTrapResult | VsNoLegalMovesDraw
+
+/** Only one player can have a streak: an opponent capture replaces it. */
+export interface VsCaptureStreak {
+  player: VsPlayerId
+  turnCount: number
+}
+
 export interface VsLocalGameState {
   activePlayer: VsPlayerId
+  captureStreak: VsCaptureStreak | null
+  combinationWinCount: number
+  consecutiveTurnWinCount: number
   lockedCornerominoes: VsLockedCorneromino[]
   nextMoveConstraint: VsMoveConstraint | null
   pendingMoveDirection: VsMoveDirection
   pendingPlacement: VsPlacement | null
   placedCornerominoes: VsPlacedCorneromino[]
+  result: VsGameResult | null
+  trapResolution: VsTrapResolution
 }
 
-export function createVsLocalGame(random = Math.random): VsLocalGameState {
+export function createVsLocalGame(random = Math.random, config: Readonly<Partial<VsLocalConfig>> = {}): VsLocalGameState {
+  const { combinationWinCount, consecutiveTurnWinCount, trapResolution } = { ...VS_LOCAL_CONFIG, ...config }
+  if (!isVsWinCount(combinationWinCount)) {
+    throw new RangeError('Combination victory requires an integer of at least 2 tetrominoes.')
+  }
+  if (!isVsWinCount(consecutiveTurnWinCount)) {
+    throw new RangeError('Consecutive-turn victory requires an integer of at least 2 turns.')
+  }
+  if (!isVsTrapResolution(trapResolution)) {
+    throw new RangeError('Trap resolution must be points or draw.')
+  }
   return {
     activePlayer: random() < 0.5 ? 0 : 1,
+    captureStreak: null,
+    combinationWinCount,
+    consecutiveTurnWinCount,
     lockedCornerominoes: [],
     nextMoveConstraint: null,
     pendingMoveDirection: 'orthogonal',
     pendingPlacement: null,
     placedCornerominoes: [],
+    result: null,
+    trapResolution,
   }
+}
+
+/** Ownership is stored once per board cell, even when lock groups share that cell. */
+export function getVsPlayerScores(placed: readonly VsPlacedCorneromino[]): [number, number] {
+  const scores: [number, number] = [0, 0]
+  for (const placement of placed) {
+    if (placement.lockedBy !== undefined) scores[placement.lockedBy] += 1
+  }
+  return scores
 }
 
 function isOccupied(state: VsLocalGameState, column: number, row: number) {
@@ -72,6 +132,7 @@ function matchesVsMoveConstraint(constraint: VsMoveConstraint, column: number, r
 
 /** Empty cells the current player may use under the previous player's restriction. */
 export function getVsAllowedCells(state: VsLocalGameState): Array<{ column: number; row: number }> {
+  if (state.result) return []
   const allowedCells: Array<{ column: number; row: number }> = []
   for (let row = 0; row < 10; row += 1) {
     for (let column = 0; column < 10; column += 1) {
@@ -91,7 +152,7 @@ export function getVsTargetedCells(state: VsLocalGameState): Array<{ column: num
 /** Faded preview of the cells the current player's selected rule will allow next turn. */
 export function getVsNextTurnPreviewCells(state: VsLocalGameState): Array<{ column: number; row: number }> {
   const pending = state.pendingPlacement
-  if (!pending) return []
+  if (state.result || !pending) return []
   return getVsAllowedCells({
     ...state,
     nextMoveConstraint: {
@@ -254,6 +315,7 @@ export function findValidatedVsCellKeys(placed: readonly VsPlacedCorneromino[], 
 
 /** Places a new corner at top-right, then rotates clockwise on repeated presses. */
 export function selectVsCell(state: VsLocalGameState, column: number, row: number): VsLocalGameState {
+  if (state.result) return state
   if (!isInsideVsBoard(column, row) || isOccupied(state, column, row)) return state
   if (state.nextMoveConstraint && !matchesVsMoveConstraint(state.nextMoveConstraint, column, row)) return state
   const pending = state.pendingPlacement
@@ -264,13 +326,13 @@ export function selectVsCell(state: VsLocalGameState, column: number, row: numbe
 }
 
 export function toggleVsMoveDirection(state: VsLocalGameState): VsLocalGameState {
-  if (!state.pendingPlacement) return state
+  if (state.result || !state.pendingPlacement) return state
   return { ...state, pendingMoveDirection: state.pendingMoveDirection === 'orthogonal' ? 'diagonal' : 'orthogonal' }
 }
 
 export function finishVsTurn(state: VsLocalGameState): VsLocalGameState {
   const pending = state.pendingPlacement
-  if (!pending) return state
+  if (state.result || !pending) return state
   const latest: VsPlacedCorneromino = { ...pending, player: state.activePlayer }
   const placedCornerominoes = [...state.placedCornerominoes, latest]
   const validatedShapes = findValidatedVsShapes(placedCornerominoes, latest, state.lockedCornerominoes)
@@ -283,8 +345,22 @@ export function finishVsTurn(state: VsLocalGameState): VsLocalGameState {
       player: state.activePlayer,
     })),
   ]
-  return {
-    activePlayer: state.activePlayer === 0 ? 1 : 0,
+  // A capture counts as one turn, regardless of the number of shapes locked.
+  // Missing on your own turn ends your streak; an opponent miss leaves it intact.
+  const captureStreak: VsCaptureStreak | null = validatedShapes.length > 0
+    ? { player: state.activePlayer, turnCount: state.captureStreak?.player === state.activePlayer ? state.captureStreak.turnCount + 1 : 1 }
+    : state.captureStreak?.player === state.activePlayer ? null : state.captureStreak
+  // Combination takes precedence if both victory conditions are met on this turn.
+  const result: VsGameResult | null = validatedShapes.length >= state.combinationWinCount
+    ? { reason: 'combination', shapeCount: validatedShapes.length, winner: state.activePlayer }
+    : validatedShapes.length > 0 && captureStreak && captureStreak.turnCount >= state.consecutiveTurnWinCount
+      ? { reason: 'consecutive-turns', turnCount: captureStreak.turnCount, winner: state.activePlayer }
+      : null
+  const nextState: VsLocalGameState = {
+    activePlayer: result ? state.activePlayer : state.activePlayer === 0 ? 1 : 0,
+    captureStreak,
+    combinationWinCount: state.combinationWinCount,
+    consecutiveTurnWinCount: state.consecutiveTurnWinCount,
     lockedCornerominoes,
     nextMoveConstraint: {
       direction: state.pendingMoveDirection,
@@ -298,5 +374,22 @@ export function finishVsTurn(state: VsLocalGameState): VsLocalGameState {
         ? { ...placement, lockedBy: state.activePlayer }
         : placement
     )),
+    result,
+    trapResolution: state.trapResolution,
+  }
+  // Immediate victories take priority; only inspect opponent mobility after the
+  // placement, ownership updates, and selected direction have all been committed.
+  if (result || getVsAllowedCells(nextState).length > 0) return nextState
+
+  const [playerOnePoints, playerTwoPoints] = getVsPlayerScores(nextState.placedCornerominoes)
+  const winner = state.trapResolution === 'draw' || playerOnePoints === playerTwoPoints
+    ? null
+    : playerOnePoints > playerTwoPoints ? 0 : 1
+  return {
+    ...nextState,
+    activePlayer: state.activePlayer,
+    result: validatedShapes.length > 0
+      ? { reason: 'trap', winner }
+      : { reason: 'no-legal-moves', winner: null },
   }
 }

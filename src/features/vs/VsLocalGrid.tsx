@@ -5,11 +5,15 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { clearVsLocalGameState, loadVsLocalGameState, saveVsLocalGameState } from '@/lib/db'
 import { VsLocalCanvas } from './VsLocalCanvas'
-import { createVsLocalGame, finishVsTurn, selectVsCell, toggleVsMoveDirection, VS_PLAYERS, type VsLocalGameState, type VsMoveDirection, type VsPlayerId } from './vsLocalGame'
+import { VsVictoryDialog } from './VsVictoryDialog'
+import { VS_LOCAL_CONFIG } from './vsLocalConfig'
+import { createVsLocalGame, finishVsTurn, getVsPlayerScores, selectVsCell, toggleVsMoveDirection, VS_PLAYERS, type VsGameResult, type VsLocalGameState, type VsMoveDirection, type VsPlayerId } from './vsLocalGame'
 
 interface PlayerBandProps {
   active: boolean
   canFinishTurn: boolean
+  captureStreak: number
+  consecutiveTurnWinCount: number
   facingOpponent?: boolean
   moveDirection: VsMoveDirection
   onToggleMoveDirection: () => void
@@ -17,13 +21,14 @@ interface PlayerBandProps {
   onFinishTurn: () => void
   player: VsPlayerId
   pointDifference: number
+  result: VsGameResult | null
 }
 
-function PlayerBand({ active, canFinishTurn, facingOpponent = false, moveDirection, onFinishTurn, onToggleMoveDirection, player, pointDifference, points }: PlayerBandProps) {
+function PlayerBand({ active, canFinishTurn, captureStreak, consecutiveTurnWinCount, facingOpponent = false, moveDirection, onFinishTurn, onToggleMoveDirection, player, pointDifference, points, result }: PlayerBandProps) {
   const playerStyle = VS_PLAYERS[player]
   return (
     <section
-      aria-label={`${playerStyle.label}${active ? ', playing' : ', waiting'}`}
+      aria-label={`${playerStyle.label}, ${result ? result.winner === player ? 'winner' : result.winner === null ? 'draw' : 'match finished' : active ? 'playing' : 'waiting'}`}
       className={cn(
         'flex h-[66px] shrink-0 items-center border-4 px-3 transition-shadow',
         active && 'ring-2 ring-[var(--paper)] ring-inset',
@@ -33,6 +38,13 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, moveDirecti
     >
       <div className="shrink-0 pr-3">
         <p className="poster-kicker text-[18px] leading-none text-[var(--paper)]">{playerStyle.label}</p>
+        {result?.winner === player && <p className="poster-kicker mt-1 text-[10px] leading-none text-[var(--paper)]">Winner</p>}
+        {result?.winner === null && <p className="poster-kicker mt-1 text-[10px] leading-none text-[var(--paper)]">Draw</p>}
+        {result === null && captureStreak > 0 && (
+          <p aria-label={`${captureStreak} of ${consecutiveTurnWinCount} consecutive capture turns`} className="mt-1 text-[10px] leading-none text-[var(--paper)]">
+            {captureStreak + 1 >= consecutiveTurnWinCount ? 'Lock to win' : `${captureStreak}/${consecutiveTurnWinCount} streak`}
+          </p>
+        )}
       </div>
       <p
         aria-label={`${points} points`}
@@ -70,6 +82,7 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, moveDirecti
 
 export function VsLocalGrid() {
   const [game, setGame] = useState<VsLocalGameState | null>(null)
+  const [victoryDialogDismissed, setVictoryDialogDismissed] = useState(false)
   const persistenceQueueRef = useRef<Promise<void>>(Promise.resolve())
   const location = useLocation()
   const navigate = useNavigate()
@@ -83,6 +96,7 @@ export function VsLocalGrid() {
         .then(() => {
           if (!active) return
           setGame(createVsLocalGame())
+          setVictoryDialogDismissed(false)
           // Remove the one-shot navigation state so a browser reload resumes this match.
           navigate('/vs/local', { replace: true })
         })
@@ -118,8 +132,21 @@ export function VsLocalGrid() {
   const toggleMoveDirection = useCallback(() => {
     setGame((current) => current && toggleVsMoveDirection(current))
   }, [])
-  const playerOnePoints = game?.placedCornerominoes.filter((corneromino) => corneromino.lockedBy === 0).length ?? 0
-  const playerTwoPoints = game?.placedCornerominoes.filter((corneromino) => corneromino.lockedBy === 1).length ?? 0
+  const [playerOnePoints, playerTwoPoints] = getVsPlayerScores(game?.placedCornerominoes ?? [])
+  const result = game?.result ?? null
+  const combinationWinCount = game?.combinationWinCount ?? VS_LOCAL_CONFIG.combinationWinCount
+  const consecutiveTurnWinCount = game?.consecutiveTurnWinCount ?? VS_LOCAL_CONFIG.consecutiveTurnWinCount
+  const trapResolution = game?.trapResolution ?? VS_LOCAL_CONFIG.trapResolution
+  const canFinishTurn = game !== null && result === null && game.pendingPlacement !== null
+
+  function handleVictoryOpenChange(open: boolean) {
+    setVictoryDialogDismissed(!open)
+  }
+
+  function startNewMatch() {
+    setGame(createVsLocalGame(Math.random, { combinationWinCount, consecutiveTurnWinCount, trapResolution }))
+    setVictoryDialogDismissed(false)
+  }
 
   return (
     <main className="poster-page flex h-dvh flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
@@ -133,12 +160,13 @@ export function VsLocalGrid() {
         </Button>
       </header>
       <div className="flex min-h-0 flex-1 flex-col gap-2 px-1">
-        <PlayerBand active={game?.activePlayer === 0} canFinishTurn={game !== null && game.pendingPlacement !== null} facingOpponent moveDirection={game?.pendingMoveDirection ?? 'orthogonal'} onFinishTurn={endTurn} onToggleMoveDirection={toggleMoveDirection} player={0} pointDifference={playerOnePoints - playerTwoPoints} points={playerOnePoints} />
+        <PlayerBand active={result === null && game?.activePlayer === 0} canFinishTurn={canFinishTurn} captureStreak={game?.captureStreak?.player === 0 ? game.captureStreak.turnCount : 0} consecutiveTurnWinCount={consecutiveTurnWinCount} facingOpponent moveDirection={game?.pendingMoveDirection ?? 'orthogonal'} onFinishTurn={endTurn} onToggleMoveDirection={toggleMoveDirection} player={0} pointDifference={playerOnePoints - playerTwoPoints} points={playerOnePoints} result={result} />
         <section aria-label="Local VS board" className="min-h-0 flex-1 border-4 border-[var(--grid-border-color)] bg-[var(--grid-border-color)]">
           {game && <VsLocalCanvas game={game} onCellTap={selectCell} />}
         </section>
-        <PlayerBand active={game?.activePlayer === 1} canFinishTurn={game !== null && game.pendingPlacement !== null} moveDirection={game?.pendingMoveDirection ?? 'orthogonal'} onFinishTurn={endTurn} onToggleMoveDirection={toggleMoveDirection} player={1} pointDifference={playerTwoPoints - playerOnePoints} points={playerTwoPoints} />
+        <PlayerBand active={result === null && game?.activePlayer === 1} canFinishTurn={canFinishTurn} captureStreak={game?.captureStreak?.player === 1 ? game.captureStreak.turnCount : 0} consecutiveTurnWinCount={consecutiveTurnWinCount} moveDirection={game?.pendingMoveDirection ?? 'orthogonal'} onFinishTurn={endTurn} onToggleMoveDirection={toggleMoveDirection} player={1} pointDifference={playerTwoPoints - playerOnePoints} points={playerTwoPoints} result={result} />
       </div>
+      {result && <VsVictoryDialog onNewGame={startNewMatch} onOpenChange={handleVictoryOpenChange} open={!victoryDialogDismissed} result={result} />}
     </main>
   )
 }
