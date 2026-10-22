@@ -207,6 +207,21 @@
   transition: transform 80ms ease;
 }
 
+.button-press-content {
+  display: inline-flex;
+  align-items: inherit;
+  justify-content: inherit;
+  gap: inherit;
+  min-width: 0;
+  pointer-events: none;
+  transition: transform 80ms ease;
+}
+
+.cartoon-press:active:not(:disabled) .button-press-content {
+  transform: translateY(calc(var(--press-shadow-depth) / 2));
+  transition-duration: 0ms;
+}
+
 [data-slot='button'] {
   border-radius: 0 !important;
 }
@@ -416,7 +431,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .cartoon-press,
-  .cartoon-press::after {
+  .cartoon-press::after,
+  .button-press-content {
     transition: none !important;
   }
 

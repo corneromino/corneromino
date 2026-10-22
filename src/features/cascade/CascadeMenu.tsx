@@ -46,16 +46,18 @@ export function CascadeMenu() {
         >
           <Plus aria-hidden="true" /> New game
         </Button>
-        <Button
-          className="cartoon-press relative !overflow-visible h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
-          disabled={hasSavedGame !== true}
-          onClick={() => navigate('/cascade/game/continue')}
-          size="lg"
-          type="button"
-        >
-          <Play aria-hidden="true" /> {hasSavedGame === null ? 'Loading…' : 'Continue'}
+        <div className="relative shrink-0">
+          <Button
+            className="cartoon-press h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+            disabled={hasSavedGame !== true}
+            onClick={() => navigate('/cascade/game/continue')}
+            size="lg"
+            type="button"
+          >
+            <Play aria-hidden="true" /> {hasSavedGame === null ? 'Loading…' : 'Continue'}
+          </Button>
           {hasSavedGame && <span className="pointer-events-none absolute z-10 -right-1 -bottom-4 rotate-3 whitespace-nowrap text-[40px] leading-none font-black tracking-normal text-[var(--outline-color)] normal-case [text-shadow:4px_4px_0_var(--paper)]">{currentScore}</span>}
-        </Button>
+        </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="flex flex-col items-center p-2 text-[var(--outline-color)]">
             <PixelTrophyIcon />

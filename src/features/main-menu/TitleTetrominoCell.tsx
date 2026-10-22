@@ -1,163 +1,149 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 
-const FOLLOWER_CELLS = [
-  { id: 'bottom-left', positionClass: 'col-start-1 row-start-2' },
-  { id: 'bottom-right', positionClass: 'col-start-2 row-start-2' },
-] as const
-const MARKER_SIZE = 0.5
+const CELLS = ['left', 'right'] as const
 const MARKER_PADDING = 0.07
-const MARKER_MAX_POSITION = 1 - MARKER_SIZE - MARKER_PADDING
-const FOLLOW_TIME_MS = 65
-const SETTLE_THRESHOLD = 0.0005
-const INTERACTIVE_SELECTOR = 'a, button, input, select, textarea, [role="button"], [contenteditable="true"]'
 
-function clampPosition(position: number) {
-  return Math.min(MARKER_MAX_POSITION, Math.max(MARKER_PADDING, position))
+interface TitleTetrominoProps {
+  pointerAreaRef: RefObject<HTMLElement | null>
 }
 
-export function TitleTetromino() {
-  const rootRef = useRef<HTMLDivElement>(null)
+export function TitleTetromino({ pointerAreaRef }: TitleTetrominoProps) {
+  const cellRefs = useRef<(HTMLDivElement | null)[]>([])
+  const markerRefs = useRef<(HTMLSpanElement | null)[]>([])
 
   useEffect(() => {
-    const root = rootRef.current
-    const menu = root?.closest('main')
-    if (!root || !menu) return
+    const area = pointerAreaRef.current
+    if (!area) return
 
-    const markers = Array.from(root.children, (element) => {
-      const cell = element as HTMLDivElement
-      return {
-        cell,
-        marker: cell.firstElementChild as HTMLSpanElement,
-        x: MARKER_MAX_POSITION,
-        y: MARKER_PADDING,
-        left: 0,
-        top: 0,
-        width: 1,
-        height: 1,
-      }
-    })
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
-    let pointerId: number | null = null
-    let pointer: { x: number; y: number } | null = null
+    let position: { x: number; y: number } | null = null
+    let touchId: number | null = null
     let frame = 0
-    let lastTime = 0
-    let needsMeasurement = true
 
-    function scheduleFrame() {
-      if (frame || !pointer) return
-      frame = window.requestAnimationFrame(animate)
-    }
-
-    function animate(time: number) {
+    function draw() {
       frame = 0
-      if (!pointer) return
+      const target = position
+      if (!target) return
 
-      // Batch layout reads before transform writes. Pointer events only update
-      // the latest target; they never render React or force layout themselves.
-      if (needsMeasurement) {
-        for (const item of markers) {
-          const bounds = item.cell.getBoundingClientRect()
-          item.left = bounds.left + item.cell.clientLeft
-          item.top = bounds.top + item.cell.clientTop
-          item.width = Math.max(1, item.cell.clientWidth)
-          item.height = Math.max(1, item.cell.clientHeight)
-        }
-        needsMeasurement = false
+      // Read all geometry before writing transforms. Coordinates stay in CSS
+      // pixels, including after scrolling, resizing, or a change in logo size.
+      const cells = cellRefs.current.flatMap((cell, index) => {
+        const marker = markerRefs.current[index]
+        if (!cell || !marker) return []
+
+        const bounds = cell.getBoundingClientRect()
+        const centerX = (cell.clientWidth - marker.offsetWidth) / 2
+        const centerY = (cell.clientHeight - marker.offsetHeight) / 2
+        const radius = Math.max(0, Math.min(centerX, centerY) - cell.clientWidth * MARKER_PADDING)
+
+        return [{
+          marker, centerX, centerY, radius,
+          screenX: bounds.left + cell.clientLeft + cell.clientWidth / 2,
+          screenY: bounds.top + cell.clientTop + cell.clientHeight / 2,
+        }]
+      })
+      if (cells.length === 0) return
+
+      // Both markers share the same origin and displacement, so they stay
+      // parallel even when the pointer is close to or between the cells.
+      const originX = cells.reduce((sum, cell) => sum + cell.screenX, 0) / cells.length
+      const originY = cells.reduce((sum, cell) => sum + cell.screenY, 0) / cells.length
+      const dx = target.x - originX
+      const dy = target.y - originY
+      const radius = Math.min(...cells.map((cell) => cell.radius))
+      const distance = Math.hypot(dx, dy)
+      const scale = distance > 0 ? Math.min(1, radius / distance) : 0
+
+      for (const cell of cells) {
+        cell.marker.style.transform = `translate(${cell.centerX + dx * scale}px, ${cell.centerY + dy * scale}px)`
       }
-
-      const elapsed = lastTime ? Math.min(time - lastTime, 64) : 16
-      lastTime = time
-      const blend = reducedMotion.matches ? 1 : 1 - Math.exp(-elapsed / FOLLOW_TIME_MS)
-      let unsettled = false
-      for (const item of markers) {
-        const targetX = clampPosition((pointer.x - item.left) / item.width - MARKER_SIZE / 2)
-        const targetY = clampPosition((pointer.y - item.top) / item.height - MARKER_SIZE / 2)
-        item.x += (targetX - item.x) * blend
-        item.y += (targetY - item.y) * blend
-        if (Math.abs(targetX - item.x) + Math.abs(targetY - item.y) < SETTLE_THRESHOLD) {
-          item.x = targetX
-          item.y = targetY
-        } else {
-          unsettled = true
-        }
-        // Transform percentages are relative to the marker, which is half a cell.
-        item.marker.style.transform = `translate3d(${item.x / MARKER_SIZE * 100}%, ${item.y / MARKER_SIZE * 100}%, 0)`
-      }
-      if (unsettled) scheduleFrame()
-      else lastTime = 0
     }
 
-    function handlePointerDown(event: PointerEvent) {
-      if (!event.isPrimary || event.button !== 0) return
-      if (event.target instanceof Element && event.target.closest(INTERACTIVE_SELECTOR)) return
-      pointerId = event.pointerId
-      pointer = { x: event.clientX, y: event.clientY }
-      needsMeasurement = true
-      scheduleFrame()
+    function scheduleDraw() {
+      if (position && !frame) frame = window.requestAnimationFrame(draw)
     }
 
-    function handlePointerMove(event: PointerEvent) {
-      if (event.pointerId !== pointerId) return
-      if (event.buttons === 0) {
-        pointerId = null
-        return
-      }
-      pointer = { x: event.clientX, y: event.clientY }
-      scheduleFrame()
+    function follow(x: number, y: number) {
+      position = { x, y }
+      scheduleDraw()
     }
 
-    function releasePointer(event: PointerEvent) {
-      if (event.pointerId === pointerId) pointerId = null
-    }
-
-    function stopTracking() {
-      pointerId = null
-      pointer = null
+    function stop() {
+      position = null
+      touchId = null
       window.cancelAnimationFrame(frame)
       frame = 0
-      lastTime = 0
     }
 
-    function invalidateMeasurements() {
-      needsMeasurement = true
-      scheduleFrame()
+    function onPointerMove(event: PointerEvent) {
+      if (event.pointerType !== 'touch' && event.isPrimary && touchId === null) {
+        follow(event.clientX, event.clientY)
+      }
     }
 
-    const resizeObserver = new ResizeObserver(invalidateMeasurements)
-    resizeObserver.observe(menu)
-    resizeObserver.observe(root)
-    // Passive observation only: no pointer capture, default prevention, or
-    // delayed click handlers, so navigation keeps its native response.
-    menu.addEventListener('pointerdown', handlePointerDown, { passive: true })
-    window.addEventListener('pointermove', handlePointerMove, { passive: true })
-    window.addEventListener('pointerup', releasePointer, { passive: true })
-    window.addEventListener('pointercancel', releasePointer, { passive: true })
-    window.addEventListener('resize', invalidateMeasurements, { passive: true })
-    window.addEventListener('scroll', invalidateMeasurements, { passive: true })
-    window.addEventListener('blur', stopTracking)
-    document.addEventListener('visibilitychange', stopTracking)
+    function onPointerLeave(event: PointerEvent) {
+      if (event.pointerType !== 'touch' && touchId === null) stop()
+    }
+
+    // Passive touch events continue during native scrolling. Pointer events may
+    // be cancelled when the browser takes over a pan or pinch gesture.
+    function onTouchStart(event: TouchEvent) {
+      if (event.touches.length !== 1) {
+        stop()
+        return
+      }
+      const touch = event.touches[0]!
+      touchId = touch.identifier
+      follow(touch.clientX, touch.clientY)
+    }
+
+    function onTouchMove(event: TouchEvent) {
+      const touch = Array.from(event.touches).find((item) => item.identifier === touchId)
+      if (touch) follow(touch.clientX, touch.clientY)
+    }
+
+    function onTouchEnd(event: TouchEvent) {
+      if (Array.from(event.changedTouches).some((touch) => touch.identifier === touchId)) stop()
+    }
+
+    const resizeObserver = new ResizeObserver(scheduleDraw)
+    for (const cell of cellRefs.current) {
+      if (cell) resizeObserver.observe(cell)
+    }
+    area.addEventListener('pointermove', onPointerMove, { passive: true })
+    area.addEventListener('pointerleave', onPointerLeave, { passive: true })
+    area.addEventListener('touchstart', onTouchStart, { passive: true })
+    area.addEventListener('touchmove', onTouchMove, { passive: true })
+    area.addEventListener('touchend', onTouchEnd, { passive: true })
+    area.addEventListener('touchcancel', stop, { passive: true })
+    window.addEventListener('scroll', scheduleDraw, { capture: true, passive: true })
+    window.addEventListener('resize', scheduleDraw, { passive: true })
+    window.addEventListener('blur', stop)
+    document.addEventListener('visibilitychange', stop)
 
     return () => {
-      stopTracking()
+      stop()
       resizeObserver.disconnect()
-      menu.removeEventListener('pointerdown', handlePointerDown)
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', releasePointer)
-      window.removeEventListener('pointercancel', releasePointer)
-      window.removeEventListener('resize', invalidateMeasurements)
-      window.removeEventListener('scroll', invalidateMeasurements)
-      window.removeEventListener('blur', stopTracking)
-      document.removeEventListener('visibilitychange', stopTracking)
+      area.removeEventListener('pointermove', onPointerMove)
+      area.removeEventListener('pointerleave', onPointerLeave)
+      area.removeEventListener('touchstart', onTouchStart)
+      area.removeEventListener('touchmove', onTouchMove)
+      area.removeEventListener('touchend', onTouchEnd)
+      area.removeEventListener('touchcancel', stop)
+      window.removeEventListener('scroll', scheduleDraw, true)
+      window.removeEventListener('resize', scheduleDraw)
+      window.removeEventListener('blur', stop)
+      document.removeEventListener('visibilitychange', stop)
     }
-  }, [])
+  }, [pointerAreaRef])
 
   return (
-    <div aria-hidden="true" className="main-menu-logo pointer-events-none grid select-none grid-cols-2 grid-rows-2 gap-1" ref={rootRef}>
-      {FOLLOWER_CELLS.map((cell) => (
-        <div className={`relative aspect-square rounded-[2%] border-4 border-[#773526] bg-[#ffd18a] ${cell.positionClass}`} key={cell.id}>
+    <div aria-hidden="true" className="main-menu-logo pointer-events-none grid select-none grid-cols-2 grid-rows-2 gap-1">
+      {CELLS.map((cell, index) => (
+        <div className="relative row-start-2 aspect-square rounded-[2%] border-4 border-[#773526] bg-[#ffd18a]" key={cell} ref={(element) => { cellRefs.current[index] = element }}>
           <span
-            className="absolute left-0 top-0 z-10 aspect-square w-1/2 rounded-[10%] bg-[var(--outline-color)] will-change-transform"
-            style={{ transform: `translate3d(${MARKER_MAX_POSITION / MARKER_SIZE * 100}%, ${MARKER_PADDING / MARKER_SIZE * 100}%, 0)` }}
+            className="absolute left-0 top-0 z-10 aspect-square w-1/2 rounded-[10%] bg-[var(--outline-color)] transition-transform duration-100 ease-out motion-reduce:transition-none"
+            ref={(element) => { markerRefs.current[index] = element }}
+            style={{ transform: 'translate(86%, 14%)' }}
           />
         </div>
       ))}

@@ -42,12 +42,25 @@ function Button({
   variant = "default",
   size = "default",
   asChild = false,
+  children,
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
   }) {
   const Comp = asChild ? Slot.Root : "button"
+  const hasPressEffect = className?.split(/\s+/).includes("cartoon-press")
+  let content = children
+  if (hasPressEffect) {
+    if (asChild) {
+      const child = React.Children.only(children) as React.ReactElement<{ children?: React.ReactNode }>
+      content = React.cloneElement(child, {
+        children: <span className="button-press-content">{child.props.children}</span>,
+      })
+    } else {
+      content = <span className="button-press-content">{children}</span>
+    }
+  }
 
   return (
     <Comp
@@ -56,7 +69,9 @@ function Button({
       data-size={size}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    />
+    >
+      {content}
+    </Comp>
   )
 }
 
