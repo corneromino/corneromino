@@ -8,7 +8,7 @@ import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
 import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
 import { GameGrid } from './GameGrid'
 
-const MODE_BUTTON_CLASS = 'cartoon-press h-[62px] w-full text-[11px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase'
+const MODE_BUTTON_CLASS = 'cartoon-press mode-menu-button w-full text-[11px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase'
 const MODE_ENTRIES = Object.entries(GAME_CONFIGS)
 
 function formatElapsedTime(elapsedSeconds: number) {
@@ -24,23 +24,25 @@ interface GameSessionProps {
 
 function GameModeMenu() {
   return (
-    <main className="poster-page relative grid min-h-dvh place-items-center overflow-hidden px-5 py-8 text-[var(--canvas-foreground)]">
+    <main className="poster-page app-page relative overflow-hidden px-5 text-[var(--canvas-foreground)]">
       <TetrominoBackground />
-      <section className="relative z-10 flex w-full max-w-[430px] flex-col items-center gap-4 text-center">
-        <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
-        <h1 className="poster-title mb-3 text-[44px] leading-none min-[375px]:text-[55px]">Select mode</h1>
-        {MODE_ENTRIES.map(([mode, config]) => (
-          <Button asChild className={MODE_BUTTON_CLASS} key={mode} size="lg">
-            <Link to={`/play?mode=${mode}`}>{config.title}</Link>
+      <div className="menu-scroll">
+        <section className="menu-content mx-auto flex w-full max-w-[430px] flex-col items-center text-center">
+          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
+          <h1 className="poster-title mode-menu-title leading-none">Select mode</h1>
+          {MODE_ENTRIES.map(([mode, config]) => (
+            <Button asChild className={MODE_BUTTON_CLASS} key={mode} size="lg">
+              <Link to={`/play?mode=${mode}`}>{config.title}</Link>
+            </Button>
+          ))}
+          <Button asChild className="cartoon-press mode-menu-button w-full !border-[var(--canvas-foreground)] !bg-[var(--coral)] text-[11px] font-black tracking-[0.2em] !text-[var(--paper)] uppercase hover:!bg-[#b73a2c]" size="lg">
+            <Link to="/saved">Saved</Link>
           </Button>
-        ))}
-        <Button asChild className="cartoon-press h-[62px] w-full !border-[var(--canvas-foreground)] !bg-[var(--coral)] text-[11px] font-black tracking-[0.2em] !text-[var(--paper)] uppercase hover:!bg-[#b73a2c]" size="lg">
-          <Link to="/saved">Saved</Link>
-        </Button>
-        <Button asChild className="cartoon-press mt-3 h-[42px] w-full [--element-color:var(--paper-muted)] text-[11px] font-black tracking-[0.16em] text-[var(--canvas-foreground)] uppercase" size="sm">
-          <Link to="/">Back</Link>
-        </Button>
-      </section>
+          <Button asChild className="cartoon-press mt-3 h-[42px] w-full [--element-color:var(--paper-muted)] text-[11px] font-black tracking-[0.16em] text-[var(--canvas-foreground)] uppercase [@media(max-height:480px)]:mt-0" size="sm">
+            <Link to="/">Back</Link>
+          </Button>
+        </section>
+      </div>
     </main>
   )
 }
@@ -94,7 +96,7 @@ function GameSession(props: GameSessionProps) {
   }, [config, props.gameMode, seed])
 
   return (
-    <main className="poster-page relative flex h-dvh flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
+    <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
       <header className="relative z-10 mx-auto flex w-full max-w-[550px] items-end justify-between gap-4 px-5 pb-6">
         <div className="min-w-0">
           <h1 className="poster-title text-[33px] leading-none">Corneromino</h1>

@@ -17,7 +17,7 @@ export function CorrectGameDialog(props: CorrectGameDialogProps) {
         {props.screenshot && (
           <img
             alt="Completed game board"
-            className="mx-auto mt-4 block max-h-[calc(100dvh-220px)] max-w-full object-contain"
+            className="mx-auto mt-4 block max-h-[max(0px,calc(var(--dialog-viewport-height,var(--app-height))-220px))] max-w-full object-contain"
             src={props.screenshot}
           />
         )}

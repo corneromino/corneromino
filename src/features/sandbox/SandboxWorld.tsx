@@ -121,7 +121,7 @@ export function SandboxWorld() {
   }
 
   return (
-    <main className="poster-page relative flex h-dvh flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
+    <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
       <header className="relative z-10 mx-auto flex w-full max-w-[550px] items-end justify-between gap-3 px-5 pb-6">
         <div>
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
@@ -306,7 +306,7 @@ export function SandboxWorld() {
         </DialogContent>
       </Dialog>
       <Dialog onOpenChange={setImportDialogOpen} open={importDialogOpen}>
-        <DialogContent className="flex max-h-[80dvh] flex-col">
+        <DialogContent className="flex flex-col">
           <DialogHeader>
             <DialogTitle>Paste saved world</DialogTitle>
             <DialogDescription>Choose a world to position and paste into this one.</DialogDescription>

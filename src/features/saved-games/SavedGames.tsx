@@ -148,7 +148,7 @@ export function SavedGames() {
   }, [])
 
   return (
-    <main className="poster-page relative flex h-dvh overflow-hidden px-5 py-8 text-[var(--canvas-foreground)]">
+    <main className="poster-page app-page relative flex overflow-hidden px-5 py-8 text-[var(--canvas-foreground)]">
       <section className="relative z-10 mx-auto flex min-h-0 w-full max-w-[720px] flex-col">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">

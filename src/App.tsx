@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { HashRouter, Route, Routes } from 'react-router-dom'
+import { observeDialogViewport } from '@/lib/dialogViewport'
 import { Play } from '@/features/play/Play'
 import { MainMenu } from '@/features/main-menu/MainMenu'
 import { SavedGames } from '@/features/saved-games/SavedGames'
@@ -10,6 +12,8 @@ import { VsLocalGrid } from '@/features/vs/VsLocalGrid'
 import { VsMenu } from '@/features/vs/VsMenu'
 
 function App() {
+  useEffect(() => observeDialogViewport(window.visualViewport, document.documentElement), [])
+
   return (
     <HashRouter>
       <Routes>

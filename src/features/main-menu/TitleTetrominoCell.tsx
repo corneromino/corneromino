@@ -152,7 +152,7 @@ export function TitleTetromino() {
   }, [])
 
   return (
-    <div aria-hidden="true" className="pointer-events-none grid size-[132px] select-none grid-cols-2 grid-rows-2 gap-1" ref={rootRef}>
+    <div aria-hidden="true" className="main-menu-logo pointer-events-none grid select-none grid-cols-2 grid-rows-2 gap-1" ref={rootRef}>
       {FOLLOWER_CELLS.map((cell) => (
         <div className={`relative aspect-square rounded-[2%] border-4 border-[#773526] bg-[#ffd18a] ${cell.positionClass}`} key={cell.id}>
           <span

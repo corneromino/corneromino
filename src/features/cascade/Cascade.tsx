@@ -175,7 +175,7 @@ export function Cascade(props: { startNew?: boolean }) {
   }, [])
 
   return (
-    <main className="poster-page flex h-dvh flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
+    <main className="poster-page app-page flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
       <header className="mx-auto flex w-full max-w-[550px] items-end justify-between gap-4 px-5 pb-5">
         <div>
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
@@ -217,7 +217,7 @@ export function Cascade(props: { startNew?: boolean }) {
             )}
             {isPaused && <div aria-hidden="true" className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--outline-color)]"><Pause className="size-10 text-[var(--paper)]" /></div>}
           </section>
-          <aside aria-label="Cascade statistics" className="flex shrink-0 flex-col gap-5 rounded-xs bg-[var(--outline-color)] p-1 py-5 text-center text-[var(--canvas)] sm:w-[96px]">
+          <aside aria-label="Cascade statistics" className="flex min-h-0 shrink-0 flex-col gap-5 overflow-y-auto overscroll-y-contain rounded-xs bg-[var(--outline-color)] p-1 py-5 text-center text-[var(--canvas)] sm:w-[96px]">
             <div>
               <p><span className="sr-only">Lines</span><PixelLinesIcon /></p>
               <p className="mt-2 text-[22px] leading-none">{stats.destroyedLineCount}</p>

@@ -32,6 +32,8 @@
 
 :root {
   color-scheme: light;
+  --app-height: 100vh;
+  --app-content-height: calc(var(--app-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   font-family: 'Pixform', 'Abbots Morton Spaceport Mono', ui-monospace, monospace;
   --background: var(--canvas);
   --foreground: var(--text-color);
@@ -60,6 +62,17 @@
   --surface-shadow: #854530;
 }
 
+@supports (height: 100dvh) {
+  :root { --app-height: 100dvh; }
+}
+
+/* Installed Android Chrome can overestimate dvh on a cold launch or reload. */
+@media (display-mode: standalone) {
+  @supports (height: 100svh) {
+    :root { --app-height: 100svh; }
+  }
+}
+
 @theme inline {
   --font-sans: 'Pixform', 'Abbots Morton Spaceport Mono', ui-monospace, monospace;
   --color-background: var(--background);
@@ -82,11 +95,17 @@
     @apply border-border outline-ring/50;
   }
 
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
   body {
     @apply bg-background text-foreground;
     margin: 0;
-    min-width: 320px;
-    overscroll-behavior-y: none;
+    min-width: 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -97,7 +116,62 @@
 }
 
 #root {
-  min-height: 100dvh;
+  box-sizing: border-box;
+  height: var(--app-height);
+  min-width: 0;
+  overflow: hidden;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+
+.app-page {
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Center when there is room, but keep short-screen/zoomed menus reachable. */
+.menu-scroll {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding: clamp(12px, calc(var(--app-content-height) * 0.04), 32px) 2px;
+}
+
+.menu-content {
+  flex-shrink: 0;
+  margin-block: auto;
+  gap: clamp(8px, calc(var(--app-content-height) * 0.025), 20px);
+}
+
+.main-menu-logo {
+  width: clamp(64px, calc(var(--app-content-height) * 0.18), 132px);
+  aspect-ratio: 1;
+  flex-shrink: 0;
+}
+
+.main-menu-title {
+  font-size: clamp(28px, min(12vw, calc(var(--app-content-height) * 0.07)), 50px);
+}
+
+.menu-button {
+  height: clamp(44px, calc(var(--app-content-height) * 0.1), 70px);
+}
+
+.mode-menu-title {
+  font-size: clamp(28px, min(12vw, calc(var(--app-content-height) * 0.07)), 55px);
+}
+
+.mode-menu-button {
+  height: clamp(44px, calc(var(--app-content-height) * 0.09), 62px);
+}
+
+@media (max-height: 480px) {
+  .menu-scroll { padding-block: 12px; }
+  .menu-content { gap: 8px; }
 }
 
 .cartoon-press {
@@ -115,7 +189,9 @@
     0 0 0 1px rgb(21 16 14 / 8%) !important;
   padding-bottom: var(--press-shadow-depth) !important;
   touch-action: manipulation;
-  transition: box-shadow 80ms ease, padding-bottom 80ms ease, background-color 120ms ease !important;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: box-shadow 80ms ease, background-color 120ms ease !important;
 }
 
 .cartoon-press::after {
@@ -127,19 +203,22 @@
   height: var(--press-shadow-depth);
   pointer-events: none;
   background: var(--press-shadow);
-  transition: height 80ms ease;
+  transform-origin: bottom;
+  transition: transform 80ms ease;
 }
 
 [data-slot='button'] {
   border-radius: 0 !important;
 }
 
-.cartoon-press:hover:not(:disabled) {
-  background-color: var(--press-face-hover);
-  border-color: #15100e !important;
-  box-shadow:
-    inset 0 calc(0px - var(--press-shadow-depth)) 0 var(--press-shadow),
-    0 0 0 1px rgb(21 16 14 / 14%) !important;
+@media (hover: hover) and (pointer: fine) {
+  .cartoon-press:hover:not(:disabled) {
+    background-color: var(--press-face-hover);
+    border-color: #15100e !important;
+    box-shadow:
+      inset 0 calc(0px - var(--press-shadow-depth)) 0 var(--press-shadow),
+      0 0 0 1px rgb(21 16 14 / 14%) !important;
+  }
 }
 
 .cartoon-press:active:not(:disabled) {
@@ -147,15 +226,12 @@
   box-shadow:
     inset 0 -1px 0 var(--press-shadow),
     0 0 0 1px rgb(21 16 14 / 8%) !important;
-  padding-bottom: 0 !important;
-  transition-duration: 65ms !important;
-  transition-timing-function: cubic-bezier(0.4, 0, 1, 1) !important;
+  transition-duration: 0ms !important;
 }
 
 .cartoon-press:active:not(:disabled)::after {
-  height: 1px;
-  transition-duration: 65ms;
-  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+  transform: scaleY(0.166667);
+  transition-duration: 0ms;
 }
 
 .cartoon-press--green {
@@ -195,6 +271,15 @@
   background: color-mix(in srgb, var(--outline-color) 72%, var(--canvas-deep));
 }
 
+.dialog-content {
+  top: calc(var(--dialog-viewport-top, 0px) + env(safe-area-inset-top, 0px) + (var(--dialog-viewport-height, var(--app-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) / 2);
+  left: calc(50% + (env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) / 2);
+  width: calc(100% - 2.5rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  max-height: max(0px, calc(var(--dialog-viewport-height, var(--app-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 40px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .dialog-overlay[data-state='open'] {
   animation: dialog-fade-in 240ms ease-out both;
 }
@@ -212,7 +297,7 @@
   from {
     opacity: 0;
     /* Tailwind's separate translate property keeps the dialog centered. */
-    transform: translateY(calc(50dvh + 50%));
+    transform: translateY(calc(var(--app-height) / 2 + 50%));
   }
 
   to {
@@ -310,13 +395,13 @@
 
 @keyframes tetromino-drift-down {
   to {
-    translate: 0 calc(100dvh + 220px);
+    translate: 0 calc(var(--app-height) + 220px);
   }
 }
 
 @keyframes tetromino-drift-up {
   to {
-    translate: 0 calc(-100dvh - 220px);
+    translate: 0 calc(0px - var(--app-height) - 220px);
   }
 }
 
@@ -330,7 +415,8 @@
 .animate-tetromino-drift-up-slow { animation: tetromino-drift-up 24s linear forwards; }
 
 @media (prefers-reduced-motion: reduce) {
-  .cartoon-press {
+  .cartoon-press,
+  .cartoon-press::after {
     transition: none !important;
   }
 

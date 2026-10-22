@@ -84,7 +84,7 @@ export function GameGrid(props: GameGridProps) {
   const canValidate = cellMap.size > 0 && [...cellMap.keys()].every((cellKey) => lockedCellMap.has(cellKey))
   const boardStyle = {
     aspectRatio: `${props.config.columns} / ${props.config.rows}`,
-    width: `min(100%, calc((100dvh - 190px) * ${props.config.columns} / ${props.config.rows}))`,
+    width: `min(100%, calc(100cqh * ${props.config.columns} / ${props.config.rows}))`,
   }
   function clearSelectedCells() {
     setSelectedCellKeys(new Set())
@@ -369,22 +369,24 @@ export function GameGrid(props: GameGridProps) {
   }, [elapsedSeconds, gameGridScreenshot, isCompleted, isExiting, lockedCellGroups, markers, moveCount, props.gameId, props.gameMode, savedAt, selectedCellKeys, selectionLoaded])
 
   return (
-    <div className="space-y-4 px-1">
-      <section aria-label="Game board" className="mx-auto max-w-[550px]" ref={gameBoardRef} style={boardStyle}>
-        <div className="size-full border-2 border-[#773526] bg-[#773526]">
-          <GameGridCanvas
-            config={props.config}
-            lockedCellGroups={lockedCellGroups}
-            markers={markers}
-            onToggle={toggleCellSelection}
-            pieces={props.pieces}
-            selectedCellKeys={selectedCellKeys}
-            selectedLockedGroupId={selectedLockedGroupId}
-            showCellIds={showCellIds}
-          />
-        </div>
-      </section>
-      <div className="mx-auto flex w-full max-w-[550px] flex-nowrap justify-center gap-1 sm:gap-2">
+    <div className="flex h-full min-h-0 flex-col gap-4 px-1">
+      <div className="flex min-h-0 flex-1 items-start justify-center [container-type:size]">
+        <section aria-label="Game board" className="mx-auto max-w-[550px]" ref={gameBoardRef} style={boardStyle}>
+          <div className="size-full border-2 border-[#773526] bg-[#773526]">
+            <GameGridCanvas
+              config={props.config}
+              lockedCellGroups={lockedCellGroups}
+              markers={markers}
+              onToggle={toggleCellSelection}
+              pieces={props.pieces}
+              selectedCellKeys={selectedCellKeys}
+              selectedLockedGroupId={selectedLockedGroupId}
+              showCellIds={showCellIds}
+            />
+          </div>
+        </section>
+      </div>
+      <div className="mx-auto flex w-full max-w-[550px] shrink-0 flex-nowrap justify-center gap-1 sm:gap-2">
         <Button
           aria-label="Exit game"
           className="cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--canvas-foreground)]"

@@ -154,7 +154,7 @@ export function VsLocalGrid() {
   }
 
   return (
-    <main className="poster-page flex h-dvh flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
+    <main className="poster-page app-page flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
       <header className="mx-auto flex w-full max-w-[550px] shrink-0 flex-wrap items-end justify-between gap-x-4 gap-y-2 px-5 pb-3">
         <div>
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>

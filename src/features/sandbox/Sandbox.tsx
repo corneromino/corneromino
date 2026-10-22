@@ -141,7 +141,7 @@ export function Sandbox() {
   }, [])
 
   return (
-    <main className="poster-page relative flex h-dvh flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
+    <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
       <TetrominoBackground />
       <header className="relative z-10 mx-auto flex w-full max-w-[550px] items-center justify-between gap-3 px-5 pb-6">
         <div className="min-w-0">

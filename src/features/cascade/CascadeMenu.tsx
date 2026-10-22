@@ -26,9 +26,9 @@ export function CascadeMenu() {
   }, [])
 
   return (
-    <main className="poster-page relative flex h-dvh flex-col overflow-hidden px-5 py-5 text-[var(--canvas-foreground)]">
+    <main className="poster-page app-page relative flex flex-col overflow-hidden px-5 py-5 text-[var(--canvas-foreground)]">
       <TetrominoBackground />
-      <header className="relative z-10 mx-auto flex w-full max-w-[550px] items-start justify-between gap-3 pb-10">
+      <header className="relative z-10 mx-auto flex w-full max-w-[550px] shrink-0 items-start justify-between gap-3 pb-10">
         <div>
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
           <h1 className="poster-title mt-2 text-[40px] leading-none">Cascade</h1>
@@ -37,7 +37,7 @@ export function CascadeMenu() {
           <Link aria-label="Back to main menu" to="/"><ArrowLeft aria-hidden="true" /></Link>
         </Button>
       </header>
-      <section className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col gap-4">
+      <section className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain px-1 pb-1">
         <Button
           className="cartoon-press h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
           onClick={() => navigate('/cascade/game/new')}
