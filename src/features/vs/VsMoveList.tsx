@@ -8,6 +8,8 @@ interface VsMoveListProps {
   onSelect: (index: number) => void
 }
 
+const MOVE_CHIP_CLASS = 'shrink-0 rounded-sm border-2 border-transparent px-2 py-1 text-[11px] whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--canvas-foreground)]'
+
 export function VsMoveList({ history, onSelect }: VsMoveListProps) {
   const scrollRef = useRef<HTMLElement>(null)
   const moves = useMemo(() => getVsMoveNotations(history.positions), [history.positions])
@@ -42,10 +44,10 @@ export function VsMoveList({ history, onSelect }: VsMoveListProps) {
           aria-current={move.historyIndex === history.index ? 'step' : undefined}
           aria-label={`Move ${move.moveNumber}, ${VS_PLAYERS[move.player].label}: ${move.notation}`}
           className={cn(
-            'shrink-0 rounded-sm px-2 py-1 text-[11px] whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--canvas-foreground)]',
+            MOVE_CHIP_CLASS,
             move.historyIndex === history.index
               ? 'border-[var(--canvas-foreground)] bg-[var(--outline-color)] text-[var(--paper)]'
-              : 'border-transparent text-[var(--muted-text-color)] hover:bg-[var(--paper-muted)]',
+              : 'text-[var(--muted-text-color)] hover:bg-[var(--paper-muted)]',
           )}
           data-history-index={move.historyIndex}
           key={`${move.moveNumber}:${move.notation}`}
@@ -55,6 +57,7 @@ export function VsMoveList({ history, onSelect }: VsMoveListProps) {
           {move.notation}
         </button>
       ))}
+      {moves.length === 0 && <span aria-hidden="true" className={`${MOVE_CHIP_CLASS} invisible`}>A0A+</span>}
     </nav>
   )
 }
