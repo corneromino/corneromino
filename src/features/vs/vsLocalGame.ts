@@ -1,4 +1,5 @@
 import { getTetrominoKind, TETROMINOES, type TetrominoKind } from '@/game/tetrominoes'
+import { LOCKED_CELL_COLORS, pixiColorToCss } from '@/rendering/colors'
 import { isVsTrapResolution, isVsWinCount, VS_LOCAL_CONFIG, type VsLocalConfig } from './vsLocalConfig'
 
 export type VsCorner = 0 | 1 | 2 | 3
@@ -13,8 +14,8 @@ export interface VsMoveConstraint {
 
 /** Player identities and lock colours live here so future themes can change them in one place. */
 export const VS_PLAYERS = [
-  { id: 0, label: 'Player 1', lockedColor: 0x55c7df, bannerBackground: '#1e4a58', bannerBorder: '#55c7df', bannerScoreBackground: '#2a6173' },
-  { id: 1, label: 'Player 2', lockedColor: 0xe4555c, bannerBackground: '#622d35', bannerBorder: '#e4555c', bannerScoreBackground: '#7d3b45' },
+  { id: 0, label: 'Player 1', lockedColor: LOCKED_CELL_COLORS[0], bannerBackground: '#1e4a58', bannerBorder: pixiColorToCss(LOCKED_CELL_COLORS[0]), bannerScoreBackground: '#2a6173' },
+  { id: 1, label: 'Player 2', lockedColor: LOCKED_CELL_COLORS[4], bannerBackground: '#622d35', bannerBorder: pixiColorToCss(LOCKED_CELL_COLORS[4]), bannerScoreBackground: '#7d3b45' },
 ] as const satisfies readonly { id: VsPlayerId; label: string; lockedColor: number; bannerBackground: string; bannerBorder: string; bannerScoreBackground: string }[]
 
 export interface VsPlacement {
@@ -245,80 +246,11 @@ function matchesFriendlyShapeRule(cells: readonly VsPlacement[], kind: Tetromino
   return !touchesFriendlyShape
 }
 
-interface ShapeCandidate {
-  cellKeys: string[]
-  /** Only the three non-shared cells participate in conflict checks. */
-  mask: bigint
-}
-
-function countBits(mask: bigint): number {
-  let count = 0
-  while (mask !== 0n) {
-    mask &= mask - 1n
-    count += 1
-  }
-  return count
-}
-
-/** Exact local set-packing search; equal-scoring solutions keep template order. */
-function selectMaximumVsShapes(
-  shapes: string[][],
-  available: ReadonlyMap<string, VsPlacedCorneromino>,
-  latestKey: string,
-): string[][] {
-  if (shapes.length <= 1) return shapes
-
-  const cellBits = new Map<string, bigint>()
-  const cornerMasks = [0n, 0n, 0n, 0n]
-  const candidates = shapes.map((cellKeys): ShapeCandidate => {
-    let mask = 0n
-    for (const key of cellKeys) {
-      if (key === latestKey) continue
-      let bit = cellBits.get(key)
-      if (bit === undefined) {
-        bit = 1n << BigInt(cellBits.size)
-        cellBits.set(key, bit)
-        const corner = available.get(key)!.corner
-        cornerMasks[corner] |= bit
-      }
-      mask |= bit
-    }
-    return { cellKeys, mask }
-  })
-  const requiredCornerMasks = cornerMasks.filter((mask) => mask !== 0n)
-  const selected: string[][] = []
-  let best: string[][] = []
-
-  function search(remaining: readonly ShapeCandidate[]) {
-    if (selected.length > best.length) best = [...selected]
-    if (selected.length + remaining.length <= best.length) return
-
-    // Each shape needs one distinct cell of each of the three other corners.
-    // The scarcest corner bounds how many more shapes any branch can lock.
-    const remainingCells = remaining.reduce((mask, candidate) => mask | candidate.mask, 0n)
-    const upperBound = Math.min(remaining.length, ...requiredCornerMasks.map((mask) => countBits(mask & remainingCells)))
-    if (selected.length + upperBound <= best.length) return
-
-    for (let index = 0; index < remaining.length; index += 1) {
-      if (selected.length + remaining.length - index <= best.length) break
-      const candidate = remaining[index]!
-      const compatible = remaining.slice(index + 1).filter((other) => (candidate.mask & other.mask) === 0n)
-      selected.push(candidate.cellKeys)
-      search(compatible)
-      selected.pop()
-      if (selected.length + upperBound <= best.length) break
-    }
-  }
-
-  search(candidates)
-  return best
-}
-
 /**
- * Finds valid shapes containing the latest piece. It checks only the constant
+ * Finds every distinct valid shape containing the latest piece. It checks the
  * set of tetromino rotations anchored at that piece, instead of searching all
- * combinations of four cells on the board, then chooses the largest compatible
- * set. Shapes may share only the latest cell: N shapes lock exactly 1 + 3N cells.
+ * combinations of four cells on the board. Simultaneous shapes may overlap at
+ * any cells; each shape counts as a capture, while shared cells score only once.
  * Only friendly shapes locked before this turn impose adjacency restrictions.
  */
 export function findValidatedVsShapes(placed: readonly VsPlacedCorneromino[], latest: VsPlacedCorneromino, previouslyLocked: readonly VsLockedCorneromino[]): string[][] {
@@ -343,7 +275,7 @@ export function findValidatedVsShapes(placed: readonly VsPlacedCorneromino[], la
     }
   }
 
-  return selectMaximumVsShapes(validShapes, available, cellKey(latest.column, latest.row))
+  return validShapes
 }
 
 export function findValidatedVsCellKeys(placed: readonly VsPlacedCorneromino[], latest: VsPlacedCorneromino, previouslyLocked: readonly VsLockedCorneromino[]): string[] {

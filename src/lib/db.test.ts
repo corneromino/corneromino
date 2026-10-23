@@ -105,6 +105,26 @@ describe('Local VS persistence', () => {
     expect(selectVsCell(restored!, 4, 9)).toBe(restored)
   })
 
+  it.each([2, 3])('round-trips %s overlapping captures and their browsable history', async (shapeCount) => {
+    const game = createVsLocalGame(() => 0, { combinationWinCount: shapeCount })
+    const corners = [1, 2, 3, 0, 1, 2] as const
+    for (let column = 0; column < shapeCount + 3; column++) {
+      if (column === 3) game.pendingPlacement = { column, row: 4, corner: 0 }
+      else game.placedCornerominoes.push({ column, row: 4, corner: corners[column], player: 1 })
+    }
+    const finished = finishVsTurn(game)
+    expect(finished.lockedCornerominoes).toHaveLength(shapeCount)
+    expect(finished.result).toEqual({ reason: 'combination', winner: 0, shapeCount })
+    await saveVsLocalGameState(finished)
+    await expect(loadVsLocalGameState()).resolves.toEqual(finished)
+
+    const past = goToVsHistory(finished, 0)
+    await saveVsLocalGameState(past)
+    const restored = await loadVsLocalGameState()
+    expect(restored).toEqual(past)
+    expect(goToVsHistory(restored!, 1)).toEqual(finished)
+  })
+
   it('does not infer a victory from historical locks in a save predating victory rules', async () => {
     const { combinationWinCount: _threshold, consecutiveTurnWinCount: _turnThreshold, captureStreak: _streak, result: _result, history: _history, ...legacy } = finishedVsGame()
     await (await db).put('games', { id: 'vs:local:current', state: legacy, updatedAt: Date.now() })

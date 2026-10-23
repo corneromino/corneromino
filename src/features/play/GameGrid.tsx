@@ -7,6 +7,7 @@ import type { CellMarkerColor, GameConfig, GameMode, GameSelectionState, LockedC
 import { isTetrominoShape } from '@/game/tetrominoes'
 import { clearGameSelection, loadGameSelection, saveGameSelection } from '@/lib/db'
 import { cn } from '@/lib/utils'
+import { LOCKED_CELL_COLOR_HEX } from '@/rendering/colors'
 import { CorrectGameDialog } from './CorrectGameDialog'
 import { SaveGameDialog } from './SaveGameDialog'
 import { GameGridCanvas } from './GameGridCanvas'
@@ -20,20 +21,6 @@ interface GameGridProps {
   onNextGame: () => void
   pieces: readonly PlacedTetromino[]
 }
-
-const LOCKED_CELL_COLORS = [
-  'bg-[#55c7df]',
-  'bg-[#8270d8]',
-  'bg-[#be69d6]',
-  'bg-[#de5d9b]',
-  'bg-[#e4555c]',
-  'bg-[#5fc47a]',
-  'bg-[#4db9a7]',
-  'bg-[#73a9ee]',
-  'bg-[#9d71dc]',
-  'bg-[#41EAD4]',
-  'bg-[#0B987E]',
-] as const
 
 function createCellMap(pieces: readonly PlacedTetromino[]): Map<string, PlacedTetromino> {
   return new Map(pieces.flatMap((piece) => piece.cells.map((cell) => [`${cell.x},${cell.y}`, piece])))
@@ -220,13 +207,13 @@ export function GameGrid(props: GameGridProps) {
         for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
           if (offsetX === 0 && offsetY === 0) continue
           const neighboringGroup = lockedCellMap.get(`${x + offsetX},${y + offsetY}`)
-          if (neighboringGroup) neighboringColors.add(neighboringGroup.color)
+          if (neighboringGroup) neighboringColors.add(neighboringGroup.color.toLowerCase())
         }
       }
     }
 
-    const availableColors = LOCKED_CELL_COLORS.filter((color) => !neighboringColors.has(color))
-    const colorPool = availableColors.length > 0 ? availableColors : LOCKED_CELL_COLORS
+    const availableColors = LOCKED_CELL_COLOR_HEX.filter((color) => !neighboringColors.has(color))
+    const colorPool = availableColors.length > 0 ? availableColors : LOCKED_CELL_COLOR_HEX
     const color = colorPool[Math.floor(Math.random() * colorPool.length)]
     const nextMoveCount = moveCount + 1
     setLockedCellGroups((groups) => [...groups, { cellKeys, color, id: crypto.randomUUID() }])

@@ -137,7 +137,7 @@ describe('Local VS friendly shape restrictions', () => {
     expect(after.placedCornerominoes.filter((cell) => cell.lockedBy === 0)).toHaveLength(7)
   })
 
-  it('filters blocked candidates before choosing the highest-scoring combination', () => {
+  it('filters each overlapping candidate against previously locked friendly shapes', () => {
     const previousLock = lockedShape('lock:1', 'T', 5, 4)
     const before = gameBeforeLock([[3, 3]], [previousLock])
     before.pendingPlacement = { column: 3, row: 3, corner: 0 }
@@ -152,11 +152,11 @@ describe('Local VS friendly shape restrictions', () => {
     )
     const after = finishVsTurn(before)
 
-    // The right L is blocked by the old T. A left L plus a new T still score 7.
-    expect(after.lockedCornerominoes).toHaveLength(3)
+    // The right L is blocked by the old T. The left L, I, and new T share seven cells.
+    expect(after.lockedCornerominoes).toHaveLength(4)
     expect(after.placedCornerominoes.filter((cell) => cell.lockedBy === 0)).toHaveLength(11)
     expect(after.placedCornerominoes.find((cell) => cell.column === 4 && cell.row === 5)!.lockedBy).toBeUndefined()
     expect(after.placedCornerominoes.find((cell) => cell.column === 5 && cell.row === 3)!.lockedBy).toBe(0)
-    expect(after.result).toEqual({ reason: 'combination', winner: 0, shapeCount: 2 })
+    expect(after.result).toEqual({ reason: 'combination', winner: 0, shapeCount: 3 })
   })
 })

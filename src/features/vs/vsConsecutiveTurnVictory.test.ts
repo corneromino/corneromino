@@ -91,10 +91,11 @@ describe('Local VS consecutive-turn victory', () => {
 
   it('resets the streak when its owner ends a turn without locking', () => {
     const first = captureOnRow(preparedGame(), 1)
-    const missed = quietTurn(quietTurn(first, 2), 3)
+    // Keep quiet moves away from the next capture so this isolates the streak reset.
+    const missed = quietTurn(quietTurn(first, 2), 8)
     expect(missed.captureStreak).toBeNull()
     expect(missed.result).toBeNull()
-    const restarted = captureOnRow(quietTurn(missed, 5), 4)
+    const restarted = captureOnRow(quietTurn(missed, 9), 4)
     expect(restarted.captureStreak).toEqual({ player: 0, turnCount: 1 })
     expect(restarted.result).toBeNull()
   })

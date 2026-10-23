@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { getTetrominoKind } from '@/game/tetrominoes'
 import { createVsLocalGame, finishVsTurn, findValidatedVsCellKeys, getVsNextTurnPreviewCells, getVsTargetedCells, selectVsCell, toggleVsMoveDirection, type VsPlacedCorneromino } from './vsLocalGame'
 
 describe('local VS game', () => {
@@ -88,12 +89,13 @@ describe('local VS game', () => {
 
     expect(game.placedCornerominoes).toHaveLength(7)
     expect(game.placedCornerominoes.every((placement) => placement.lockedBy === 1)).toBe(true)
-    expect(game.lockedCornerominoes).toHaveLength(2)
+    // Two O shapes and four bent shapes all use the new center cell.
+    expect(game.lockedCornerominoes).toHaveLength(6)
+    expect(game.result).toEqual({ reason: 'combination', winner: 1, shapeCount: 6 })
   })
 
-  it.each([false, true])('chooses the highest-scoring compatible shapes instead of the first match (diagonal: %s)', (includeDiagonal) => {
-    // The first matching horizontal I consumes cells from both L shapes.
-    // Choosing the two L shapes instead locks seven cells, not four.
+  it.each([false, true])('counts every overlapping shape, regardless of search order (diagonal: %s)', (includeDiagonal) => {
+    // The I, both L shapes, and a T all count, despite sharing existing cells.
     const pieces: VsPlacedCorneromino[] = [
       { column: 2, row: 3, corner: 1, player: 0 },
       { column: 4, row: 3, corner: 2, player: 1 },
@@ -112,31 +114,33 @@ describe('local VS game', () => {
     }
     const latest = { column: 3, row: 3, corner: 0 } as const
     const game = finishVsTurn({ ...createVsLocalGame(() => 0.9), pendingPlacement: latest, placedCornerominoes: pieces })
-    const expectedShapeCount = includeDiagonal ? 3 : 2
+    const expectedShapes = [
+      ['2,3', '3,3', '4,3', '5,3'], // I
+      ['2,1', '2,2', '2,3', '3,3'], // left L
+      ['3,3', '4,3', '4,4', '4,5'], // right L
+      ['3,3', '4,3', '5,3', '4,4'], // T
+    ]
+    if (includeDiagonal) expectedShapes.push(['3,3', '2,4', '1,5', '0,6'])
+    const expectedShapeCount = expectedShapes.length
 
-    expect(game.lockedCornerominoes).toHaveLength(expectedShapeCount)
-    expect(game.placedCornerominoes.filter((piece) => piece.lockedBy === 1)).toHaveLength(1 + 3 * expectedShapeCount)
+    expect(game.lockedCornerominoes.map((shape) => [...shape.cellKeys].sort().join('|')).sort())
+      .toEqual(expectedShapes.map((shape) => [...shape].sort().join('|')).sort())
+    expect(game.placedCornerominoes.filter((piece) => piece.lockedBy === 1)).toHaveLength(includeDiagonal ? 11 : 8)
     expect(game.placedCornerominoes.filter((piece) => piece.lockedBy === 0)).toHaveLength(0)
     expect(game.activePlayer).toBe(1)
     expect(game.result).toEqual({ reason: 'combination', winner: 1, shapeCount: expectedShapeCount })
     expect(game.pendingPlacement).toBeNull()
 
-    const usedCells = new Set<string>()
     for (const shape of game.lockedCornerominoes) {
       expect(shape.player).toBe(1)
       expect(shape.cellKeys).toHaveLength(4)
       expect(shape.cellKeys).toContain('3,3')
-      for (const key of shape.cellKeys) {
-        if (key === '3,3') continue
-        expect(usedCells.has(key)).toBe(false)
-        usedCells.add(key)
-      }
     }
     // Turn resolution must not change the board snapshot supplied by React.
     expect(pieces.every((piece) => piece.lockedBy === undefined)).toBe(true)
   })
 
-  it('does not lock overlapping shapes that share more than the latest cell', () => {
+  it('captures overlapping O, S, and Z shapes, counting each distinct shape once', () => {
     const pieces: VsPlacedCorneromino[] = [
       { column: 0, row: 0, corner: 0, player: 0 },
       { column: 1, row: 0, corner: 1, player: 0 },
@@ -147,8 +151,13 @@ describe('local VS game', () => {
     const latest = { column: 1, row: 1, corner: 2, player: 1 } as const
     const game = finishVsTurn({ ...createVsLocalGame(() => 0.9), pendingPlacement: latest, placedCornerominoes: pieces })
 
-    expect(game.placedCornerominoes.filter((placement) => placement.lockedBy === 1)).toHaveLength(4)
-    expect(game.result).toBeNull()
+    expect(game.placedCornerominoes.filter((placement) => placement.lockedBy === 1)).toHaveLength(6)
+    expect(game.lockedCornerominoes.map((shape) => getTetrominoKind(shape.cellKeys.map((key) => {
+      const [x, y] = key.split(',').map(Number)
+      return { x, y }
+    }))).sort()).toEqual(['O', 'O', 'S', 'Z'])
+    expect(new Set(game.lockedCornerominoes.map((shape) => [...shape.cellKeys].sort().join('|'))).size).toBe(4)
+    expect(game.result).toEqual({ reason: 'combination', winner: 1, shapeCount: 4 })
   })
 
   it('restricts the next player to the selected orthogonal or diagonal lines', () => {

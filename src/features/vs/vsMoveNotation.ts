@@ -8,9 +8,9 @@ export interface VsMoveNotation {
 }
 
 // Internal corners start at top-left; notation starts at top-right.
-const CORNER_LETTERS = ['D', 'A', 'B', 'C'] as const
+export const VS_CORNER_LETTERS = ['D', 'A', 'B', 'C'] as const
 
-function coordinate(cell: { column: number; row: number }): string {
+export function formatVsCoordinate(cell: { column: number; row: number }): string {
   return `${String.fromCharCode(65 + cell.column)}${cell.row}`
 }
 
@@ -26,17 +26,17 @@ export function getVsMoveNotations(positions: readonly VsLocalPosition[]): VsMov
 
     const previouslyLocked = new Set(before.placedCornerominoes
       .filter((cell) => cell.lockedBy !== undefined)
-      .map(coordinate))
+      .map(formatVsCoordinate))
     const lockedCells = after.placedCornerominoes
-      .filter((cell) => cell.lockedBy !== undefined && !previouslyLocked.has(coordinate(cell)))
+      .filter((cell) => cell.lockedBy !== undefined && !previouslyLocked.has(formatVsCoordinate(cell)))
       .sort((a, b) => a.row - b.row || a.column - b.column)
-      .map(coordinate)
+      .map(formatVsCoordinate)
       .join('')
     const direction = after.nextMoveConstraint.direction === 'orthogonal' ? '+' : 'x'
     moves.push({
       historyIndex,
       moveNumber: after.placedCornerominoes.length,
-      notation: `${coordinate(placed)}${CORNER_LETTERS[placed.corner]}${direction}${lockedCells}`,
+      notation: `${formatVsCoordinate(placed)}${VS_CORNER_LETTERS[placed.corner]}${direction}${lockedCells}`,
       player: placed.player,
     })
   }

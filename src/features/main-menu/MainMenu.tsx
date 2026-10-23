@@ -1,6 +1,9 @@
 import { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import cascadeGraphic from '@/assets/cascade-graphic.svg'
+import classicGraphic from '@/assets/classic-graphic.svg'
+import vsGraphic from '@/assets/vs-graphic.svg'
 import { TetrominoBackground } from './TetrominoBackground'
 import { TitleTetromino } from './TitleTetrominoCell'
 
@@ -18,31 +21,40 @@ export function MainMenu() {
           </h1>
           <Button
             asChild
-            className="cartoon-press menu-button w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+            className="cartoon-press classic-menu-button w-full text-[18px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
             size="lg"
           >
-            <Link to="/play">Play</Link>
+            <Link to="/play" className='gap-10'>
+              <span>Classic</span>
+              <img alt="" aria-hidden="true" className="classic-menu-graphic -rotate-12 scale-125" src={classicGraphic} />
+            </Link>
           </Button>
           <Button
             asChild
-            className="cartoon-press menu-button w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+            className="cartoon-press cascade-menu-button w-full text-[18px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
             size="lg"
-          >
-            <Link to="/cascade">Cascade</Link>
+            >
+            <Link to="/cascade" className='gap-10'>
+              <span>Cascade</span>
+              <img alt="" aria-hidden="true" className="cascade-menu-graphic -rotate-12 scale-125" src={cascadeGraphic} />
+            </Link>
           </Button>
-          <Button
+          {/* <Button
             asChild
             className="cartoon-press menu-button w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
             size="lg"
           >
             <Link to="/sandbox">Sandbox</Link>
-          </Button>
+          </Button> */}
           <Button
             asChild
-            className="cartoon-press menu-button w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+            className="cartoon-press vs-menu-button w-full text-[18px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
             size="lg"
           >
-            <Link to="/vs">VS</Link>
+            <Link to="/vs" className='gap-10'>
+              <span>VS</span>
+              <img alt="" aria-hidden="true" className="vs-menu-graphic -rotate-12 scale-125" src={vsGraphic} />
+            </Link>
           </Button>
         </section>
       </div>

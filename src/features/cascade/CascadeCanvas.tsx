@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { Application, Container, Graphics, Sprite } from 'pixi.js'
 import { GridSurface } from '@/rendering/grid/GridSurface'
 import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
-import { GAME_COLORS } from '@/rendering/colors'
+import { GAME_COLORS, LOCKED_CELL_COLORS } from '@/rendering/colors'
 import { attachGridInput } from '@/rendering/grid/gridInput'
 import { drawCorneromino as drawSharedCorneromino } from '@/rendering/grid/drawCorneromino'
 import { gsap } from 'gsap'
@@ -25,7 +25,6 @@ const HORIZONTAL_SQUASH_DURATION_SECONDS = 0.05
 const HORIZONTAL_SQUASH_SCALE_X = 1.5
 const HORIZONTAL_SQUASH_SCALE_Y = 0.8
 const SELECTION_DURATION_SECONDS = 0.14
-const LOCKED_CELL_COLORS = [0x55c7df, 0x8270d8, 0xbe69d6, 0xde5d9b, 0xe4555c, 0x5fc47a, 0x4db9a7, 0x73a9ee, 0x9d71dc, 0x41ead4, 0x0b987e]
 
 interface CascadeCanvasProps {
   cornerDifficulty: number

@@ -153,10 +153,10 @@ export function SavedGames() {
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
-            <h1 className="poster-title mt-2 whitespace-nowrap text-[33px] leading-none">Saved games</h1>
+            <h1 className="poster-title mt-2 whitespace-nowrap text-[33px] leading-none">Classic saves</h1>
           </div>
-          <Button asChild className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title="Back to modes">
-            <Link aria-label="Back to modes" to="/play"><ArrowLeft aria-hidden="true" /></Link>
+          <Button asChild className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title="Back to Classic">
+            <Link aria-label="Back to Classic" to="/play"><ArrowLeft aria-hidden="true" /></Link>
           </Button>
         </div>
 

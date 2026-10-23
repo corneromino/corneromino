@@ -161,6 +161,21 @@
   height: clamp(44px, calc(var(--app-content-height) * 0.1), 70px);
 }
 
+.cascade-menu-button,
+.classic-menu-button,
+.vs-menu-button {
+  height: clamp(58px, calc(var(--app-content-height) * 0.13), 88px);
+}
+
+.cascade-menu-graphic,
+.classic-menu-graphic,
+.vs-menu-graphic {
+  width: auto;
+  height: clamp(50px, calc(var(--app-content-height) * 0.105), 78px);
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
 .mode-menu-title {
   font-size: clamp(28px, min(12vw, calc(var(--app-content-height) * 0.07)), 55px);
 }

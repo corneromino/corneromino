@@ -13,7 +13,8 @@ function trapSetup(direction: VsMoveDirection, player: VsPlayerId = 0, trapResol
       corner: index === 1 ? 1 : index === 2 ? 2 : 3,
       player: player === 0 ? 1 : 0,
     })
-    if (direction === 'orthogonal') game.placedCornerominoes.push({ column: index, row: 0, corner: 3, player })
+    // Block the row without also completing an overlapping L beside the vertical I.
+    if (direction === 'orthogonal') game.placedCornerominoes.push({ column: index, row: 0, corner: 0, player })
   }
   return game
 }
@@ -126,6 +127,7 @@ describe('Local VS trap resolution', () => {
     const before = trapSetup('orthogonal', 0, trapResolution)
     before.placedCornerominoes.find((cell) => cell.column === 1 && cell.row === 0)!.corner = 1
     before.placedCornerominoes.find((cell) => cell.column === 2 && cell.row === 0)!.corner = 2
+    before.placedCornerominoes.find((cell) => cell.column === 3 && cell.row === 0)!.corner = 3
     addLockedSquare(before, 6, 1, 1)
     addLockedSquare(before, 6, 4, 1)
     const after = finishVsTurn(before)

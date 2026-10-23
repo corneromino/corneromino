@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Check, ChevronLeft, ChevronRight, Pause } from 'lucide-react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState, type FocusEvent } from 'react'
+import { Bug, Check, ChevronLeft, ChevronRight, Pause, Play, RotateCcw, Save } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-import { clearVsLocalGameState, loadVsLocalGameState, saveVsLocalGameState } from '@/lib/db'
+import { loadVsLocalGameState, saveVsLocalGameState } from '@/lib/db'
 import { VsLocalCanvas } from './VsLocalCanvas'
 import { VsMoveList } from './VsMoveList'
 import { VsVictoryDialog } from './VsVictoryDialog'
 import { VS_LOCAL_CONFIG } from './vsLocalConfig'
+import { exportVsDebugState } from './vsDebugState'
 import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsPlayerScores, goToVsHistory, selectVsCell, VS_PLAYERS, type VsGameResult, type VsLocalGameState, type VsPlayerId } from './vsLocalGame'
 
 interface PlayerBandProps {
@@ -66,27 +67,12 @@ export function VsLocalGrid() {
   const [game, setGame] = useState<VsLocalGameState | null>(null)
   const [pauseOpen, setPauseOpen] = useState(false)
   const [victoryDialogDismissed, setVictoryDialogDismissed] = useState(false)
+  const [debugCopy, setDebugCopy] = useState<{ status: 'copying' | 'copied' | 'error'; text: string } | null>(null)
   const persistenceQueueRef = useRef<Promise<void>>(Promise.resolve())
-  const location = useLocation()
   const navigate = useNavigate()
-  const startNew = typeof location.state === 'object' && location.state !== null && 'startNew' in location.state && location.state.startNew === true
 
   useEffect(() => {
     let active = true
-    if (startNew) {
-      void clearVsLocalGameState()
-        .catch(() => undefined)
-        .then(() => {
-          if (!active) return
-          setGame(createVsLocalGame())
-          setVictoryDialogDismissed(false)
-          // Remove the one-shot navigation state so a browser reload resumes this match.
-          navigate('/vs/local', { replace: true })
-        })
-      return () => {
-        active = false
-      }
-    }
     void loadVsLocalGameState()
       .then((savedGame) => {
         if (active) setGame(savedGame ?? createVsLocalGame())
@@ -97,7 +83,7 @@ export function VsLocalGrid() {
     return () => {
       active = false
     }
-  }, [navigate, startNew])
+  }, [])
 
   useEffect(() => {
     if (!game) return
@@ -140,16 +126,51 @@ export function VsLocalGrid() {
     setVictoryDialogDismissed(!open)
   }
 
+  function handlePauseOpenChange(open: boolean) {
+    setPauseOpen(open)
+    setDebugCopy(null)
+  }
+
+  async function copyDebugState() {
+    if (!game) return
+    const viewport = window.visualViewport
+    const text = exportVsDebugState(game, {
+      ui: { pauseOpen, victoryDialogDismissed },
+      environment: {
+        userAgent: navigator.userAgent,
+        url: window.location.href,
+        buildMode: import.meta.env.MODE,
+        scripts: Array.from(document.scripts, (script) => script.src).filter(Boolean),
+        standalone: window.matchMedia('(display-mode: standalone)').matches,
+        viewport: { width: window.innerWidth, height: window.innerHeight, devicePixelRatio: window.devicePixelRatio },
+        visualViewport: viewport ? {
+          width: viewport.width, height: viewport.height, offsetLeft: viewport.offsetLeft, offsetTop: viewport.offsetTop, scale: viewport.scale,
+        } : null,
+      },
+    })
+    setDebugCopy({ status: 'copying', text })
+    try {
+      // Keep the clipboard call in the user gesture; awaiting storage first can lose permission on mobile.
+      await navigator.clipboard.writeText(text)
+      setDebugCopy({ status: 'copied', text })
+    } catch {
+      setDebugCopy({ status: 'error', text })
+    }
+  }
+
+  function selectDebugReport(event: FocusEvent<HTMLTextAreaElement>) {
+    event.currentTarget.select()
+  }
+
   function startNewMatch() {
     setGame(createVsLocalGame(Math.random, { allowHistoryRewrite, combinationWinCount, consecutiveTurnWinCount, trapResolution }))
+    setPauseOpen(false)
     setVictoryDialogDismissed(false)
   }
 
   async function quitMatch() {
-    // Finish any earlier autosave before deleting the match, so it cannot be
-    // written back after the player has quit.
+    // Finish the queued autosave before leaving so this exact match resumes.
     await persistenceQueueRef.current.catch(() => undefined)
-    await clearVsLocalGameState().catch(() => undefined)
     navigate('/vs')
   }
 
@@ -168,7 +189,7 @@ export function VsLocalGrid() {
             <Button aria-label="Next move" className="cartoon-press size-10 text-[var(--canvas-foreground)] disabled:opacity-50" disabled={!game || !viewingPast} onClick={nextMove} size="icon" title="Next move" type="button">
               <ChevronRight aria-hidden="true" />
             </Button>
-            <Button aria-label="Pause Local VS" className="cartoon-press size-10 text-[var(--canvas-foreground)]" disabled={!game} onClick={() => setPauseOpen(true)} size="icon" title="Pause" type="button">
+            <Button aria-label="Pause Local VS" className="cartoon-press size-10 text-[var(--canvas-foreground)]" disabled={!game} onClick={() => handlePauseOpenChange(true)} size="icon" title="Pause" type="button">
               <Pause aria-hidden="true" />
             </Button>
           </div>
@@ -184,16 +205,30 @@ export function VsLocalGrid() {
         <PlayerBand active={result === null && game?.activePlayer === 1} canFinishTurn={canFinishTurn} onFinishTurn={endTurn} player={1} pointDifference={playerTwoPoints - playerOnePoints} points={playerTwoPoints} result={result} />
       </div>
       {result && <VsVictoryDialog onNewGame={startNewMatch} onOpenChange={handleVictoryOpenChange} open={!victoryDialogDismissed} result={result} />}
-      <Dialog onOpenChange={setPauseOpen} open={pauseOpen}>
+      <Dialog onOpenChange={handlePauseOpenChange} open={pauseOpen}>
         <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Paused</DialogTitle>
           </DialogHeader>
-          <DialogFooter className="grid-cols-1">
+          <DialogFooter className="grid grid-cols-1 gap-3">
+            <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => handlePauseOpenChange(false)} size="lg" type="button">
+              <Play aria-hidden="true" /> Resume
+            </Button>
+            <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={startNewMatch} size="lg" type="button">
+              <RotateCcw aria-hidden="true" /> Restart
+            </Button>
             <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => void quitMatch()} size="lg" type="button">
-              Quit
+              <Save aria-hidden="true" /> Save and quit
+            </Button>
+            <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={!game || debugCopy?.status === 'copying'} onClick={() => void copyDebugState()} size="lg" type="button">
+              <Bug aria-hidden="true" /> Report a bug
             </Button>
           </DialogFooter>
+          {debugCopy?.status === 'copied' && <p className="mt-3 text-center text-[11px] text-[var(--muted-text-color)]" role="status">Game state copied. Paste it into your bug report.</p>}
+          {debugCopy?.status === 'error' && <div className="mt-3">
+            <p className="text-center text-[11px] text-[var(--coral)]" role="alert">Could not copy automatically. Copy the report below.</p>
+            <textarea aria-label="Game debug report" className="mt-2 w-full border border-[var(--outline-color)] bg-[var(--paper-muted)] p-2 text-[11px]" onFocus={selectDebugReport} readOnly rows={5} value={debugCopy.text} />
+          </div>}
         </DialogContent>
       </Dialog>
     </main>

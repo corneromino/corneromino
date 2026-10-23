@@ -29,7 +29,7 @@ function GameModeMenu() {
       <div className="menu-scroll">
         <section className="menu-content mx-auto flex w-full max-w-[430px] flex-col items-center text-center">
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
-          <h1 className="poster-title mode-menu-title leading-none">Select mode</h1>
+          <h1 className="poster-title mode-menu-title leading-none">Classic</h1>
           {MODE_ENTRIES.map(([mode, config]) => (
             <Button asChild className={MODE_BUTTON_CLASS} key={mode} size="lg">
               <Link to={`/play?mode=${mode}`}>{config.title}</Link>
@@ -99,7 +99,7 @@ function GameSession(props: GameSessionProps) {
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
       <header className="relative z-10 mx-auto flex w-full max-w-[550px] items-end justify-between gap-4 px-5 pb-6">
         <div className="min-w-0">
-          <h1 className="poster-title text-[33px] leading-none">Corneromino</h1>
+          <h1 className="poster-title text-[33px] leading-none">Classic</h1>
           <div className="poster-kicker mt-3 flex items-center gap-3 text-[11px] text-[var(--muted-text-color)]">
             <p>{props.gameMode}</p>
             <span aria-hidden="true">/</span>
