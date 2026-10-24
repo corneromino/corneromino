@@ -2,6 +2,7 @@ import { deflateSync } from 'node:zlib'
 import { mkdirSync, writeFileSync } from 'node:fs'
 
 const colors = {
+  canvas: [240, 173, 97, 255],
   amber: [255, 209, 138, 255],
   outline: [119, 53, 38, 255],
 }
@@ -47,6 +48,7 @@ function createIcon(size) {
   const pixels = new Uint8Array(size * size * 4)
   const scale = size / 128
   const scaled = (value) => Math.round(value * scale)
+  drawRoundedRect(pixels, size, 0, 0, size, size, 0, colors.canvas)
   drawRoundedRect(pixels, size, scaled(icon.outer.x), scaled(icon.outer.y), scaled(icon.outer.size), scaled(icon.outer.size), scaled(icon.outer.radius), colors.outline)
   drawRoundedRect(pixels, size, scaled(icon.face.x), scaled(icon.face.y), scaled(icon.face.size), scaled(icon.face.size), scaled(icon.face.radius), colors.amber)
   drawRoundedRect(pixels, size, scaled(icon.corner.x), scaled(icon.corner.y), scaled(icon.corner.size), scaled(icon.corner.size), scaled(icon.corner.radius), colors.outline)
