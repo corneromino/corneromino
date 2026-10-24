@@ -10,6 +10,7 @@ import { Cascade } from '@/features/cascade/Cascade'
 import { CascadeMenu } from '@/features/cascade/CascadeMenu'
 import { VsLocalGrid } from '@/features/vs/VsLocalGrid'
 import { VsMenu } from '@/features/vs/VsMenu'
+import { Settings } from '@/features/settings/Settings'
 
 function App() {
   useEffect(() => observeDialogViewport(window.visualViewport, document.documentElement), [])
@@ -28,6 +29,7 @@ function App() {
         <Route element={<Cascade />} path="/cascade/game/continue" />
         <Route element={<VsMenu />} path="/vs" />
         <Route element={<VsLocalGrid />} path="/vs/local" />
+        <Route element={<Settings />} path="/settings" />
         <Route element={<MainMenu />} path="*" />
       </Routes>
     </HashRouter>

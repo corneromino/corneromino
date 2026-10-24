@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, Play, Plus } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { loadCascadeBestScore, loadCascadeGameState } from '@/lib/db'
 import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
 import { PixelTrophyIcon } from './PixelTrophyIcon'
 
 export function CascadeMenu() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [hasSavedGame, setHasSavedGame] = useState<boolean | null>(null)
   const [bestScore, setBestScore] = useState(0)
@@ -31,10 +33,10 @@ export function CascadeMenu() {
       <header className="relative z-10 mx-auto flex w-full max-w-[550px] shrink-0 items-start justify-between gap-3 pb-10">
         <div>
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
-          <h1 className="poster-title mt-2 text-[40px] leading-none">Cascade</h1>
+          <h1 className="poster-title mt-2 text-[40px] leading-none">{t('cascade.title')}</h1>
         </div>
-        <Button asChild className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title="Back to main menu">
-          <Link aria-label="Back to main menu" to="/"><ArrowLeft aria-hidden="true" /></Link>
+        <Button asChild className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')}>
+          <Link aria-label={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></Link>
         </Button>
       </header>
       <section className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col gap-4 overflow-hidden px-1 pb-1">
@@ -44,7 +46,7 @@ export function CascadeMenu() {
           size="lg"
           type="button"
         >
-          <Plus aria-hidden="true" /> New game
+          <Plus aria-hidden="true" /> {t('cascade.newGame')}
         </Button>
         <div className="relative shrink-0">
           <Button
@@ -54,7 +56,7 @@ export function CascadeMenu() {
             size="lg"
             type="button"
           >
-            <Play aria-hidden="true" /> {hasSavedGame === null ? 'Loading…' : 'Continue'}
+            <Play aria-hidden="true" /> {hasSavedGame === null ? t('cascade.loading') : t('common.continue')}
           </Button>
           {hasSavedGame && <span className="pointer-events-none absolute z-10 -right-1 -bottom-4 rotate-3 whitespace-nowrap text-[40px] leading-none font-black tracking-normal text-[var(--outline-color)] normal-case [text-shadow:4px_4px_0_var(--paper)]">{currentScore}</span>}
         </div>

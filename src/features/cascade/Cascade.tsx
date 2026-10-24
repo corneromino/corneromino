@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bug, Pause, Play, RotateCcw, Save } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { clearCascadeGameState, loadCascadeGameState, recordCascadeBestScore, type CascadeGameSaveState } from '@/lib/db'
@@ -80,6 +81,7 @@ function CornerPreview(props: { corner: CascadeCorner }) {
 }
 
 export function Cascade(props: { startNew?: boolean }) {
+  const { t } = useTranslation()
   const canvasRef = useRef<CascadeCanvasHandle>(null)
   const preserveGameOnExitRef = useRef(false)
   const location = useLocation()
@@ -186,23 +188,23 @@ export function Cascade(props: { startNew?: boolean }) {
       <header className="mx-auto flex w-full max-w-[550px] items-end justify-between gap-4 px-5 pb-5">
         <div>
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
-          <h1 className="poster-title mt-2 text-[33px] leading-none">Cascade</h1>
+          <h1 className="poster-title mt-2 text-[33px] leading-none">{t('cascade.title')}</h1>
         </div>
         <Button
-          aria-label="Pause Cascade"
+          aria-label={`${t('common.pause')} ${t('cascade.title')}`}
           className="cartoon-press size-10 text-[var(--canvas-foreground)]"
           disabled={initialState === undefined}
           onClick={pauseGame}
           size="icon"
-          title="Pause"
+          title={t('common.pause')}
           type="button"
         >
           <Pause aria-hidden="true" />
         </Button>
       </header>
       <div className="flex min-h-0 flex-1 flex-col gap-2 px-1">
-        <section aria-label="Cascade score" className="flex h-10 shrink-0 items-center bg-[var(--outline-color)] px-4 text-[var(--canvas)]">
-          <p className="poster-kicker text-[22px]">Score</p>
+        <section aria-label={`${t('cascade.title')} ${t('cascade.score')}`} className="flex h-10 shrink-0 items-center bg-[var(--outline-color)] px-4 text-[var(--canvas)]">
+          <p className="poster-kicker text-[22px]">{t('cascade.score')}</p>
           <p className="ml-auto text-[22px] leading-none"><AnimatedScore step={scoreAnimationStep} targetScore={stats.score} /></p>
         </section>
         <div className="flex min-h-0 flex-1 gap-2">
@@ -226,11 +228,11 @@ export function Cascade(props: { startNew?: boolean }) {
           </section>
           <aside aria-label="Cascade statistics" className="flex min-h-0 shrink-0 flex-col gap-5 overflow-y-auto overscroll-y-contain rounded-xs bg-[var(--outline-color)] p-1 py-5 text-center text-[var(--canvas)] sm:w-[96px]">
             <div>
-              <p><span className="sr-only">Lines</span><PixelLinesIcon /></p>
+              <p><span className="sr-only">{t('cascade.lines')}</span><PixelLinesIcon /></p>
               <p className="mt-2 text-[22px] leading-none">{stats.destroyedLineCount}</p>
             </div>
             <div>
-              <p><span className="sr-only">Locked</span><PixelLockIcon /></p>
+              <p><span className="sr-only">{t('cascade.locked')}</span><PixelLockIcon /></p>
               <p className="mt-2 text-[22px] leading-none">{stats.lockedCornerominoCount}</p>
             </div>
             <div className="mt-auto pb-2">
@@ -248,26 +250,26 @@ export function Cascade(props: { startNew?: boolean }) {
         </div>
       </div>
       <p className="poster-kicker px-2 pt-3 text-center text-[11px] text-[var(--muted-text-color)]">
-        <span className="[@media(pointer:fine)]:hidden">Drag ← → to move · Swipe ↓ to drop</span>
-        <span className="hidden [@media(pointer:fine)]:inline">← → Move · ↓ Drop · Hold Shift: arrows focus, Space selects</span>
+        <span className="[@media(pointer:fine)]:hidden">{t('cascade.dragInstructions')}</span>
+        <span className="hidden [@media(pointer:fine)]:inline">{t('cascade.keyboardInstructions')}</span>
       </p>
       <Dialog onOpenChange={handlePauseDialogChange} open={isPaused}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Paused</DialogTitle>
+            <DialogTitle>{t('cascade.paused')}</DialogTitle>
           </DialogHeader>
           <DialogFooter className="grid grid-cols-1 gap-3">
             <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={resumeGame} size="lg" type="button">
-              <Play aria-hidden="true" /> Resume
+              <Play aria-hidden="true" /> {t('common.resume')}
             </Button>
             <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={restartGame} size="lg" type="button">
-              <RotateCcw aria-hidden="true" /> Restart
+              <RotateCcw aria-hidden="true" /> {t('common.restart')}
             </Button>
             <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => void saveAndQuit()} size="lg" type="button">
-              <Save aria-hidden="true" /> Save and quit
+              <Save aria-hidden="true" /> {t('common.saveAndQuit')}
             </Button>
             <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => void copyDebugState()} size="lg" type="button">
-              <Bug aria-hidden="true" /> Report a bug
+              <Bug aria-hidden="true" /> {t('cascade.reportBug')}
             </Button>
           </DialogFooter>
         </DialogContent>

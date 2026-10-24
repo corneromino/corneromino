@@ -11,7 +11,7 @@ import { getVsNextTurnPreviewCells, getVsTargetedCells, VS_PLAYERS, type VsLocal
 import { getVsLockedShapeBridges } from './vsLockedShapeBridges'
 import { CASCADE_LOCK_EFFECTS } from '@/features/cascade/cascadeEffects'
 
-const TARGET_DOT_RADIUS_RATIO = 0.25
+const TARGET_DOT_RADIUS_RATIO = 0.15
 const TARGET_DOT_ALPHA = 0.5
 const CELL_BORDER_SIZE = 1.5
 const COORDINATE_FONT_SIZE = 24

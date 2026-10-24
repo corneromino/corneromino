@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { useTranslation } from 'react-i18next'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface SaveGameDialogProps {
@@ -10,12 +11,13 @@ interface SaveGameDialogProps {
 }
 
 export function SaveGameDialog(props: SaveGameDialogProps) {
+  const { t } = useTranslation()
   return (
     <Dialog onOpenChange={props.onOpenChange} open={props.open}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Save game</DialogTitle>
-          <DialogDescription>Save this game to continue it later?</DialogDescription>
+          <DialogTitle>{t('classic.saveGame')}</DialogTitle>
+          <DialogDescription>{t('classic.savePrompt')}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button
@@ -25,7 +27,7 @@ export function SaveGameDialog(props: SaveGameDialogProps) {
             size="lg"
             type="button"
           >
-            Discard
+            {t('common.discard')}
           </Button>
           <Button
             className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase"
@@ -34,12 +36,12 @@ export function SaveGameDialog(props: SaveGameDialogProps) {
             size="lg"
             type="button"
           >
-            Save
+            {t('common.save')}
           </Button>
         </DialogFooter>
         <DialogClose asChild>
           <button className="mt-5 w-full text-[11px] text-[var(--muted-text-color)] underline underline-offset-4" disabled={props.isSaving} type="button">
-            Cancel
+            {t('common.cancel')}
           </button>
         </DialogClose>
       </DialogContent>

@@ -9,14 +9,15 @@ export interface GameConfig {
 }
 
 export interface GameModeConfig extends GameConfig {
+  /** i18next key for the user-visible difficulty label. */
   title: string
 }
 
 export const GAME_CONFIGS = {
-  'super-easy': { columns: 8, rows: 8, spread: 1, tetrominoCount: 5, title: 'Super easy' },
-  easy: { columns: 8, rows: 8, spread: 0, tetrominoCount: 10, title: 'Easy' },
-  medium: { columns: 10, rows: 15, spread: 0.5, tetrominoCount: 20, title: 'Medium' },
-  hard: { columns: 12, rows: 18, spread: 0.8, tetrominoCount: 35, title: 'Hard' },
+  'super-easy': { columns: 8, rows: 8, spread: 1, tetrominoCount: 5, title: 'difficulty.superEasy' },
+  easy: { columns: 8, rows: 8, spread: 0, tetrominoCount: 10, title: 'difficulty.easy' },
+  medium: { columns: 10, rows: 15, spread: 0.5, tetrominoCount: 20, title: 'difficulty.medium' },
+  hard: { columns: 12, rows: 18, spread: 0.8, tetrominoCount: 35, title: 'difficulty.hard' },
 } as const satisfies Record<string, GameModeConfig>
 
 export type GameMode = keyof typeof GAME_CONFIGS

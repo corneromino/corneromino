@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { useTranslation } from 'react-i18next'
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface CorrectGameDialogProps {
@@ -8,15 +9,16 @@ interface CorrectGameDialogProps {
 }
 
 export function CorrectGameDialog(props: CorrectGameDialogProps) {
+  const { t } = useTranslation()
   return (
     <Dialog onOpenChange={props.onOpenChange} open={props.screenshot !== null}>
       <DialogContent aria-describedby={undefined} className="max-w-[430px]">
         <DialogHeader>
-          <DialogTitle>Correct</DialogTitle>
+          <DialogTitle>{t('classic.correct')}</DialogTitle>
         </DialogHeader>
         {props.screenshot && (
           <img
-            alt="Completed game board"
+            alt={t('classic.completedBoard')}
             className="mx-auto mt-4 block max-h-[max(0px,calc(var(--dialog-viewport-height,var(--app-height))-220px))] max-w-full object-contain"
             src={props.screenshot}
           />
@@ -28,7 +30,7 @@ export function CorrectGameDialog(props: CorrectGameDialogProps) {
             size="lg"
             type="button"
           >
-            Next
+            {t('common.next')}
           </Button>
           <DialogClose asChild>
             <Button
@@ -36,7 +38,7 @@ export function CorrectGameDialog(props: CorrectGameDialogProps) {
               size="lg"
               type="button"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
           </DialogClose>
         </DialogFooter>
