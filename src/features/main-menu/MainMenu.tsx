@@ -36,8 +36,8 @@ export function MainMenu() {
             size="lg"
             >
             <Link to="/cascade" className='gap-10'>
-              <img alt="" aria-hidden="true" className="cascade-menu-graphic -rotate-12 scale-125" src={cascadeGraphic} />
               <span>Cascade</span>
+              <img alt="" aria-hidden="true" className="cascade-menu-graphic -rotate-12 scale-125" src={cascadeGraphic} />
             </Link>
           </Button>
           {/* <Button
