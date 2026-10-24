@@ -18,7 +18,7 @@ export function VsMenu() {
       </header>
       <section aria-label="VS game type" className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain px-1 pb-1">
         <Button asChild className="cartoon-press h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase" size="lg">
-          <Link to="/vs/local"><Users aria-hidden="true" /> Local</Link>
+          <Link state={{ returnToVsMenu: true }} to="/vs/local"><Users aria-hidden="true" /> Local</Link>
         </Button>
         <Button className="cartoon-press h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase" disabled size="lg" type="button">
           <Wifi aria-hidden="true" /> Online

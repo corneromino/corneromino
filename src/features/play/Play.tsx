@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { createRandomSeed, createSeededRandom } from '@/game/random'
 import { GAME_CONFIGS, isGameMode, type GameMode, type PlacedTetromino } from '@/game/gameConfig'
@@ -32,7 +32,7 @@ function GameModeMenu() {
           <h1 className="poster-title mode-menu-title leading-none">Classic</h1>
           {MODE_ENTRIES.map(([mode, config]) => (
             <Button asChild className={MODE_BUTTON_CLASS} key={mode} size="lg">
-              <Link to={`/play?mode=${mode}`}>{config.title}</Link>
+              <Link state={{ returnToClassicMenu: true }} to={`/play?mode=${mode}`}>{config.title}</Link>
             </Button>
           ))}
           <Button asChild className="cartoon-press mode-menu-button w-full !border-[var(--canvas-foreground)] !bg-[var(--coral)] text-[11px] font-black tracking-[0.2em] !text-[var(--paper)] uppercase hover:!bg-[#b73a2c]" size="lg">
@@ -48,6 +48,7 @@ function GameModeMenu() {
 }
 
 function GameSession(props: GameSessionProps) {
+  const location = useLocation()
   const navigate = useNavigate()
   const [generatedSeed] = useState(createRandomSeed)
   const [generationError, setGenerationError] = useState<string | null>(null)
@@ -64,9 +65,9 @@ function GameSession(props: GameSessionProps) {
   useEffect(() => {
     if (!props.requestedSeed) {
       void clearGameSelection(props.gameMode, generatedSeed)
-      navigate(`/play?mode=${props.gameMode}&seed=${encodeURIComponent(generatedSeed)}`, { replace: true })
+      navigate(`/play?mode=${props.gameMode}&seed=${encodeURIComponent(generatedSeed)}`, { replace: true, state: location.state })
     }
-  }, [generatedSeed, navigate, props.gameMode, props.requestedSeed])
+  }, [generatedSeed, location.state, navigate, props.gameMode, props.requestedSeed])
 
   useEffect(() => {
     let active = true

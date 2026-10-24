@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bug, Pause, Play, RotateCcw, Save } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { clearCascadeGameState, loadCascadeGameState, recordCascadeBestScore, type CascadeGameSaveState } from '@/lib/db'
@@ -82,6 +82,7 @@ function CornerPreview(props: { corner: CascadeCorner }) {
 export function Cascade(props: { startNew?: boolean }) {
   const canvasRef = useRef<CascadeCanvasHandle>(null)
   const preserveGameOnExitRef = useRef(false)
+  const location = useLocation()
   const navigate = useNavigate()
   const [gameVersion, setGameVersion] = useState(0)
   const [initialState, setInitialState] = useState<CascadeGameSaveState | null | undefined>(undefined)
@@ -161,7 +162,13 @@ export function Cascade(props: { startNew?: boolean }) {
   async function saveAndQuit() {
     await canvasRef.current?.save()
     preserveGameOnExitRef.current = true
-    navigate('/cascade')
+    // Return through the existing menu entry so browser/mobile Back leaves
+    // Cascade instead of reopening this saved game.
+    if (location.state && typeof location.state === 'object' && 'returnToCascadeMenu' in location.state && location.state.returnToCascadeMenu === true) {
+      navigate(-1)
+      return
+    }
+    navigate('/cascade', { replace: true })
   }
 
   useEffect(() => {

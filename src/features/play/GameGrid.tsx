@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, Eraser, ListChecks, Lock, LogOut, RotateCcw, Unlock, X } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { CellMarkerColor, GameConfig, GameMode, GameSelectionState, LockedCellGroup, PlacedTetromino } from '@/game/gameConfig'
@@ -43,6 +43,7 @@ interface ValidationResult {
 }
 
 export function GameGrid(props: GameGridProps) {
+  const location = useLocation()
   const navigate = useNavigate()
   const [showCellIds, setShowCellIds] = useState(false)
   const [selectedCellKeys, setSelectedCellKeys] = useState<Set<string>>(() => new Set())
@@ -143,7 +144,13 @@ export function GameGrid(props: GameGridProps) {
         }
       }
     } finally {
-      navigate('/play')
+      // Return through the menu entry so browser/mobile Back leaves Classic
+      // instead of reopening this saved puzzle.
+      if (location.state && typeof location.state === 'object' && 'returnToClassicMenu' in location.state && location.state.returnToClassicMenu === true) {
+        navigate(-1)
+      } else {
+        navigate('/play', { replace: true })
+      }
     }
   }
 

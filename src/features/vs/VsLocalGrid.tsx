@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FocusEvent } from 'react'
 import { Bug, Check, ChevronLeft, ChevronRight, Pause, Play, RotateCcw, Save } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
@@ -69,6 +69,7 @@ export function VsLocalGrid() {
   const [victoryDialogDismissed, setVictoryDialogDismissed] = useState(false)
   const [debugCopy, setDebugCopy] = useState<{ status: 'copying' | 'copied' | 'error'; text: string } | null>(null)
   const persistenceQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const location = useLocation()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -168,7 +169,14 @@ export function VsLocalGrid() {
   async function quitMatch() {
     // Finish the queued autosave before leaving so this exact match resumes.
     await persistenceQueueRef.current.catch(() => undefined)
-    navigate('/vs')
+    // Return through the existing VS menu entry so browser/mobile Back then
+    // leaves VS instead of reopening this saved match.
+    if (location.state && typeof location.state === 'object' && 'returnToVsMenu' in location.state && location.state.returnToVsMenu === true) {
+      navigate(-1)
+      return
+    }
+    // Direct and bookmarked Local VS URLs have no menu entry to return to.
+    navigate('/vs', { replace: true })
   }
 
   return (

@@ -6,6 +6,13 @@ const colors = {
   outline: [119, 53, 38, 255],
 }
 
+// Keep the entire mark inside the central circular maskable-icon safe zone.
+const icon = {
+  outer: { x: 28, y: 28, size: 72, radius: 2 },
+  face: { x: 31, y: 31, size: 66, radius: 1 },
+  corner: { x: 34, y: 34, size: 36, radius: 4 },
+}
+
 function crc32(bytes) {
   let crc = 0xffffffff
   for (const byte of bytes) {
@@ -40,9 +47,9 @@ function createIcon(size) {
   const pixels = new Uint8Array(size * size * 4)
   const scale = size / 128
   const scaled = (value) => Math.round(value * scale)
-  drawRoundedRect(pixels, size, scaled(8), scaled(8), scaled(112), scaled(112), scaled(3), colors.outline)
-  drawRoundedRect(pixels, size, scaled(12), scaled(12), scaled(104), scaled(104), scaled(1), colors.amber)
-  drawRoundedRect(pixels, size, scaled(16), scaled(16), scaled(56), scaled(56), scaled(6), colors.outline)
+  drawRoundedRect(pixels, size, scaled(icon.outer.x), scaled(icon.outer.y), scaled(icon.outer.size), scaled(icon.outer.size), scaled(icon.outer.radius), colors.outline)
+  drawRoundedRect(pixels, size, scaled(icon.face.x), scaled(icon.face.y), scaled(icon.face.size), scaled(icon.face.size), scaled(icon.face.radius), colors.amber)
+  drawRoundedRect(pixels, size, scaled(icon.corner.x), scaled(icon.corner.y), scaled(icon.corner.size), scaled(icon.corner.size), scaled(icon.corner.radius), colors.outline)
 
   const rows = Buffer.alloc((size * 4 + 1) * size)
   for (let row = 0; row < size; row += 1) {
