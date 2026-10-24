@@ -88,9 +88,12 @@ export interface VsLocalGameState extends VsLocalPosition, VsLocalConfig {
 }
 
 export function createVsLocalGame(random = Math.random, config: Readonly<Partial<VsLocalConfig>> = {}): VsLocalGameState {
-  const { allowHistoryRewrite, combinationWinCount, consecutiveTurnWinCount, trapResolution } = { ...VS_LOCAL_CONFIG, ...config }
+  const { allowHistoryRewrite, allowOverlappingCombinationWin, combinationWinCount, consecutiveTurnWinCount, trapResolution } = { ...VS_LOCAL_CONFIG, ...config }
   if (typeof allowHistoryRewrite !== 'boolean') {
     throw new TypeError('Allow history rewrite must be a boolean.')
+  }
+  if (typeof allowOverlappingCombinationWin !== 'boolean') {
+    throw new TypeError('Allow overlapping combination win must be a boolean.')
   }
   if (!isVsWinCount(combinationWinCount)) {
     throw new RangeError('Combination victory requires an integer of at least 2 tetrominoes.')
@@ -112,6 +115,7 @@ export function createVsLocalGame(random = Math.random, config: Readonly<Partial
   return {
     ...position,
     allowHistoryRewrite,
+    allowOverlappingCombinationWin,
     combinationWinCount,
     consecutiveTurnWinCount,
     history: { positions: [position], index: 0 },
@@ -124,6 +128,16 @@ export function createVsLocalGame(random = Math.random, config: Readonly<Partial
 export function getVsHistoryPosition(state: VsLocalPosition): VsLocalPosition {
   const { activePlayer, captureStreak, lockedCornerominoes, nextMoveConstraint, placedCornerominoes, result } = state
   return { activePlayer, captureStreak, lockedCornerominoes, nextMoveConstraint, placedCornerominoes, result }
+}
+
+/** Refresh unused saved matches from code defaults; started matches keep their recorded rules. */
+export function resumeVsLocalGame(savedGame: VsLocalGameState | null): VsLocalGameState {
+  if (!savedGame) return createVsLocalGame()
+  const unstarted = savedGame.history.positions.length === 1
+    && savedGame.placedCornerominoes.length === 0
+    && savedGame.pendingPlacement === null
+    && savedGame.result === null
+  return unstarted ? { ...savedGame, ...VS_LOCAL_CONFIG } : savedGame
 }
 
 export function canPlayVsTurn(state: VsLocalGameState): boolean {
@@ -282,6 +296,41 @@ export function findValidatedVsCellKeys(placed: readonly VsPlacedCorneromino[], 
   return [...new Set(findValidatedVsShapes(placed, latest, previouslyLocked).flat())]
 }
 
+/** Count the largest subset sharing only the new cell, without filtering actual captures. */
+function countNonOverlappingVsShapes(shapes: readonly (readonly string[])[], latestKey: string): number {
+  if (shapes.length < 2) return shapes.length
+  const cellBits = new Map<string, bigint>()
+  const masks = shapes.map((shape) => shape.reduce((mask, key) => {
+    if (key === latestKey) return mask
+    let bit = cellBits.get(key)
+    if (bit === undefined) {
+      bit = 1n << BigInt(cellBits.size)
+      cellBits.set(key, bit)
+    }
+    return mask | bit
+  }, 0n))
+  let best = 0
+
+  function search(candidates: readonly bigint[], count: number) {
+    if (count + candidates.length <= best) return
+    let availableCells = candidates.reduce((union, mask) => union | mask, 0n)
+    let cellCount = 0
+    while (availableCells !== 0n) {
+      availableCells &= availableCells - 1n
+      cellCount += 1
+    }
+    // Each counted shape needs three different pre-existing cells.
+    if (count + Math.floor(cellCount / 3) <= best) return
+    for (let index = 0; index < candidates.length && count + candidates.length - index > best; index += 1) {
+      best = Math.max(best, count + 1)
+      search(candidates.slice(index + 1).filter((mask) => (mask & candidates[index]) === 0n), count + 1)
+    }
+  }
+
+  search(masks, 0)
+  return best
+}
+
 /** Places a fixed corner at top-right. Tap it to rotate; tap elsewhere to choose + or ×. */
 export function selectVsCell(state: VsLocalGameState, column: number, row: number): VsLocalGameState {
   if (!canPlayVsTurn(state)) return state
@@ -336,9 +385,12 @@ function resolveVsTurn(state: VsLocalGameState, pending: VsPlacement): VsLocalGa
   const captureStreak: VsCaptureStreak | null = validatedShapes.length > 0
     ? { player: state.activePlayer, turnCount: state.captureStreak?.player === state.activePlayer ? state.captureStreak.turnCount + 1 : 1 }
     : state.captureStreak?.player === state.activePlayer ? null : state.captureStreak
+  const combinationShapeCount = state.allowOverlappingCombinationWin
+    ? validatedShapes.length
+    : countNonOverlappingVsShapes(validatedShapes, cellKey(pending.column, pending.row))
   // Combination takes precedence if both victory conditions are met on this turn.
-  const result: VsGameResult | null = validatedShapes.length >= state.combinationWinCount
-    ? { reason: 'combination', shapeCount: validatedShapes.length, winner: state.activePlayer }
+  const result: VsGameResult | null = combinationShapeCount >= state.combinationWinCount
+    ? { reason: 'combination', shapeCount: combinationShapeCount, winner: state.activePlayer }
     : validatedShapes.length > 0 && captureStreak && captureStreak.turnCount >= state.consecutiveTurnWinCount
       ? { reason: 'consecutive-turns', turnCount: captureStreak.turnCount, winner: state.activePlayer }
       : null

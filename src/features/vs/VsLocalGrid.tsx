@@ -10,7 +10,7 @@ import { VsMoveList } from './VsMoveList'
 import { VsVictoryDialog } from './VsVictoryDialog'
 import { VS_LOCAL_CONFIG } from './vsLocalConfig'
 import { exportVsDebugState } from './vsDebugState'
-import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsPlayerScores, goToVsHistory, selectVsCell, VS_PLAYERS, type VsGameResult, type VsLocalGameState, type VsPlayerId } from './vsLocalGame'
+import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsPlayerScores, goToVsHistory, resumeVsLocalGame, selectVsCell, VS_PLAYERS, type VsGameResult, type VsLocalGameState, type VsPlayerId } from './vsLocalGame'
 
 interface PlayerBandProps {
   active: boolean
@@ -75,7 +75,7 @@ export function VsLocalGrid() {
     let active = true
     void loadVsLocalGameState()
       .then((savedGame) => {
-        if (active) setGame(savedGame ?? createVsLocalGame())
+        if (active) setGame(resumeVsLocalGame(savedGame))
       })
       .catch(() => {
         if (active) setGame(createVsLocalGame())
@@ -113,9 +113,6 @@ export function VsLocalGrid() {
   }, [])
   const [playerOnePoints, playerTwoPoints] = getVsPlayerScores(game?.placedCornerominoes ?? [])
   const result = game?.result ?? null
-  const combinationWinCount = game?.combinationWinCount ?? VS_LOCAL_CONFIG.combinationWinCount
-  const consecutiveTurnWinCount = game?.consecutiveTurnWinCount ?? VS_LOCAL_CONFIG.consecutiveTurnWinCount
-  const trapResolution = game?.trapResolution ?? VS_LOCAL_CONFIG.trapResolution
   const allowHistoryRewrite = game?.allowHistoryRewrite ?? VS_LOCAL_CONFIG.allowHistoryRewrite
   const historyIndex = game?.history.index ?? 0
   const lastHistoryIndex = (game?.history.positions.length ?? 1) - 1
@@ -163,7 +160,7 @@ export function VsLocalGrid() {
   }
 
   function startNewMatch() {
-    setGame(createVsLocalGame(Math.random, { allowHistoryRewrite, combinationWinCount, consecutiveTurnWinCount, trapResolution }))
+    setGame(createVsLocalGame())
     setPauseOpen(false)
     setVictoryDialogDismissed(false)
   }

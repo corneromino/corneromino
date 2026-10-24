@@ -63,6 +63,7 @@ export function exportVsDebugState(game: VsLocalGameState, context: VsDebugConte
       players: VS_PLAYERS,
       scores: 'Cell-based points, indexed by player ID. lockedBy determines scoring ownership; player records who placed the cell.',
       captures: 'Every distinct valid shape containing the newly placed cell counts, including overlapping shapes. Previously locked cells cannot be reused; shared cells score once.',
+      combinationVictory: 'allowOverlappingCombinationWin counts all captures when true. When false, only the largest subset sharing no cells except the newly placed cell counts toward combinationWinCount.',
       history: 'Index 0 is the saved baseline, which can already contain pieces in migrated saves. All retained future positions are included.',
       notation: '[column][row][corner letter][+ or x][newly locked coordinates, sorted by row then column]',
     },

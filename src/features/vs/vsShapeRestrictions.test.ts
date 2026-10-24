@@ -140,6 +140,7 @@ describe('Local VS friendly shape restrictions', () => {
   it('filters each overlapping candidate against previously locked friendly shapes', () => {
     const previousLock = lockedShape('lock:1', 'T', 5, 4)
     const before = gameBeforeLock([[3, 3]], [previousLock])
+    before.allowOverlappingCombinationWin = true
     before.pendingPlacement = { column: 3, row: 3, corner: 0 }
     before.placedCornerominoes.push(
       { column: 2, row: 3, corner: 1, player: 0 },

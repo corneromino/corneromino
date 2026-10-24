@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { APP_VERSION } from '@/lib/appVersion'
 import cascadeGraphic from '@/assets/cascade-graphic.svg'
 import classicGraphic from '@/assets/classic-graphic.svg'
 import vsGraphic from '@/assets/vs-graphic.svg'
@@ -35,8 +36,8 @@ export function MainMenu() {
             size="lg"
             >
             <Link to="/cascade" className='gap-10'>
-              <span>Cascade</span>
               <img alt="" aria-hidden="true" className="cascade-menu-graphic -rotate-12 scale-125" src={cascadeGraphic} />
+              <span>Cascade</span>
             </Link>
           </Button>
           {/* <Button
@@ -58,6 +59,9 @@ export function MainMenu() {
           </Button>
         </section>
       </div>
+      <p aria-label={`Version ${APP_VERSION}`} className="pointer-events-none absolute inset-x-0 bottom-2 z-10 text-center text-[10px] font-bold tracking-[0.12em] text-[var(--canvas-foreground)] opacity-35">
+        v{APP_VERSION}
+      </p>
     </main>
   )
 }

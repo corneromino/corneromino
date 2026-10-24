@@ -9,8 +9,8 @@ function play(game: VsLocalGameState, column: number, row: number, corner: VsCor
   return finishVsTurn(draft)
 }
 
-function reportedPosition() {
-  let game = createVsLocalGame(() => 0)
+function reportedPosition(allowOverlappingCombinationWin = true) {
+  let game = createVsLocalGame(() => 0, { allowOverlappingCombinationWin })
   game = play(game, 3, 4, 1)
   game = play(game, 4, 4, 2)
   game = play(game, 6, 4, 3)
@@ -18,7 +18,7 @@ function reportedPosition() {
 }
 
 function overlappingLine(shapeCount: number, dx: number, dy: number, player: VsPlayerId = 0, combinationWinCount = shapeCount) {
-  const game = createVsLocalGame(() => player, { combinationWinCount })
+  const game = createVsLocalGame(() => player, { combinationWinCount, allowOverlappingCombinationWin: true })
   // The center is the missing top-left corner. Repeated orientations create
   // two, three, or four four-cell windows through it.
   const corners = [1, 2, 3, 0, 1, 2, 3] as const
@@ -84,6 +84,63 @@ describe('Local VS overlapping captures', () => {
 
     const consecutive = finishVsTurn({ ...before, captureStreak: { player: 0, turnCount: 1 } })
     expect(consecutive.result).toEqual({ reason: 'consecutive-turns', winner: 0, turnCount: 2 })
+  })
+
+  it('locks and scores the reported F4 double without a combination win when overlaps are disabled', () => {
+    const before = reportedPosition(false)
+    const after = play(before, 5, 4, 0)
+    expect(after.lockedCornerominoes).toHaveLength(2)
+    expect(getVsPlayerScores(after.placedCornerominoes)).toEqual([5, 0])
+    expect(after.captureStreak).toEqual({ player: 0, turnCount: 1 })
+    expect(after.activePlayer).toBe(1)
+    expect(after.result).toBeNull()
+    expect(after.allowOverlappingCombinationWin).toBe(false)
+    expect(getVsMoveNotations(after.history.positions).at(-1)?.notation).toBe('F4D+D4E4F4G4H4')
+
+    const past = goToVsHistory(after, 4)
+    expect(past.allowOverlappingCombinationWin).toBe(false)
+    expect(goToVsHistory(past, 5)).toEqual(after)
+    expect(play(past, 5, 4, 0)).toEqual(after)
+  })
+
+  it.each([[1, 0], [0, 1], [1, 1], [1, -1]])('counts only compatible line captures along %s,%s when overlap combinations are disabled', (dx, dy) => {
+    for (const player of [0, 1] as const) {
+      for (const shapeCount of [2, 3, 4]) {
+        const before = { ...overlappingLine(shapeCount, dx, dy, player, 2), allowOverlappingCombinationWin: false }
+        const after = finishVsTurn(before)
+        expect(after.lockedCornerominoes).toHaveLength(shapeCount)
+        expect(getVsPlayerScores(after.placedCornerominoes)[player]).toBe(shapeCount + 3)
+        // With seven cells, the two outer windows share only the new center;
+        // the two middle windows still lock but cannot increase the win count.
+        expect(after.result).toEqual(shapeCount === 4 ? { reason: 'combination', winner: player, shapeCount: 2 } : null)
+        expect(finishVsTurn({ ...before, combinationWinCount: 3 }).result).toBeNull()
+      }
+    }
+  })
+
+  it('still awards consecutive-turn victory for an overlapping capture when overlap combinations are disabled', () => {
+    const before = { ...overlappingLine(2, 1, 0), allowOverlappingCombinationWin: false }
+    const after = finishVsTurn({ ...before, captureStreak: { player: 0, turnCount: 1 } })
+    expect(after.result).toEqual({ reason: 'consecutive-turns', winner: 0, turnCount: 2 })
+    expect(after.lockedCornerominoes).toHaveLength(2)
+  })
+
+  it.each(['points', 'draw'] as const)('falls through to the %s trap rule when an overlapping combination is disabled', (trapResolution) => {
+    const before = { ...overlappingLine(2, 1, 0), allowOverlappingCombinationWin: false, trapResolution }
+    const pending = before.pendingPlacement!
+    // Block every next-turn target. Repeating the new corner prevents extra captures.
+    for (let row = 0; row < 10; row++) {
+      for (let column = 0; column < 10; column++) {
+        if (column !== pending.column && row !== pending.row) continue
+        if (column === pending.column && row === pending.row) continue
+        if (before.placedCornerominoes.some((cell) => cell.column === column && cell.row === row)) continue
+        before.placedCornerominoes.push({ column, row, corner: 0, player: 1 })
+      }
+    }
+    const after = finishVsTurn(before)
+    expect(after.lockedCornerominoes).toHaveLength(2)
+    expect(getVsPlayerScores(after.placedCornerominoes)).toEqual([5, 0])
+    expect(after.result).toEqual({ reason: 'trap', winner: trapResolution === 'points' ? 0 : null })
   })
 
   it('restores overlapping lock groups, notation, and points when browsing and rewriting history', () => {

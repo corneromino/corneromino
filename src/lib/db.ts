@@ -52,7 +52,7 @@ export interface CascadeGameSaveState {
 
 export type VsLocalGameSaveState = VsLocalGameState
 
-type OptionalLegacyVsFields = 'allowHistoryRewrite' | 'history' | 'captureStreak' | 'combinationWinCount' | 'consecutiveTurnWinCount' | 'result' | 'nextMoveConstraint' | 'pendingMoveDirection' | 'trapResolution'
+type OptionalLegacyVsFields = 'allowHistoryRewrite' | 'allowOverlappingCombinationWin' | 'history' | 'captureStreak' | 'combinationWinCount' | 'consecutiveTurnWinCount' | 'result' | 'nextMoveConstraint' | 'pendingMoveDirection' | 'trapResolution'
 type LegacyVsLocalGameSaveState = Omit<VsLocalGameSaveState, OptionalLegacyVsFields>
   & Partial<Pick<VsLocalGameSaveState, OptionalLegacyVsFields>>
 
@@ -166,6 +166,7 @@ function isVsMoveHistory(value: unknown): value is VsMoveHistory {
 function isVsLocalGameSaveState(value: unknown): value is LegacyVsLocalGameSaveState {
   return isVsLocalPosition(value)
     && (!('allowHistoryRewrite' in value) || typeof value.allowHistoryRewrite === 'boolean')
+    && (!('allowOverlappingCombinationWin' in value) || typeof value.allowOverlappingCombinationWin === 'boolean')
     && (!('history' in value) || isVsMoveHistory(value.history))
     && (!('combinationWinCount' in value) || isVsWinCount(value.combinationWinCount))
     && (!('consecutiveTurnWinCount' in value) || isVsWinCount(value.consecutiveTurnWinCount))
@@ -405,6 +406,8 @@ export async function loadVsLocalGameState(): Promise<VsLocalGameSaveState | nul
     ...storedState.state,
     ...position,
     allowHistoryRewrite: storedState.state.allowHistoryRewrite ?? VS_LOCAL_CONFIG.allowHistoryRewrite,
+    // Earlier matches counted overlapping captures; preserve their rules and results.
+    allowOverlappingCombinationWin: storedState.state.allowOverlappingCombinationWin ?? true,
     combinationWinCount: storedState.state.combinationWinCount ?? VS_LOCAL_CONFIG.combinationWinCount,
     consecutiveTurnWinCount: storedState.state.consecutiveTurnWinCount ?? VS_LOCAL_CONFIG.consecutiveTurnWinCount,
     // Old saves lack the per-turn direction choices needed to rebuild earlier positions.

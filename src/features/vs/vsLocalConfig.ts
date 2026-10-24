@@ -3,7 +3,9 @@ export type VsTrapResolution = 'points' | 'draw'
 export interface VsLocalConfig {
   /** Allow a confirmed move from an earlier position to replace all later moves. */
   allowHistoryRewrite: boolean
-  /** Minimum distinct shapes captured in one turn to win, including overlaps. Integer >= 2. */
+  /** Count overlapping captures toward combination victory. If false, counted shapes may share only the newly placed cell. */
+  allowOverlappingCombinationWin: boolean
+  /** Minimum eligible shapes captured in one turn to win. Integer >= 2. */
   combinationWinCount: number
   /** Own consecutive turns with a lock, uninterrupted by an opponent lock. Integer >= 2. */
   consecutiveTurnWinCount: number
@@ -12,7 +14,8 @@ export interface VsLocalConfig {
 }
 
 export const VS_LOCAL_CONFIG: Readonly<VsLocalConfig> = {
-  allowHistoryRewrite: true,
+  allowHistoryRewrite: false,
+  allowOverlappingCombinationWin: false,
   combinationWinCount: 2,
   consecutiveTurnWinCount: 2,
   trapResolution: 'points',

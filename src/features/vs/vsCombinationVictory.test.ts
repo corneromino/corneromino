@@ -18,6 +18,7 @@ describe('Local VS combination victory', () => {
   it('starts unfinished with the configured default threshold', () => {
     const game = createVsLocalGame()
     expect(game.combinationWinCount).toBe(VS_LOCAL_CONFIG.combinationWinCount)
+    expect(game.allowOverlappingCombinationWin).toBe(VS_LOCAL_CONFIG.allowOverlappingCombinationWin)
     expect(game.result).toBeNull()
   })
 
@@ -59,6 +60,39 @@ describe('Local VS combination victory', () => {
     expect(after.result).toEqual({ reason: 'combination', winner: 0, shapeCount: 2 })
   })
 
+  it('counts eight captures sharing only the new cell with overlap combinations disabled', () => {
+    const before = { ...combinationSetup(8, 8), allowOverlappingCombinationWin: false }
+    const after = finishVsTurn(before)
+    expect(after.result).toEqual({ reason: 'combination', winner: 0, shapeCount: 8 })
+    expect(after.lockedCornerominoes).toHaveLength(8)
+    expect(after.placedCornerominoes.filter((cell) => cell.lockedBy === 0)).toHaveLength(25)
+  })
+
+  it.each([false, true])('finds the largest eligible subset in mixed captures (extra diagonal: %s)', (includeDiagonal) => {
+    const before = createVsLocalGame(() => 0, { allowOverlappingCombinationWin: false })
+    before.pendingPlacement = { column: 3, row: 3, corner: 0 }
+    // Detection finds the I first, but choosing it blocks both Ls. Both Ls can
+    // count together, so a greedy first-match count would miss this combination.
+    for (const [column, row, corner] of [
+      [2, 3, 1], [4, 3, 2], [5, 3, 3], [2, 2, 2], [2, 1, 3], [4, 4, 1], [4, 5, 3],
+    ] as const) before.placedCornerominoes.push({ column, row, corner, player: 1 })
+    if (includeDiagonal) {
+      for (const [column, row, corner] of [[2, 4, 1], [1, 5, 2], [0, 6, 3]] as const) {
+        before.placedCornerominoes.push({ column, row, corner, player: 1 })
+      }
+    }
+    const shapeCount = includeDiagonal ? 3 : 2
+    const after = finishVsTurn({ ...before, combinationWinCount: shapeCount })
+    expect(after.lockedCornerominoes).toHaveLength(includeDiagonal ? 5 : 4)
+    expect(after.placedCornerominoes.filter((cell) => cell.lockedBy === 0)).toHaveLength(includeDiagonal ? 11 : 8)
+    expect(after.result).toEqual({ reason: 'combination', winner: 0, shapeCount })
+    expect(finishVsTurn({ ...before, combinationWinCount: shapeCount + 1 }).result).toBeNull()
+    expect(finishVsTurn({ ...before, placedCornerominoes: [...before.placedCornerominoes].reverse() })).toMatchObject({
+      result: after.result,
+      lockedCornerominoes: after.lockedCornerominoes,
+    })
+  })
+
   it('does not award a victory for shapes rejected by the friendly adjacency rule', () => {
     const game = combinationSetup(2)
     const cellKeys: string[] = []
@@ -91,9 +125,10 @@ describe('Local VS combination victory', () => {
   })
 
   it('starts a playable rematch with the same threshold and no previous result', () => {
-    const finished = finishVsTurn(combinationSetup(3, 3))
-    const rematch = createVsLocalGame(() => 1, { combinationWinCount: finished.combinationWinCount })
+    const finished = finishVsTurn({ ...combinationSetup(3, 3), allowOverlappingCombinationWin: false })
+    const rematch = createVsLocalGame(() => 1, { combinationWinCount: finished.combinationWinCount, allowOverlappingCombinationWin: finished.allowOverlappingCombinationWin })
     expect(rematch.combinationWinCount).toBe(3)
+    expect(rematch.allowOverlappingCombinationWin).toBe(false)
     expect(rematch.activePlayer).toBe(1)
     expect(rematch.result).toBeNull()
     expect(rematch.lockedCornerominoes).toEqual([])
@@ -116,5 +151,9 @@ describe('Local VS combination victory', () => {
 
   it.each([0, 1, -1, 2.5, Infinity, NaN])('rejects an invalid combination threshold: %s', (combinationWinCount) => {
     expect(() => createVsLocalGame(Math.random, { combinationWinCount })).toThrow(RangeError)
+  })
+
+  it.each([0, 1, 'false', null, undefined])('rejects a non-boolean overlap option: %s', (value) => {
+    expect(() => createVsLocalGame(Math.random, { allowOverlappingCombinationWin: value as unknown as boolean })).toThrow(TypeError)
   })
 })

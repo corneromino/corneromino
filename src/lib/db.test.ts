@@ -80,6 +80,7 @@ describe('Local VS persistence', () => {
     })
 
     await expect(loadVsLocalGameState()).resolves.toMatchObject({
+      allowOverlappingCombinationWin: true,
       captureStreak: null,
       combinationWinCount: VS_LOCAL_CONFIG.combinationWinCount,
       consecutiveTurnWinCount: VS_LOCAL_CONFIG.consecutiveTurnWinCount,
@@ -105,16 +106,20 @@ describe('Local VS persistence', () => {
     expect(selectVsCell(restored!, 4, 9)).toBe(restored)
   })
 
-  it.each([2, 3])('round-trips %s overlapping captures and their browsable history', async (shapeCount) => {
-    const game = createVsLocalGame(() => 0, { combinationWinCount: shapeCount })
+  it.each([[2, true], [3, true], [2, false], [3, false]] as const)('round-trips %s overlapping captures and their history (overlap victory: %s)', async (shapeCount, allowOverlappingCombinationWin) => {
+    let game = createVsLocalGame(() => 0, { combinationWinCount: shapeCount, allowOverlappingCombinationWin })
     const corners = [1, 2, 3, 0, 1, 2] as const
     for (let column = 0; column < shapeCount + 3; column++) {
       if (column === 3) game.pendingPlacement = { column, row: 4, corner: 0 }
       else game.placedCornerominoes.push({ column, row: 4, corner: corners[column], player: 1 })
     }
+    game.history = { positions: [getVsHistoryPosition(game)], index: 0 }
+    await saveVsLocalGameState(structuredClone(game))
+    game = (await loadVsLocalGameState())!
+    expect(game.allowOverlappingCombinationWin).toBe(allowOverlappingCombinationWin)
     const finished = finishVsTurn(game)
     expect(finished.lockedCornerominoes).toHaveLength(shapeCount)
-    expect(finished.result).toEqual({ reason: 'combination', winner: 0, shapeCount })
+    expect(finished.result).toEqual(allowOverlappingCombinationWin ? { reason: 'combination', winner: 0, shapeCount } : null)
     await saveVsLocalGameState(finished)
     await expect(loadVsLocalGameState()).resolves.toEqual(finished)
 
@@ -123,6 +128,18 @@ describe('Local VS persistence', () => {
     const restored = await loadVsLocalGameState()
     expect(restored).toEqual(past)
     expect(goToVsHistory(restored!, 1)).toEqual(finished)
+  })
+
+  it('preserves an overlapping victory and its history when migrating a save without the overlap option', async () => {
+    const game = createVsLocalGame(() => 0, { allowOverlappingCombinationWin: true })
+    for (const [column, corner] of [[3, 1], [4, 2], [6, 3], [7, 1]] as const) {
+      game.placedCornerominoes.push({ column, row: 4, corner, player: 1 })
+    }
+    const finished = finishVsTurn({ ...game, pendingPlacement: { column: 5, row: 4, corner: 0 } })
+    expect(finished.result).toEqual({ reason: 'combination', winner: 0, shapeCount: 2 })
+    const { allowOverlappingCombinationWin: _overlap, ...legacy } = finished
+    await (await db).put('games', { id: 'vs:local:current', state: legacy, updatedAt: Date.now() })
+    await expect(loadVsLocalGameState()).resolves.toEqual(finished)
   })
 
   it('does not infer a victory from historical locks in a save predating victory rules', async () => {
@@ -138,6 +155,9 @@ describe('Local VS persistence', () => {
   })
 
   it.each([
+    { allowOverlappingCombinationWin: 'false' },
+    { allowOverlappingCombinationWin: 0 },
+    { allowOverlappingCombinationWin: null },
     { combinationWinCount: 1 },
     { combinationWinCount: 2.5 },
     { combinationWinCount: Infinity },

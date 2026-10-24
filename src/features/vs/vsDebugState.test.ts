@@ -22,7 +22,7 @@ function play(game: VsLocalGameState, column: number, row: number, corner: VsCor
 }
 
 function squareGame(allowHistoryRewrite = true) {
-  let game = createVsLocalGame(() => 0, { allowHistoryRewrite, combinationWinCount: 3, consecutiveTurnWinCount: 4, trapResolution: 'draw' })
+  let game = createVsLocalGame(() => 0, { allowHistoryRewrite, allowOverlappingCombinationWin: false, combinationWinCount: 3, consecutiveTurnWinCount: 4, trapResolution: 'draw' })
   game = play(game, 0, 0, 0)
   game = play(game, 1, 0, 1)
   game = play(game, 1, 1, 2)
@@ -38,7 +38,7 @@ describe('Local VS debug report', () => {
     expect(exported).toMatchObject({ format: 'corneromino-debug', version: 1, mode: 'vs-local', exportedAt: EXPORTED_AT, ...CONTEXT })
     expect(exported.gameState).toEqual(before)
     expect(game).toEqual(before)
-    expect(exported.gameState).toMatchObject({ combinationWinCount: 3, consecutiveTurnWinCount: 4, trapResolution: 'draw' })
+    expect(exported.gameState).toMatchObject({ allowOverlappingCombinationWin: false, combinationWinCount: 3, consecutiveTurnWinCount: 4, trapResolution: 'draw' })
     expect(exported.current.scores).toEqual([0, 4])
     expect(exported.current.pointDifferences).toEqual([-4, 4])
     expect(exported.current.captureStreak).toEqual({ player: 1, turnCount: 1 })

@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "test": "vitest run",
     "benchmark:sandbox": "node --experimental-strip-types scripts/benchmark-sandbox.mjs",
+    "release": "node scripts/release.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -85,7 +85,7 @@ describe('local VS game', () => {
       { column: 2, row: 2, corner: 0, player: 1 },
     ]
     const latest = { column: 1, row: 1, corner: 3, player: 1 } as const
-    const game = finishVsTurn({ ...createVsLocalGame(() => 0.9), pendingPlacement: latest, placedCornerominoes: pieces })
+    const game = finishVsTurn({ ...createVsLocalGame(() => 0.9, { allowOverlappingCombinationWin: true }), pendingPlacement: latest, placedCornerominoes: pieces })
 
     expect(game.placedCornerominoes).toHaveLength(7)
     expect(game.placedCornerominoes.every((placement) => placement.lockedBy === 1)).toBe(true)
@@ -113,7 +113,7 @@ describe('local VS game', () => {
       )
     }
     const latest = { column: 3, row: 3, corner: 0 } as const
-    const game = finishVsTurn({ ...createVsLocalGame(() => 0.9), pendingPlacement: latest, placedCornerominoes: pieces })
+    const game = finishVsTurn({ ...createVsLocalGame(() => 0.9, { allowOverlappingCombinationWin: true }), pendingPlacement: latest, placedCornerominoes: pieces })
     const expectedShapes = [
       ['2,3', '3,3', '4,3', '5,3'], // I
       ['2,1', '2,2', '2,3', '3,3'], // left L
@@ -149,7 +149,7 @@ describe('local VS game', () => {
       { column: 2, row: 1, corner: 3, player: 1 },
     ]
     const latest = { column: 1, row: 1, corner: 2, player: 1 } as const
-    const game = finishVsTurn({ ...createVsLocalGame(() => 0.9), pendingPlacement: latest, placedCornerominoes: pieces })
+    const game = finishVsTurn({ ...createVsLocalGame(() => 0.9, { allowOverlappingCombinationWin: true }), pendingPlacement: latest, placedCornerominoes: pieces })
 
     expect(game.placedCornerominoes.filter((placement) => placement.lockedBy === 1)).toHaveLength(6)
     expect(game.lockedCornerominoes.map((shape) => getTetrominoKind(shape.cellKeys.map((key) => {
