@@ -1,19 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { createRandomSeed, createSeededRandom } from '@/game/random'
 import { GAME_CONFIGS, isGameMode, type GameMode, type PlacedTetromino } from '@/game/gameConfig'
 import { clearGameSelection } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
 import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
+import { ClassicTutorialDialog } from './ClassicTutorialDialog'
 import { GameGrid } from './GameGrid'
 
 const MODE_BUTTON_CLASS = 'cartoon-press mode-menu-button w-full text-[11px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase'
 const MODE_ENTRIES = Object.entries(GAME_CONFIGS)
-
 function formatElapsedTime(elapsedSeconds: number) {
   const minutes = Math.floor(elapsedSeconds / 60).toString().padStart(2, '0')
   const seconds = (elapsedSeconds % 60).toString().padStart(2, '0')
@@ -53,20 +51,7 @@ function GameModeMenu() {
           </Button>
         </section>
       </div>
-      <Dialog onOpenChange={setTutorialOpen} open={tutorialOpen}>
-        <DialogContent aria-describedby={undefined}>
-          <DialogHeader>
-            <DialogTitle>{t('tutorial.title')}</DialogTitle>
-          </DialogHeader>
-          <DialogFooter className="grid-cols-1">
-            <DialogClose asChild>
-              <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">
-                <X aria-hidden="true" /> {t('common.close')}
-              </Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ClassicTutorialDialog onOpenChange={setTutorialOpen} open={tutorialOpen} />
     </main>
   )
 }

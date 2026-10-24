@@ -24,7 +24,7 @@ export function MainMenu() {
         <section className="menu-content mx-auto flex w-full max-w-[430px] flex-col items-center text-center">
           <TitleTetromino pointerAreaRef={menuRef} />
           <h1 className="poster-title main-menu-title max-w-full leading-none">
-            Corneromino
+            {t('mainMenu.title')}
           </h1>
           <Button
             asChild
