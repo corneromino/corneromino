@@ -14,7 +14,7 @@ export interface VsLocalConfig {
 }
 
 export const VS_LOCAL_CONFIG: Readonly<VsLocalConfig> = {
-  allowHistoryRewrite: false,
+  allowHistoryRewrite: true,
   allowOverlappingCombinationWin: false,
   combinationWinCount: 2,
   consecutiveTurnWinCount: 2,
