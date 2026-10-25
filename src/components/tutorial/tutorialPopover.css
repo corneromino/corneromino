@@ -1,0 +1,100 @@
+.driver-popover.corneromino-tutorial {
+  --tutorial-band-depth: 8px;
+  --tutorial-band-color: #b95c2e;
+  box-sizing: border-box;
+  width: min(340px, calc(100vw - 32px));
+  min-width: 0;
+  max-width: none;
+  padding: 16px 16px calc(16px + var(--tutorial-band-depth));
+  border: 1px solid var(--outline-color);
+  border-radius: 0;
+  background: var(--paper);
+  color: var(--canvas-foreground);
+  font-family: var(--font-sans);
+  box-shadow: 0 0 0 1px rgb(21 16 14 / 8%);
+}
+
+.driver-popover.corneromino-tutorial::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: var(--tutorial-band-depth);
+  background: var(--tutorial-band-color);
+  pointer-events: none;
+}
+
+.corneromino-tutorial .driver-popover-description {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.corneromino-tutorial .driver-popover-navigation-btns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.driver-popover.corneromino-tutorial .cartoon-press {
+  box-sizing: border-box;
+  position: relative;
+  inset: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 42px;
+  margin: 0;
+  padding: 0 4px var(--press-shadow-depth);
+  border-radius: 0;
+  background-color: var(--press-face);
+  color: var(--canvas-foreground);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.5;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.driver-popover.corneromino-tutorial .cartoon-press:disabled {
+  --press-face: #c7c2ba;
+  --press-shadow: #8a8178;
+  color: #625c55;
+  opacity: 1;
+  cursor: default;
+  pointer-events: none;
+}
+
+.driver-popover.corneromino-tutorial .cartoon-press:focus-visible {
+  outline: 2px solid var(--outline-color);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .driver-popover.corneromino-tutorial .cartoon-press:hover:not(:disabled) {
+    background-color: var(--press-face-hover);
+  }
+}
+
+.driver-popover.corneromino-tutorial .cartoon-press:active:not(:disabled) {
+  background-color: var(--press-face-active);
+}
+
+.corneromino-tutorial .driver-popover-arrow-side-left {
+  border-left-color: var(--paper);
+}
+
+.corneromino-tutorial .driver-popover-arrow-side-right {
+  border-right-color: var(--paper);
+}
+
+.corneromino-tutorial .driver-popover-arrow-side-top {
+  border-top-color: var(--tutorial-band-color);
+}
+
+.corneromino-tutorial .driver-popover-arrow-side-bottom {
+  border-bottom-color: var(--paper);
+}

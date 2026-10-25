@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Pause } from 'lucide-react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
@@ -7,7 +8,6 @@ import { GAME_CONFIGS, isGameMode, type GameMode, type PlacedTetromino } from '@
 import { clearGameSelection } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
 import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
-import { ClassicTutorialDialog } from './ClassicTutorialDialog'
 import { GameGrid } from './GameGrid'
 
 const MODE_BUTTON_CLASS = 'cartoon-press mode-menu-button w-full text-[11px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase'
@@ -25,19 +25,13 @@ interface GameSessionProps {
 
 function GameModeMenu() {
   const { t } = useTranslation()
-  const [tutorialOpen, setTutorialOpen] = useState(false)
   return (
     <main className="poster-page app-page relative overflow-hidden px-5 text-[var(--canvas-foreground)]">
       <TetrominoBackground />
       <div className="menu-scroll">
         <section className="menu-content mx-auto flex w-full max-w-[430px] flex-col items-center text-center">
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
-          <div className="flex items-center justify-center gap-2">
-            <h1 className="poster-title mode-menu-title leading-none">{t('classic.title')}</h1>
-            <Button aria-label={t('tutorial.open')} className="h-auto min-w-0 border-0 bg-transparent p-0 text-[26px] leading-none text-[var(--canvas-foreground)] opacity-40 shadow-none hover:opacity-70 focus-visible:opacity-100" onClick={() => setTutorialOpen(true)} title={t('tutorial.open')} variant="ghost" type="button">
-              ?
-            </Button>
-          </div>
+          <h1 className="poster-title mode-menu-title leading-none">{t('classic.title')}</h1>
           {MODE_ENTRIES.map(([mode, config]) => (
             <Button asChild className={MODE_BUTTON_CLASS} key={mode} size="lg">
               <Link state={{ returnToClassicMenu: true }} to={`/play?mode=${mode}`}>{t(config.title)}</Link>
@@ -51,7 +45,6 @@ function GameModeMenu() {
           </Button>
         </section>
       </div>
-      <ClassicTutorialDialog onOpenChange={setTutorialOpen} open={tutorialOpen} />
     </main>
   )
 }
@@ -65,6 +58,7 @@ function GameSession(props: GameSessionProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [moveCount, setMoveCount] = useState(0)
   const [pieces, setPieces] = useState<PlacedTetromino[] | null>(null)
+  const [pauseOpen, setPauseOpen] = useState(false)
   const seed = props.requestedSeed || generatedSeed
   const config = GAME_CONFIGS[props.gameMode]
 
@@ -108,20 +102,30 @@ function GameSession(props: GameSessionProps) {
 
   return (
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
-      <header className="relative z-10 mx-auto flex w-full max-w-[550px] items-end justify-between gap-4 px-5 pb-6">
-        <div className="min-w-0">
-          <h1 className="poster-title text-[33px] leading-none">{t('classic.title')}</h1>
-          <div className="poster-kicker mt-3 flex items-center gap-3 text-[11px] text-[var(--muted-text-color)]">
+      <header className="relative z-10 mx-auto flex w-full max-w-[550px] flex-col gap-3 px-5 pb-6">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <h1 className="poster-title text-[33px] leading-none">{t('classic.title')}</h1>
+            <Button asChild aria-label={t('tutorial.open')} className="h-auto min-w-0 border-0 bg-transparent p-0 text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40 shadow-none hover:opacity-70 focus-visible:opacity-100" title={t('tutorial.open')} variant="ghost">
+              <Link state={{ returnToClassicGame: true }} to="/play/tutorial">?</Link>
+            </Button>
+          </div>
+          <Button aria-label={`${t('common.pause')} ${t('classic.title')}`} className="cartoon-press size-10 shrink-0 text-[var(--canvas-foreground)]" onClick={() => setPauseOpen(true)} size="icon" title={t('common.pause')} type="button">
+            <Pause aria-hidden="true" />
+          </Button>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <div className="poster-kicker flex items-center gap-3 text-[11px] text-[var(--muted-text-color)]">
             <p>{t(config.title)}</p>
             <span aria-hidden="true">/</span>
             <p>{moveCount} moves</p>
           </div>
+          <p className="poster-kicker shrink-0 text-[11px] text-[var(--muted-text-color)]">{formatElapsedTime(elapsedSeconds)}</p>
         </div>
-        <p className="poster-kicker shrink-0 text-[11px] text-[var(--muted-text-color)]">{formatElapsedTime(elapsedSeconds)}</p>
       </header>
 
       <div className="relative z-10 min-h-0 flex-1">
-        {pieces && <GameGrid config={config} gameId={seed} gameMode={props.gameMode} key={`${props.gameMode}:${seed}`} onElapsedSecondsChange={setElapsedSeconds} onMoveCountChange={setMoveCount} onNextGame={nextGame} pieces={pieces} />}
+        {pieces && <GameGrid config={config} gameId={seed} gameMode={props.gameMode} key={`${props.gameMode}:${seed}`} onElapsedSecondsChange={setElapsedSeconds} onMoveCountChange={setMoveCount} onNextGame={nextGame} onPauseOpenChange={setPauseOpen} paused={pauseOpen} pieces={pieces} />}
         {!pieces && !generationError && <p className="px-5 text-center text-[11px] font-bold uppercase">{t('classic.generating')}</p>}
         {generationError && <p className="px-5 text-center text-[11px] font-bold text-[var(--coral)]" role="alert">{generationError}</p>}
       </div>

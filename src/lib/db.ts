@@ -1,6 +1,6 @@
 import { openDB } from 'idb'
 import { isGameMode, type CellMarker, type GameMode, type GameSelectionState, type LockedCellGroup } from '@/game/gameConfig'
-import { isVsTrapResolution, isVsWinCount, VS_LOCAL_CONFIG } from '@/features/vs/vsLocalConfig'
+import { isVsLocalBoardSize, isVsTrapResolution, isVsWinCount, VS_LOCAL_CONFIG, VS_LOCAL_DEFAULT_BOARD_SIZE } from '@/features/vs/vsLocalConfig'
 import { getVsAllowedCells, getVsHistoryPosition, getVsPlayerScores, type VsCaptureStreak, type VsGameResult, type VsLocalGameState, type VsLocalPosition, type VsMoveHistory } from '@/features/vs/vsLocalGame'
 
 export interface StoredGame {
@@ -408,6 +408,7 @@ export async function loadVsLocalGameState(): Promise<VsLocalGameSaveState | nul
     allowHistoryRewrite: storedState.state.allowHistoryRewrite ?? VS_LOCAL_CONFIG.allowHistoryRewrite,
     // Earlier matches counted overlapping captures; preserve their rules and results.
     allowOverlappingCombinationWin: storedState.state.allowOverlappingCombinationWin ?? true,
+    boardSize: isVsLocalBoardSize(storedState.state.boardSize) ? storedState.state.boardSize : VS_LOCAL_DEFAULT_BOARD_SIZE,
     combinationWinCount: storedState.state.combinationWinCount ?? VS_LOCAL_CONFIG.combinationWinCount,
     consecutiveTurnWinCount: storedState.state.consecutiveTurnWinCount ?? VS_LOCAL_CONFIG.consecutiveTurnWinCount,
     // Old saves lack the per-turn direction choices needed to rebuild earlier positions.

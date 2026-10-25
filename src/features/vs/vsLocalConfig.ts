@@ -1,4 +1,11 @@
 export type VsTrapResolution = 'points' | 'draw'
+export const VS_LOCAL_BOARD_SIZES = [8, 10] as const
+export type VsLocalBoardSize = (typeof VS_LOCAL_BOARD_SIZES)[number]
+export const VS_LOCAL_DEFAULT_BOARD_SIZE: VsLocalBoardSize = 10
+
+export function isVsLocalBoardSize(value: unknown): value is VsLocalBoardSize {
+  return value === 8 || value === 10
+}
 
 export interface VsLocalConfig {
   /** Allow a confirmed move from an earlier position to replace all later moves. */

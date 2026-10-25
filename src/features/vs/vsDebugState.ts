@@ -57,7 +57,7 @@ export function exportVsDebugState(game: VsLocalGameState, context: VsDebugConte
     mode: 'vs-local',
     exportedAt,
     legend: {
-      board: { columns: 10, rows: 10, origin: 'A0 at screen top-left', columnDirection: 'right', rowDirection: 'down' },
+      board: { columns: game.boardSize ?? 10, rows: game.boardSize ?? 10, origin: 'A0 at screen top-left', columnDirection: 'right', rowDirection: 'down' },
       corners: CELL_CORNERS.map((name, value) => ({ value, name, notation: VS_CORNER_LETTERS[value] })),
       directions: { orthogonal: '+', diagonal: 'x' },
       players: VS_PLAYERS,

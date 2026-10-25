@@ -271,6 +271,20 @@
   --press-shadow: #315c45;
 }
 
+.cartoon-press--blue {
+  --press-face: #73a9ee;
+  --press-face-active: #4d85c9;
+  --press-face-hover: #91c2ff;
+  --press-shadow: #315c91;
+}
+
+.cartoon-press--red {
+  --press-face: #e4555c;
+  --press-face-active: #ba3f48;
+  --press-face-hover: #f0787e;
+  --press-shadow: #84343b;
+}
+
 @keyframes cascade-score-shake {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-2px); }

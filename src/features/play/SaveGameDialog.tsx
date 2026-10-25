@@ -23,20 +23,20 @@ export function SaveGameDialog(props: SaveGameDialogProps) {
           <Button
             className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase"
             disabled={props.isSaving}
-            onClick={props.onDiscard}
-            size="lg"
-            type="button"
-          >
-            {t('common.discard')}
-          </Button>
-          <Button
-            className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase"
-            disabled={props.isSaving}
             onClick={props.onSave}
             size="lg"
             type="button"
           >
             {t('common.save')}
+          </Button>
+          <Button
+            className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase"
+            disabled={props.isSaving}
+            onClick={props.onDiscard}
+            size="lg"
+            type="button"
+          >
+            {t('common.doNotSave')}
           </Button>
         </DialogFooter>
         <DialogClose asChild>

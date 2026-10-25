@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Eraser, ListChecks, Lock, LogOut, RotateCcw, Unlock, X } from 'lucide-react'
+import { Eraser, Lock, Unlock } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { CellMarkerColor, GameConfig, GameMode, GameSelectionState, LockedCellGroup, PlacedTetromino } from '@/game/gameConfig'
@@ -9,16 +10,21 @@ import { clearGameSelection, loadGameSelection, saveGameSelection } from '@/lib/
 import { cn } from '@/lib/utils'
 import { LOCKED_CELL_COLOR_HEX } from '@/rendering/colors'
 import { CorrectGameDialog } from './CorrectGameDialog'
+import { ClassicPauseDialog } from './ClassicPauseDialog'
 import { SaveGameDialog } from './SaveGameDialog'
 import { GameGridCanvas } from './GameGridCanvas'
 
 interface GameGridProps {
+  boardId?: string
   config: GameConfig
   gameId: string
   gameMode: GameMode
   onElapsedSecondsChange: (elapsedSeconds: number) => void
   onMoveCountChange: (moveCount: number) => void
   onNextGame: () => void
+  onPauseOpenChange: (open: boolean) => void
+  paused: boolean
+  persistSelection?: boolean
   pieces: readonly PlacedTetromino[]
 }
 
@@ -43,6 +49,7 @@ interface ValidationResult {
 }
 
 export function GameGrid(props: GameGridProps) {
+  const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const [showCellIds, setShowCellIds] = useState(false)
@@ -103,6 +110,16 @@ export function GameGrid(props: GameGridProps) {
     setExitDialogOpen(true)
   }
 
+  function restartFromPause() {
+    resetGame()
+    props.onPauseOpenChange(false)
+  }
+
+  function quitFromPause() {
+    props.onPauseOpenChange(false)
+    requestExit()
+  }
+
   async function captureGameGridScreenshot(): Promise<Blob | null> {
     if (!gameBoardRef.current) return null
 
@@ -115,7 +132,7 @@ export function GameGrid(props: GameGridProps) {
     setIsExiting(true)
 
     try {
-      if (saveGame) {
+      if (saveGame && props.persistSelection !== false) {
         const screenshot = (await captureGameGridScreenshot()) ?? gameGridScreenshot
         const nextSavedAt = Date.now()
         const savedSelection: GameSelectionState = {
@@ -303,6 +320,13 @@ export function GameGrid(props: GameGridProps) {
     savedSelectionRef.current = null
     setSelectionLoaded(false)
 
+    if (props.persistSelection === false) {
+      setSelectionLoaded(true)
+      return () => {
+        active = false
+      }
+    }
+
     void loadGameSelection(props.gameMode, props.gameId)
       .then((storedSelection) => {
         if (active) {
@@ -332,10 +356,10 @@ export function GameGrid(props: GameGridProps) {
     return () => {
       active = false
     }
-  }, [props.gameId, props.gameMode])
+  }, [props.gameId, props.gameMode, props.persistSelection])
 
   useEffect(() => {
-    if (!selectionLoaded || isCompleted || isExiting) return
+    if (!selectionLoaded || isCompleted || isExiting || props.paused) return
 
     const timer = window.setTimeout(() => {
       const nextSeconds = elapsedSeconds + 1
@@ -344,10 +368,10 @@ export function GameGrid(props: GameGridProps) {
     }, 1000)
 
     return () => window.clearTimeout(timer)
-  }, [elapsedSeconds, isCompleted, isExiting, props.onElapsedSecondsChange, selectionLoaded])
+  }, [elapsedSeconds, isCompleted, isExiting, props.onElapsedSecondsChange, props.paused, selectionLoaded])
 
   useEffect(() => {
-    if (!selectionLoaded || isExiting) return
+    if (!selectionLoaded || isExiting || props.persistSelection === false) return
     void queuePersistence(() => saveGameSelection(props.gameMode, props.gameId, {
       elapsedSeconds,
       gameGridScreenshot,
@@ -360,12 +384,12 @@ export function GameGrid(props: GameGridProps) {
     })).catch(() => {
       // Selection remains available for the current session if IndexedDB is unavailable.
     })
-  }, [elapsedSeconds, gameGridScreenshot, isCompleted, isExiting, lockedCellGroups, markers, moveCount, props.gameId, props.gameMode, savedAt, selectedCellKeys, selectionLoaded])
+  }, [elapsedSeconds, gameGridScreenshot, isCompleted, isExiting, lockedCellGroups, markers, moveCount, props.gameId, props.gameMode, props.persistSelection, savedAt, selectedCellKeys, selectionLoaded])
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 px-1">
       <div className="flex min-h-0 flex-1 items-start justify-center [container-type:size]">
-        <section aria-label="Game board" className="mx-auto max-w-[550px]" ref={gameBoardRef} style={boardStyle}>
+        <section aria-label="Game board" className="mx-auto max-w-[550px]" id={props.boardId} ref={gameBoardRef} style={boardStyle}>
           <div className="size-full border-2 border-[#773526] bg-[#773526]">
             <GameGridCanvas
               config={props.config}
@@ -381,27 +405,6 @@ export function GameGrid(props: GameGridProps) {
         </section>
       </div>
       <div className="mx-auto flex w-full max-w-[550px] shrink-0 flex-nowrap justify-center gap-1 sm:gap-2">
-        <Button
-          aria-label="Exit game"
-          className="cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--canvas-foreground)]"
-          onClick={requestExit}
-          size="icon"
-          title="Exit game"
-          type="button"
-        >
-          <LogOut aria-hidden="true" />
-        </Button>
-        <Button
-          aria-label="Reset game progress"
-          className="cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--coral)]"
-          disabled={lockedCellGroups.length === 0 && markers.size === 0 && selectedCellKeys.size === 0 && !selectedLockedGroupId && !savedAt}
-          onClick={resetGame}
-          size="icon"
-          title="Reset game progress"
-          type="button"
-        >
-          <RotateCcw aria-hidden="true" />
-        </Button>
         <Button
           aria-label="Deselect all cells"
           className="cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--canvas-foreground)]"
@@ -478,28 +481,22 @@ export function GameGrid(props: GameGridProps) {
           <Unlock aria-hidden="true" />
         </Button>
         <Button
-          aria-label="Validate locked tetrominoes"
+          aria-label={t('classic.verify')}
           className={cn(
-            'cartoon-press relative size-[clamp(36px,11vw,44px)] !overflow-visible text-[var(--canvas-foreground)]',
-            validationResult?.isCorrect && 'text-[var(--mint)]',
-            validationResult && !validationResult.isCorrect && 'text-[var(--coral)]',
+            'cartoon-press relative h-[clamp(36px,11vw,44px)] !overflow-visible px-2 text-[15px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase',
+            validationResult?.isCorrect ? 'cartoon-press--green' : validationResult ? 'cartoon-press--red' : 'cartoon-press--blue',
           )}
           disabled={!canValidate}
           onClick={validateLockedCells}
-          size="icon"
-          title="Validate locked tetrominoes"
+          title={t('classic.verify')}
           type="button"
         >
-          {!validationResult && <ListChecks aria-hidden="true" />}
-          {validationResult?.isCorrect && <Check aria-hidden="true" />}
           {validationResult && !validationResult.isCorrect && (
-            <>
-              <X aria-hidden="true" />
-              <span className="absolute -right-2 -top-2 z-10 grid size-5 place-items-center rounded-full border border-[var(--canvas-foreground)] bg-[var(--yellow)] text-[11px] font-black text-[#030505]">
-                {lockedCellGroups.length - validationResult.validLockCount}
-              </span>
-            </>
+            <span className="absolute -right-2 -top-2 z-10 grid size-5 place-items-center rounded-full border border-[var(--canvas-foreground)] bg-[var(--yellow)] text-[11px] font-black text-[#030505]">
+              {lockedCellGroups.length - validationResult.validLockCount}
+            </span>
           )}
+          <span className="-translate-y-1">{t('classic.verify')}</span>
         </Button>
       </div>
       <CorrectGameDialog
@@ -507,6 +504,7 @@ export function GameGrid(props: GameGridProps) {
         onOpenChange={handleCompletionOpenChange}
         screenshot={completionScreenshot}
       />
+      <ClassicPauseDialog onOpenChange={props.onPauseOpenChange} onQuit={quitFromPause} onRestart={restartFromPause} onResume={() => props.onPauseOpenChange(false)} open={props.paused} />
       <SaveGameDialog
         isSaving={isExiting}
         onDiscard={discardAndExit}

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bug, Pause, Play, RotateCcw, Save } from 'lucide-react'
+import { Pause } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { clearCascadeGameState, loadCascadeGameState, recordCascadeBestScore, type CascadeGameSaveState } from '@/lib/db'
 import type { CascadeCorner, CascadeCornerSpawnMode } from './cascadeGame'
 import { CascadeCanvas, type CascadeCanvasHandle } from './CascadeCanvas'
+import { CascadePauseDialog } from './CascadePauseDialog'
 import { PixelLinesIcon } from './PixelLinesIcon'
 import { PixelLockIcon } from './PixelLockIcon'
 import { PixelNextIcon } from './PixelNextIcon'
@@ -253,27 +253,7 @@ export function Cascade(props: { startNew?: boolean }) {
         <span className="[@media(pointer:fine)]:hidden">{t('cascade.dragInstructions')}</span>
         <span className="hidden [@media(pointer:fine)]:inline">{t('cascade.keyboardInstructions')}</span>
       </p>
-      <Dialog onOpenChange={handlePauseDialogChange} open={isPaused}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('cascade.paused')}</DialogTitle>
-          </DialogHeader>
-          <DialogFooter className="grid grid-cols-1 gap-3">
-            <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={resumeGame} size="lg" type="button">
-              <Play aria-hidden="true" /> {t('common.resume')}
-            </Button>
-            <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={restartGame} size="lg" type="button">
-              <RotateCcw aria-hidden="true" /> {t('common.restart')}
-            </Button>
-            <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => void saveAndQuit()} size="lg" type="button">
-              <Save aria-hidden="true" /> {t('common.saveAndQuit')}
-            </Button>
-            <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => void copyDebugState()} size="lg" type="button">
-              <Bug aria-hidden="true" /> {t('cascade.reportBug')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CascadePauseDialog onCopyDebugState={() => void copyDebugState()} onOpenChange={handlePauseDialogChange} onRestart={restartGame} onResume={resumeGame} onSaveAndQuit={() => void saveAndQuit()} open={isPaused} />
     </main>
   )
 }

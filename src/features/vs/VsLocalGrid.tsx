@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type FocusEvent } from 'react'
-import { Bug, Check, ChevronLeft, ChevronRight, Pause, Play, RotateCcw, Save } from 'lucide-react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Check, ChevronLeft, ChevronRight, Pause } from 'lucide-react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { loadVsLocalGameState, saveVsLocalGameState } from '@/lib/db'
 import { VsLocalCanvas } from './VsLocalCanvas'
 import { VsMoveList } from './VsMoveList'
+import { VsPauseDialog } from './VsPauseDialog'
 import { VsVictoryDialog } from './VsVictoryDialog'
-import { VS_LOCAL_CONFIG } from './vsLocalConfig'
+import { isVsLocalBoardSize, VS_LOCAL_CONFIG, VS_LOCAL_DEFAULT_BOARD_SIZE, type VsLocalBoardSize } from './vsLocalConfig'
 import { exportVsDebugState } from './vsDebugState'
 import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsPlayerScores, goToVsHistory, resumeVsLocalGame, selectVsCell, VS_PLAYERS, type VsGameResult, type VsLocalGameState, type VsPlayerId } from './vsLocalGame'
 
@@ -71,9 +71,20 @@ export function VsLocalGrid() {
   const persistenceQueueRef = useRef<Promise<void>>(Promise.resolve())
   const location = useLocation()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const requestedBoardSize = Number(searchParams.get('boardSize'))
+  const boardSize: VsLocalBoardSize = isVsLocalBoardSize(requestedBoardSize) ? requestedBoardSize : VS_LOCAL_DEFAULT_BOARD_SIZE
+  const startNewMatchFromSetup = location.state !== null && typeof location.state === 'object' && 'startNewVsMatch' in location.state && location.state.startNewVsMatch === true
 
   useEffect(() => {
     let active = true
+    if (startNewMatchFromSetup) {
+      setGame(createVsLocalGame(Math.random, { boardSize }))
+      return () => {
+        active = false
+      }
+    }
+
     void loadVsLocalGameState()
       .then((savedGame) => {
         if (active) setGame(resumeVsLocalGame(savedGame))
@@ -84,7 +95,7 @@ export function VsLocalGrid() {
     return () => {
       active = false
     }
-  }, [])
+  }, [boardSize, startNewMatchFromSetup])
 
   useEffect(() => {
     if (!game) return
@@ -161,7 +172,7 @@ export function VsLocalGrid() {
   }
 
   function startNewMatch() {
-    setGame(createVsLocalGame())
+    setGame(createVsLocalGame(Math.random, { boardSize: game?.boardSize ?? boardSize }))
     setPauseOpen(false)
     setVictoryDialogDismissed(false)
   }
@@ -205,37 +216,12 @@ export function VsLocalGrid() {
       <div className="flex min-h-0 flex-1 flex-col gap-2 px-1">
         <PlayerBand active={result === null && game?.activePlayer === 0} canFinishTurn={canFinishTurn} facingOpponent onFinishTurn={endTurn} player={0} pointDifference={playerOnePoints - playerTwoPoints} points={playerOnePoints} result={result} />
         <section aria-label="Local VS board" className="min-h-0 flex-1 border-4 border-[var(--grid-border-color)] bg-[var(--grid-border-color)]">
-          {game && <VsLocalCanvas game={game} onCellTap={selectCell} />}
+          {game && <VsLocalCanvas game={game} key={game.boardSize ?? VS_LOCAL_DEFAULT_BOARD_SIZE} onCellTap={selectCell} />}
         </section>
         <PlayerBand active={result === null && game?.activePlayer === 1} canFinishTurn={canFinishTurn} onFinishTurn={endTurn} player={1} pointDifference={playerTwoPoints - playerOnePoints} points={playerTwoPoints} result={result} />
       </div>
       {result && <VsVictoryDialog onNewGame={startNewMatch} onOpenChange={handleVictoryOpenChange} open={!victoryDialogDismissed} result={result} />}
-      <Dialog onOpenChange={handlePauseOpenChange} open={pauseOpen}>
-        <DialogContent aria-describedby={undefined}>
-          <DialogHeader>
-            <DialogTitle>Paused</DialogTitle>
-          </DialogHeader>
-          <DialogFooter className="grid grid-cols-1 gap-3">
-            <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => handlePauseOpenChange(false)} size="lg" type="button">
-              <Play aria-hidden="true" /> Resume
-            </Button>
-            <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={startNewMatch} size="lg" type="button">
-              <RotateCcw aria-hidden="true" /> Restart
-            </Button>
-            <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => void quitMatch()} size="lg" type="button">
-              <Save aria-hidden="true" /> Save and quit
-            </Button>
-            <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={!game || debugCopy?.status === 'copying'} onClick={() => void copyDebugState()} size="lg" type="button">
-              <Bug aria-hidden="true" /> Report a bug
-            </Button>
-          </DialogFooter>
-          {debugCopy?.status === 'copied' && <p className="mt-3 text-center text-[11px] text-[var(--muted-text-color)]" role="status">Game state copied. Paste it into your bug report.</p>}
-          {debugCopy?.status === 'error' && <div className="mt-3">
-            <p className="text-center text-[11px] text-[var(--coral)]" role="alert">Could not copy automatically. Copy the report below.</p>
-            <textarea aria-label="Game debug report" className="mt-2 w-full border border-[var(--outline-color)] bg-[var(--paper-muted)] p-2 text-[11px]" onFocus={selectDebugReport} readOnly rows={5} value={debugCopy.text} />
-          </div>}
-        </DialogContent>
-      </Dialog>
+      <VsPauseDialog canReportBug={game !== null} debugCopy={debugCopy} onCopyDebugState={() => void copyDebugState()} onOpenChange={handlePauseOpenChange} onRestart={startNewMatch} onResume={() => handlePauseOpenChange(false)} onSaveAndQuit={() => void quitMatch()} onSelectDebugReport={selectDebugReport} open={pauseOpen} />
     </main>
   )
 }

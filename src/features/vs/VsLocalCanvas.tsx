@@ -10,6 +10,7 @@ import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
 import { getVsNextTurnPreviewCells, getVsTargetedCells, VS_PLAYERS, type VsLocalGameState, type VsPlayerId } from './vsLocalGame'
 import { getVsLockedShapeBridges } from './vsLockedShapeBridges'
 import { CASCADE_LOCK_EFFECTS } from '@/features/cascade/cascadeEffects'
+import { VS_LOCAL_DEFAULT_BOARD_SIZE } from './vsLocalConfig'
 
 const TARGET_DOT_RADIUS_RATIO = 0.15
 const TARGET_DOT_ALPHA = 0.5
@@ -79,6 +80,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
     const lockWaves = new Set<ShockwaveFilter>()
     const gridShakeMotion = { time: 0 }
     const impactMotions = new Set<{ time: number }>()
+    const boardSize = gameRef.current.boardSize ?? VS_LOCAL_DEFAULT_BOARD_SIZE
 
     function drawCoordinates() {
       if (!surface) return
@@ -93,8 +95,8 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
       const placements = new Map(game.placedCornerominoes.map((cell) => [`${cell.column},${cell.row}`, cell]))
 
       for (const label of coordinateLabels) {
-        const column = label.kind === 'column' ? label.index : facingTop ? 9 : 0
-        const row = label.kind === 'row' ? label.index : facingTop ? 0 : 9
+        const column = label.kind === 'column' ? label.index : facingTop ? boardSize - 1 : 0
+        const row = label.kind === 'row' ? label.index : facingTop ? 0 : boardSize - 1
         const { x, y } = surface.cellToScreen(column, row)
         const upperLeft = label.kind === 'row' ? !facingTop : facingTop
         label.text.position.set(
@@ -267,8 +269,8 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
       canvasClassName: 'size-full touch-manipulation',
       init: { background: GAME_COLORS.cellBorder },
       onReady: () => {
-        const cellSize = Math.min(app.screen.width / 10, app.screen.height / 10)
-        surface = new GridSurface(app, { infinite: false, columns: 10, rows: 10 }, {
+        const cellSize = Math.min(app.screen.width / boardSize, app.screen.height / boardSize)
+        surface = new GridSurface(app, { infinite: false, columns: boardSize, rows: boardSize }, {
           width: app.screen.width,
           height: app.screen.height,
           cellSize,
@@ -285,7 +287,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
         surface.layers.effects.addChild(lockImpactLayer)
         // One in-cell number per row and letter per column, reused on redraw.
         for (const kind of ['row', 'column'] as const) {
-          for (let index = 0; index < 10; index += 1) {
+          for (let index = 0; index < boardSize; index += 1) {
             const text = new Text({
               text: kind === 'column' ? String.fromCharCode(65 + index) : String(index),
               resolution: Math.max(2, app.renderer.resolution),
@@ -307,7 +309,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
         draw()
       },
       onResize: (pixiApp) => {
-        const cellSize = Math.min(pixiApp.screen.width / 10, pixiApp.screen.height / 10)
+        const cellSize = Math.min(pixiApp.screen.width / boardSize, pixiApp.screen.height / boardSize)
         surface?.update({ width: pixiApp.screen.width, height: pixiApp.screen.height, cellSize, fit: 'contain' }, {
           cellColor: GAME_COLORS.cellFill,
           borderColor: GAME_COLORS.cellBorder,

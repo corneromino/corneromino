@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { HashRouter, Route, Routes } from 'react-router-dom'
 import { observeDialogViewport } from '@/lib/dialogViewport'
 import { Play } from '@/features/play/Play'
+import { ClassicTutorial } from '@/features/play/ClassicTutorial'
 import { MainMenu } from '@/features/main-menu/MainMenu'
 import { SavedGames } from '@/features/saved-games/SavedGames'
 import { Sandbox } from '@/features/sandbox/Sandbox'
@@ -20,6 +21,7 @@ function App() {
       <Routes>
         <Route element={<MainMenu />} path="/" />
         <Route element={<Play />} path="/play" />
+        <Route element={<ClassicTutorial />} path="/play/tutorial" />
         <Route element={<Sandbox />} path="/sandbox" />
         <Route element={<SandboxWorld />} path="/sandbox/new" />
         <Route element={<SandboxWorld />} path="/sandbox/:worldId" />

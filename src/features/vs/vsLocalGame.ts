@@ -1,6 +1,6 @@
 import { getTetrominoKind, TETROMINOES, type TetrominoKind } from '@/game/tetrominoes'
 import { LOCKED_CELL_COLORS, pixiColorToCss } from '@/rendering/colors'
-import { isVsTrapResolution, isVsWinCount, VS_LOCAL_CONFIG, type VsLocalConfig } from './vsLocalConfig'
+import { isVsLocalBoardSize, isVsTrapResolution, isVsWinCount, VS_LOCAL_CONFIG, VS_LOCAL_DEFAULT_BOARD_SIZE, type VsLocalBoardSize, type VsLocalConfig } from './vsLocalConfig'
 
 export type VsCorner = 0 | 1 | 2 | 3
 export type VsPlayerId = 0 | 1
@@ -82,13 +82,14 @@ export interface VsMoveHistory {
 }
 
 export interface VsLocalGameState extends VsLocalPosition, VsLocalConfig {
+  boardSize?: VsLocalBoardSize
   history: VsMoveHistory
   pendingMoveDirection: VsMoveDirection
   pendingPlacement: VsPlacement | null
 }
 
-export function createVsLocalGame(random = Math.random, config: Readonly<Partial<VsLocalConfig>> = {}): VsLocalGameState {
-  const { allowHistoryRewrite, allowOverlappingCombinationWin, combinationWinCount, consecutiveTurnWinCount, trapResolution } = { ...VS_LOCAL_CONFIG, ...config }
+export function createVsLocalGame(random = Math.random, config: Readonly<Partial<VsLocalConfig> & { boardSize?: VsLocalBoardSize }> = {}): VsLocalGameState {
+  const { allowHistoryRewrite, allowOverlappingCombinationWin, boardSize = VS_LOCAL_DEFAULT_BOARD_SIZE, combinationWinCount, consecutiveTurnWinCount, trapResolution } = { ...VS_LOCAL_CONFIG, ...config }
   if (typeof allowHistoryRewrite !== 'boolean') {
     throw new TypeError('Allow history rewrite must be a boolean.')
   }
@@ -104,6 +105,9 @@ export function createVsLocalGame(random = Math.random, config: Readonly<Partial
   if (!isVsTrapResolution(trapResolution)) {
     throw new RangeError('Trap resolution must be points or draw.')
   }
+  if (!isVsLocalBoardSize(boardSize)) {
+    throw new RangeError('Local VS board size must be 8 or 10.')
+  }
   const position: VsLocalPosition = {
     activePlayer: random() < 0.5 ? 0 : 1,
     captureStreak: null,
@@ -116,6 +120,7 @@ export function createVsLocalGame(random = Math.random, config: Readonly<Partial
     ...position,
     allowHistoryRewrite,
     allowOverlappingCombinationWin,
+    boardSize,
     combinationWinCount,
     consecutiveTurnWinCount,
     history: { positions: [position], index: 0 },
@@ -137,7 +142,11 @@ export function resumeVsLocalGame(savedGame: VsLocalGameState | null): VsLocalGa
     && savedGame.placedCornerominoes.length === 0
     && savedGame.pendingPlacement === null
     && savedGame.result === null
-  return unstarted ? { ...savedGame, ...VS_LOCAL_CONFIG } : savedGame
+  if (isVsLocalBoardSize(savedGame.boardSize)) {
+    return unstarted ? { ...savedGame, ...VS_LOCAL_CONFIG } : savedGame
+  }
+  const migratedGame: VsLocalGameState = { ...savedGame, boardSize: VS_LOCAL_DEFAULT_BOARD_SIZE }
+  return unstarted ? { ...migratedGame, ...VS_LOCAL_CONFIG } : migratedGame
 }
 
 export function canPlayVsTurn(state: VsLocalGameState): boolean {
@@ -169,8 +178,9 @@ function isOccupied(state: VsLocalGameState, column: number, row: number) {
   return state.placedCornerominoes.some((placement) => placement.column === column && placement.row === row)
 }
 
-function isInsideVsBoard(column: number, row: number) {
-  return column >= 0 && column < 10 && row >= 0 && row < 10
+function isInsideVsBoard(state: VsLocalGameState, column: number, row: number) {
+  const boardSize = state.boardSize ?? VS_LOCAL_DEFAULT_BOARD_SIZE
+  return column >= 0 && column < boardSize && row >= 0 && row < boardSize
 }
 
 function matchesVsMoveConstraint(constraint: VsMoveConstraint, column: number, row: number) {
@@ -186,8 +196,9 @@ function matchesVsMoveConstraint(constraint: VsMoveConstraint, column: number, r
 export function getVsAllowedCells(state: VsLocalGameState): Array<{ column: number; row: number }> {
   if (state.result) return []
   const allowedCells: Array<{ column: number; row: number }> = []
-  for (let row = 0; row < 10; row += 1) {
-    for (let column = 0; column < 10; column += 1) {
+  const boardSize = state.boardSize ?? VS_LOCAL_DEFAULT_BOARD_SIZE
+  for (let row = 0; row < boardSize; row += 1) {
+    for (let column = 0; column < boardSize; column += 1) {
       if (isOccupied(state, column, row)) continue
       if (state.nextMoveConstraint && !matchesVsMoveConstraint(state.nextMoveConstraint, column, row)) continue
       allowedCells.push({ column, row })
@@ -335,7 +346,7 @@ function countNonOverlappingVsShapes(shapes: readonly (readonly string[])[], lat
 export function selectVsCell(state: VsLocalGameState, column: number, row: number): VsLocalGameState {
   if (!canPlayVsTurn(state)) return state
   const pending = state.pendingPlacement
-  if (!isInsideVsBoard(column, row)) return state
+  if (!isInsideVsBoard(state, column, row)) return state
   if (pending?.column === column && pending.row === row) {
     return { ...state, pendingPlacement: { ...pending, corner: ((pending.corner + 1) % 4) as VsCorner } }
   }
