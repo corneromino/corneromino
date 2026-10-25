@@ -16,12 +16,16 @@ import { GameGridCanvas } from './GameGridCanvas'
 
 interface GameGridProps {
   boardId?: string
+  boardResetKey?: string
   highlightAreas?: readonly { height: number; id: string; left: number; top: number; width: number }[]
+  lockButtonId?: string
+  verifyButtonId?: string
   config: GameConfig
   gameId: string
   gameMode: GameMode
   onElapsedSecondsChange: (elapsedSeconds: number) => void
   onMoveCountChange: (moveCount: number) => void
+  onCorrectSolution?: () => void
   onNextGame: () => void
   onPauseOpenChange: (open: boolean) => void
   paused: boolean
@@ -220,6 +224,17 @@ export function GameGrid(props: GameGridProps) {
     })
   }
 
+  function selectHighlightedCell(event: React.PointerEvent<HTMLDivElement>) {
+    if (!event.currentTarget.classList.contains('driver-active-element')) return
+    const canvas = gameBoardRef.current?.querySelector('canvas')
+    if (!canvas) return
+    const bounds = canvas.getBoundingClientRect()
+    const column = Math.floor((event.clientX - bounds.left) / bounds.width * props.config.columns)
+    const row = Math.floor((event.clientY - bounds.top) / bounds.height * props.config.rows)
+    if (column < 0 || column >= props.config.columns || row < 0 || row >= props.config.rows) return
+    toggleCellSelection(`${column},${row}`)
+  }
+
   function lockSelectedCells() {
     if (!canLockSelectedCells) return
 
@@ -259,7 +274,7 @@ export function GameGrid(props: GameGridProps) {
     setLockedCellGroups((groups) => groups.filter((lockedGroup) => lockedGroup.id !== group.id))
     setIsCompleted(false)
     setCompletionScreenshot(null)
-    setSelectedCellKeys(new Set(group.cellKeys))
+    setSelectedCellKeys(new Set())
     setSelectedLockedGroupId(null)
     setValidationResult(null)
   }
@@ -281,6 +296,10 @@ export function GameGrid(props: GameGridProps) {
       isCorrect,
       validLockCount,
     })
+    if (isCorrect && props.onCorrectSolution) {
+      props.onCorrectSolution()
+      return
+    }
     setIsCompleted(isCorrect)
     // Capture the rendered board before opening the dialog over it.
     const canvas = gameBoardRef.current?.querySelector('canvas')
@@ -301,6 +320,10 @@ export function GameGrid(props: GameGridProps) {
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [])
+
+  useEffect(() => {
+    if (props.boardResetKey !== undefined) resetGame()
+  }, [props.boardResetKey])
 
   useEffect(() => {
     let active = true
@@ -408,6 +431,7 @@ export function GameGrid(props: GameGridProps) {
                 className="pointer-events-none absolute"
                 id={area.id}
                 key={area.id}
+                onPointerUp={selectHighlightedCell}
                 style={{
                   height: `${area.height / props.config.rows * 100}%`,
                   left: `${area.left / props.config.columns * 100}%`,
@@ -477,6 +501,7 @@ export function GameGrid(props: GameGridProps) {
           aria-label="Lock four selected cells"
           className="cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--mint)]"
           disabled={!canLockSelectedCells}
+          id={props.lockButtonId}
           onClick={lockSelectedCells}
           size="icon"
           title="Lock four selected cells"
@@ -502,6 +527,7 @@ export function GameGrid(props: GameGridProps) {
             validationResult?.isCorrect ? 'cartoon-press--green' : validationResult ? 'cartoon-press--red' : 'cartoon-press--blue',
           )}
           disabled={!canValidate}
+          id={props.verifyButtonId}
           onClick={validateLockedCells}
           title={t('classic.verify')}
           type="button"

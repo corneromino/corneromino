@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Pause } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -14,27 +14,124 @@ const TUTORIAL_CONFIG: GameConfig = {
   tetrominoCount: 0,
 }
 
-const TUTORIAL_PIECES_CORNERS: readonly PlacedTetromino[] = [{
-  id: 1,
-  kind: 'O',
-  cells: [
-    { cellId: 'a', corner: 'top-right', x: 3, y: 1 },
-    { cellId: 'b', corner: 'bottom-right', x: 3, y: 3 },
-    { cellId: 'c', corner: 'bottom-left', x: 1, y: 3 },
-    { cellId: 'd', corner: 'top-left', x: 1, y: 1 },
-  ],
-}]
+const TUTORIAL_ALL_CORNEROMINOS_CONFIG: GameConfig = {
+  columns: 10,
+  rows: 10,
+  spread: 0,
+  tetrominoCount: 0,
+}
 
-const TUTORIAL_SHAPE_EXAMPLE: readonly PlacedTetromino[] = [{
-  id: 1,
-  kind: 'L',
-  cells: [
-    { cellId: 'a', corner: 'top-right', x: 1, y: 1 },
-    { cellId: 'b', corner: 'bottom-right', x: 1, y: 2 },
-    { cellId: 'c', corner: 'bottom-left', x: 1, y: 3 },
-    { cellId: 'd', corner: 'top-left', x: 2, y: 3 },
-  ],
-}]
+interface TutorialScenario {
+  pieces: readonly PlacedTetromino[],
+  config : GameConfig
+}
+
+const TUTORIAL_SCENARIOS = {
+  'corners': {
+    config: TUTORIAL_CONFIG,
+    pieces: [{
+      id: 1,
+      kind: 'O',
+      cells: [
+        { cellId: 'a', corner: 'top-right', x: 3, y: 1 },
+        { cellId: 'b', corner: 'bottom-right', x: 3, y: 3 },
+        { cellId: 'c', corner: 'bottom-left', x: 1, y: 3 },
+        { cellId: 'd', corner: 'top-left', x: 1, y: 1 },
+      ],
+    }],
+  },
+  'shape-example': {
+    config: TUTORIAL_CONFIG,
+    pieces: [{
+      id: 1,
+      kind: 'L',
+      cells: [
+        { cellId: 'a', corner: 'top-right', x: 1, y: 1 },
+        { cellId: 'b', corner: 'bottom-right', x: 1, y: 2 },
+        { cellId: 'c', corner: 'bottom-left', x: 1, y: 3 },
+        { cellId: 'd', corner: 'top-left', x: 2, y: 3 },
+      ],
+    }],
+  },
+  'all-corneromino': {
+    config: TUTORIAL_ALL_CORNEROMINOS_CONFIG,
+    pieces: [{
+      id: 1,
+      kind: 'diagonal',
+      cells: [
+        { cellId: 'a', corner: 'top-right', x: 0, y: 0 },
+        { cellId: 'b', corner: 'bottom-right', x: 1, y: 1 },
+        { cellId: 'c', corner: 'bottom-left', x: 2, y: 2 },
+        { cellId: 'd', corner: 'top-left', x: 3, y: 3 },
+      ],
+    }, {
+      id: 2,
+      kind: 'I',
+      cells: [
+        { cellId: 'a', corner: 'top-right', x: 5, y: 0 },
+        { cellId: 'b', corner: 'bottom-right', x: 5, y: 1 },
+        { cellId: 'c', corner: 'bottom-left', x: 5, y: 2 },
+        { cellId: 'd', corner: 'top-left', x: 5, y: 3 },
+      ],
+    }, {
+      id: 3,
+      kind: 'S',
+      cells: [
+        { cellId: 'a', corner: 'top-right', x: 8, y: 0 },
+        { cellId: 'b', corner: 'bottom-right', x: 9, y: 0 },
+        { cellId: 'c', corner: 'bottom-left', x: 7, y: 1 },
+        { cellId: 'd', corner: 'top-left', x: 8, y: 1 },
+      ],
+    }, {
+      id: 4,
+      kind: 'L',
+      cells: [
+        { cellId: 'a', corner: 'top-right', x: 2, y: 5 },
+        { cellId: 'b', corner: 'bottom-right', x: 1, y: 5 },
+        { cellId: 'c', corner: 'bottom-left', x: 0, y: 5 },
+        { cellId: 'd', corner: 'top-left', x: 0, y: 6 },
+      ],
+    }, {
+      id: 5,
+      kind: 'J',
+      cells: [
+        { cellId: 'a', corner: 'top-right', x: 6, y: 6 },
+        { cellId: 'b', corner: 'bottom-right', x: 5, y: 6 },
+        { cellId: 'c', corner: 'bottom-left', x: 4, y: 6 },
+        { cellId: 'd', corner: 'top-left', x: 4, y: 5 },
+      ],
+    }, {
+      id: 6,
+      kind: 'O',
+      cells: [
+        { cellId: 'a', corner: 'top-right', x: 0, y: 8 },
+        { cellId: 'b', corner: 'bottom-right', x: 1, y: 8 },
+        { cellId: 'c', corner: 'bottom-left', x: 0, y: 9 },
+        { cellId: 'd', corner: 'top-left', x: 1, y: 9 },
+      ],
+    }, {
+      id: 7,
+      kind: 'Z',
+      cells: [
+        { cellId: 'a', corner: 'top-right', x: 3, y: 8 },
+        { cellId: 'b', corner: 'bottom-right', x: 4, y: 8 },
+        { cellId: 'c', corner: 'bottom-left', x: 4, y: 9 },
+        { cellId: 'd', corner: 'top-left', x: 5, y: 9 },
+      ],
+    }, {
+      id: 8,
+      kind: 'T',
+      cells: [
+        { cellId: 'a', corner: 'top-right', x: 8, y: 8 },
+        { cellId: 'b', corner: 'bottom-right', x: 7, y: 9 },
+        { cellId: 'c', corner: 'bottom-left', x: 8, y: 9 },
+        { cellId: 'd', corner: 'top-left', x: 9, y: 9 },
+      ],
+    }],
+  },
+} satisfies Record<string, TutorialScenario>
+
+type TutorialScenarioKey = keyof typeof TUTORIAL_SCENARIOS
 
 const TUTORIAL_HIGHLIGHT_AREAS: readonly { height: number; id: string; left: number; top: number; width: number }[] = [
   { id: 'classic-tutorial-corners', left: 1, top: 1, width: 3, height: 3 },
@@ -59,49 +156,85 @@ export function ClassicTutorial() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [moveCount, setMoveCount] = useState(0)
   const [pauseOpen, setPauseOpen] = useState(false)
-  const [pieces, setPieces] = useState(TUTORIAL_PIECES_CORNERS)
+  const [tutorialScenario, setTutorialScenario] = useState<TutorialScenarioKey>('corners')
+  const tutorialRef = useRef<ReturnType<typeof createTutorialDriver> | null>(null)
+  const advanceAfterScenarioChangeRef = useRef(false)
+
+  function showAllCornerominos() {
+    advanceAfterScenarioChangeRef.current = true
+    setTutorialScenario('all-corneromino')
+  }
 
   useEffect(() => {
+    if (tutorialScenario !== 'all-corneromino' || !advanceAfterScenarioChangeRef.current) return
+    advanceAfterScenarioChangeRef.current = false
+    const frame = window.requestAnimationFrame(() => tutorialRef.current?.moveNext())
+    return () => window.cancelAnimationFrame(frame)
+  }, [tutorialScenario])
+
+  useEffect(() => {
+    const showCornerExamples = () => setTutorialScenario('corners')
+    const showShapeExample = () => setTutorialScenario('shape-example')
     const tutorial = createTutorialDriver([{
       element: '#classic-tutorial-corners',
+      onHighlightStarted: showCornerExamples,
       popover: {
-        description: 'There are four different corner in a square...',
+        description: t('tutorial.classicSteps.corners'),
         side: 'bottom',
       },
     }, {
       element: '#classic-tutorial-top-right',
-      popover: { description: 'Top Right...', side: 'bottom' },
+      onHighlightStarted: showCornerExamples,
+      popover: { description: t('tutorial.classicSteps.topRight'), side: 'bottom' },
     }, {
       element: '#classic-tutorial-bottom-right',
-      popover: { description: 'Bottom Right...', side: 'bottom' },
+      onHighlightStarted: showCornerExamples,
+      popover: { description: t('tutorial.classicSteps.bottomRight'), side: 'bottom' },
     }, {
       element: '#classic-tutorial-bottom-left',
-      popover: { description: 'Bottom Left...', side: 'bottom' },
+      onHighlightStarted: showCornerExamples,
+      popover: { description: t('tutorial.classicSteps.bottomLeft'), side: 'bottom' },
     }, {
       element: '#classic-tutorial-top-left',
-      popover: { description: 'Top Left...', side: 'bottom' },
+      onHighlightStarted: showCornerExamples,
+      popover: { description: t('tutorial.classicSteps.topLeft'), side: 'bottom' },
     }, {
       element: '#classic-tutorial-shape-example',
-      onHighlightStarted: () => {
-        setPieces(TUTORIAL_SHAPE_EXAMPLE)
-      },
+      onHighlightStarted: showShapeExample,
       popover: {
-        description: 'A Corneromino is a shape with 4 unique different corners.',
+        description: t('tutorial.classicSteps.shapeExample'),
         side: 'bottom',
-        onPrevClick: (_, _step, options) => {
-          setPieces(TUTORIAL_PIECES_CORNERS)
-          options.driver.movePrevious()
-        }
       }
+    }, {
+      element: '#classic-tutorial-lock-button',
+      onHighlightStarted: showShapeExample,
+      popover: { description: t('tutorial.classicSteps.lockSelection'), side: 'top' },
+    }, {
+      element: '#classic-tutorial-verify-button',
+      nextLocked: true,
+      onHighlightStarted: showShapeExample,
+      popover: { description: t('tutorial.classicSteps.verifySolution'), side: 'top' },
+    }, {
+      element: '#classic-tutorial-board',
+      popover: { description: t('tutorial.classicSteps.allCornerominos'), side: 'bottom' },
     }], {
+      labels: {
+        close: t('common.close'),
+        next: t('common.next'),
+        previous: t('common.previous'),
+      },
       onClose: () => {
         if (returnToClassicGame) navigate(-1)
         else navigate('/play', { replace: true })
       },
     })
+    tutorialRef.current = tutorial
     tutorial.drive()
-    return () => tutorial.destroy()
-  }, [navigate, returnToClassicGame])
+    return () => {
+      if (tutorialRef.current === tutorial) tutorialRef.current = null
+      tutorial.destroy()
+    }
+  }, [navigate, returnToClassicGame, t])
 
   return (
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
@@ -127,17 +260,21 @@ export function ClassicTutorial() {
       <div className="relative z-10 min-h-0 flex-1">
         <GameGrid
           boardId="classic-tutorial-board"
-          config={TUTORIAL_CONFIG}
+          boardResetKey={tutorialScenario}
+          config={TUTORIAL_SCENARIOS[tutorialScenario].config}
           gameId="classic-tutorial"
           gameMode="super-easy"
           highlightAreas={TUTORIAL_HIGHLIGHT_AREAS}
+          lockButtonId="classic-tutorial-lock-button"
+          onCorrectSolution={showAllCornerominos}
           onElapsedSecondsChange={setElapsedSeconds}
           onMoveCountChange={setMoveCount}
           onNextGame={() => undefined}
           onPauseOpenChange={setPauseOpen}
           paused={pauseOpen}
           persistSelection={false}
-          pieces={pieces}
+          pieces={TUTORIAL_SCENARIOS[tutorialScenario].pieces}
+          verifyButtonId="classic-tutorial-verify-button"
         />
       </div>
     </main>
