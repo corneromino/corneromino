@@ -88,7 +88,7 @@ export function ClassicTutorial() {
       popover: {
         description: 'A Corneromino is a shape with 4 unique different corners.',
         side: 'bottom',
-        onPrevClick: (_, s, options) => {
+        onPrevClick: (_, _step, options) => {
           setPieces(TUTORIAL_PIECES_CORNERS)
           options.driver.movePrevious()
         }
