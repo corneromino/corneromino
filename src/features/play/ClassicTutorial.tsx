@@ -14,7 +14,36 @@ const TUTORIAL_CONFIG: GameConfig = {
   tetrominoCount: 0,
 }
 
-const TUTORIAL_PIECES: readonly PlacedTetromino[] = []
+const TUTORIAL_PIECES_CORNERS: readonly PlacedTetromino[] = [{
+  id: 1,
+  kind: 'O',
+  cells: [
+    { cellId: 'a', corner: 'top-right', x: 1, y: 1 },
+    { cellId: 'b', corner: 'bottom-right', x: 3, y: 1 },
+    { cellId: 'c', corner: 'bottom-left', x: 3, y: 3 },
+    { cellId: 'd', corner: 'top-left', x: 1, y: 3 },
+  ],
+}]
+
+const TUTORIAL_SHAPE_EXAMPLE: readonly PlacedTetromino[] = [{
+  id: 1,
+  kind: 'L',
+  cells: [
+    { cellId: 'a', corner: 'top-right', x: 1, y: 1 },
+    { cellId: 'b', corner: 'bottom-right', x: 1, y: 2 },
+    { cellId: 'c', corner: 'bottom-left', x: 1, y: 3 },
+    { cellId: 'd', corner: 'top-left', x: 2, y: 3 },
+  ],
+}]
+
+const TUTORIAL_HIGHLIGHT_AREAS: readonly { height: number; id: string; left: number; top: number; width: number }[] = [
+  { id: 'classic-tutorial-corners', left: 1, top: 1, width: 3, height: 3 },
+  { id: 'classic-tutorial-top-right', left: 1, top: 1, width: 1, height: 1 },
+  { id: 'classic-tutorial-bottom-right', left: 3, top: 1, width: 1, height: 1},
+  { id: 'classic-tutorial-bottom-left', left: 3, top: 3, width: 1, height: 1 },
+  { id: 'classic-tutorial-top-left', left: 1, top: 3, width: 1, height: 1 },
+  { id: 'classic-tutorial-shape-example', left: 1, top: 1, width: 2, height: 3 },
+]
 
 function formatElapsedTime(elapsedSeconds: number) {
   const minutes = Math.floor(elapsedSeconds / 60).toString().padStart(2, '0')
@@ -30,14 +59,40 @@ export function ClassicTutorial() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [moveCount, setMoveCount] = useState(0)
   const [pauseOpen, setPauseOpen] = useState(false)
+  const [pieces, setPieces] = useState(TUTORIAL_PIECES_CORNERS)
 
   useEffect(() => {
     const tutorial = createTutorialDriver([{
-      element: '#classic-tutorial-board',
+      element: '#classic-tutorial-corners',
       popover: {
-        description: 'Walcome to Corneromino !',
+        description: 'There are four different corner in a square...',
         side: 'bottom',
       },
+    }, {
+      element: '#classic-tutorial-top-right',
+      popover: { description: 'Top Right...', side: 'bottom' },
+    }, {
+      element: '#classic-tutorial-bottom-right',
+      popover: { description: 'Bottom Right...', side: 'bottom' },
+    }, {
+      element: '#classic-tutorial-bottom-left',
+      popover: { description: 'Bottom Left...', side: 'bottom' },
+    }, {
+      element: '#classic-tutorial-top-left',
+      popover: { description: 'Top Left...', side: 'bottom' },
+    }, {
+      element: '#classic-tutorial-shape-example',
+      onHighlightStarted: () => {
+        setPieces(TUTORIAL_SHAPE_EXAMPLE)
+      },
+      popover: {
+        description: 'A Corneromino is a shape with 4 unique different corners.',
+        side: 'bottom',
+        onPrevClick: (_, s, options) => {
+          setPieces(TUTORIAL_PIECES_CORNERS)
+          options.driver.movePrevious()
+        }
+      }
     }], {
       onClose: () => {
         if (returnToClassicGame) navigate(-1)
@@ -75,13 +130,14 @@ export function ClassicTutorial() {
           config={TUTORIAL_CONFIG}
           gameId="classic-tutorial"
           gameMode="super-easy"
+          highlightAreas={TUTORIAL_HIGHLIGHT_AREAS}
           onElapsedSecondsChange={setElapsedSeconds}
           onMoveCountChange={setMoveCount}
           onNextGame={() => undefined}
           onPauseOpenChange={setPauseOpen}
           paused={pauseOpen}
           persistSelection={false}
-          pieces={TUTORIAL_PIECES}
+          pieces={pieces}
         />
       </div>
     </main>

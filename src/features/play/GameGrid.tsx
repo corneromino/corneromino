@@ -16,6 +16,7 @@ import { GameGridCanvas } from './GameGridCanvas'
 
 interface GameGridProps {
   boardId?: string
+  highlightAreas?: readonly { height: number; id: string; left: number; top: number; width: number }[]
   config: GameConfig
   gameId: string
   gameMode: GameMode
@@ -390,7 +391,7 @@ export function GameGrid(props: GameGridProps) {
     <div className="flex h-full min-h-0 flex-col gap-4 px-1">
       <div className="flex min-h-0 flex-1 items-start justify-center [container-type:size]">
         <section aria-label="Game board" className="mx-auto max-w-[550px]" id={props.boardId} ref={gameBoardRef} style={boardStyle}>
-          <div className="size-full border-2 border-[#773526] bg-[#773526]">
+          <div className="relative size-full border-2 border-[#773526] bg-[#773526]">
             <GameGridCanvas
               config={props.config}
               lockedCellGroups={lockedCellGroups}
@@ -401,6 +402,20 @@ export function GameGrid(props: GameGridProps) {
               selectedLockedGroupId={selectedLockedGroupId}
               showCellIds={showCellIds}
             />
+            {props.highlightAreas?.map((area) => (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute"
+                id={area.id}
+                key={area.id}
+                style={{
+                  height: `${area.height / props.config.rows * 100}%`,
+                  left: `${area.left / props.config.columns * 100}%`,
+                  top: `${area.top / props.config.rows * 100}%`,
+                  width: `${area.width / props.config.columns * 100}%`,
+                }}
+              />
+            ))}
           </div>
         </section>
       </div>
