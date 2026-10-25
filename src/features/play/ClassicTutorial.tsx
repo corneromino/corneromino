@@ -18,10 +18,10 @@ const TUTORIAL_PIECES_CORNERS: readonly PlacedTetromino[] = [{
   id: 1,
   kind: 'O',
   cells: [
-    { cellId: 'a', corner: 'top-right', x: 1, y: 1 },
-    { cellId: 'b', corner: 'bottom-right', x: 3, y: 1 },
-    { cellId: 'c', corner: 'bottom-left', x: 3, y: 3 },
-    { cellId: 'd', corner: 'top-left', x: 1, y: 3 },
+    { cellId: 'a', corner: 'top-right', x: 3, y: 1 },
+    { cellId: 'b', corner: 'bottom-right', x: 3, y: 3 },
+    { cellId: 'c', corner: 'bottom-left', x: 1, y: 3 },
+    { cellId: 'd', corner: 'top-left', x: 1, y: 1 },
   ],
 }]
 
@@ -38,10 +38,10 @@ const TUTORIAL_SHAPE_EXAMPLE: readonly PlacedTetromino[] = [{
 
 const TUTORIAL_HIGHLIGHT_AREAS: readonly { height: number; id: string; left: number; top: number; width: number }[] = [
   { id: 'classic-tutorial-corners', left: 1, top: 1, width: 3, height: 3 },
-  { id: 'classic-tutorial-top-right', left: 1, top: 1, width: 1, height: 1 },
-  { id: 'classic-tutorial-bottom-right', left: 3, top: 1, width: 1, height: 1},
-  { id: 'classic-tutorial-bottom-left', left: 3, top: 3, width: 1, height: 1 },
-  { id: 'classic-tutorial-top-left', left: 1, top: 3, width: 1, height: 1 },
+  { id: 'classic-tutorial-top-right', left: 3, top: 1, width: 1, height: 1 },
+  { id: 'classic-tutorial-bottom-right', left: 3, top: 3, width: 1, height: 1},
+  { id: 'classic-tutorial-bottom-left', left: 1, top: 3, width: 1, height: 1 },
+  { id: 'classic-tutorial-top-left', left: 1, top: 1, width: 1, height: 1 },
   { id: 'classic-tutorial-shape-example', left: 1, top: 1, width: 2, height: 3 },
 ]
 
