@@ -2,7 +2,7 @@
   "id": "/corneromino/corneromino-pwa-v1",
   "name": "Corneromino",
   "short_name": "Corneromino",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "A tetromino deduction puzzle game.",
   "lang": "en",
   "start_url": "/corneromino/#/",
