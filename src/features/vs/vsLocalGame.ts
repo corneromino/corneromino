@@ -344,7 +344,9 @@ export function findValidatedVsCellKeys(placed: readonly VsPlacedCorneromino[], 
 export function selectVsCell(state: VsLocalGameState, column: number, row: number): VsLocalGameState {
   if (!canPlayVsTurn(state)) return state
   const pending = state.pendingPlacement
-  if (!isInsideVsBoard(state, column, row)) return state
+  // GridSurface centers the square board in a taller canvas; its letterbox bands
+  // are intentional direction-toggle targets while a placement is pending.
+  if (!isInsideVsBoard(state, column, row)) return pending ? toggleVsMoveDirection(state) : state
   if (pending?.column === column && pending.row === row) {
     return { ...state, pendingPlacement: { ...pending, corner: ((pending.corner + 1) % 4) as VsCorner } }
   }

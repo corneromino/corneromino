@@ -39,6 +39,14 @@ describe('Local VS manual claims', () => {
     expect(game.pendingPlacement?.corner).toBe(2)
   })
 
+  it('toggles direction when tapping outside the contained board in a canvas letterbox band', () => {
+    let game = selectVsCell(createVsLocalGame(() => 0), 3, 4)
+    game = selectVsCell(game, 3, -1)
+    expect(game.pendingMoveDirection).toBe('diagonal')
+    game = selectVsCell(game, 3, 10)
+    expect(game.pendingMoveDirection).toBe('orthogonal')
+  })
+
   it('selects any unlocked existing cell, even when it belongs to the opponent', () => {
     let game = withSquare()
     game = selectVsCell(game, 0, 0)
