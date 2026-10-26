@@ -234,7 +234,6 @@
 
 .cartoon-press:active:not(:disabled) .button-press-content {
   transform: translateY(calc(var(--press-shadow-depth) / 2));
-  transition-duration: 0ms;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -252,12 +251,10 @@
   box-shadow:
     inset 0 -1px 0 var(--press-shadow),
     0 0 0 1px rgb(21 16 14 / 8%) !important;
-  transition-duration: 0ms !important;
 }
 
 .cartoon-press:active:not(:disabled)::after {
   transform: scaleY(0.166667);
-  transition-duration: 0ms;
 }
 
 .cartoon-press--green {

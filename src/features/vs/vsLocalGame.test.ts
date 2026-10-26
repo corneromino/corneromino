@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsPlayerScores, goToVsHistory, resumeVsLocalGame, selectVsCell, type VsLocalGameState, type VsPlacedCorneromino, type VsPlayerId } from './vsLocalGame'
+import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsPlayerScores, goToVsHistory, hasVsTurnDraft, previousVsMove, resumeVsLocalGame, selectVsCell, toggleVsMoveDirection, type VsLocalGameState, type VsPlacedCorneromino, type VsPlayerId } from './vsLocalGame'
 
 const square: VsPlacedCorneromino[] = [
   { column: 0, row: 0, corner: 0, player: 1 },
@@ -54,6 +54,49 @@ describe('Local VS manual claims', () => {
       expect(game.pendingPlacement?.corner).toBe(corner)
       expect(game.selectedCellKeys).toEqual(['0,0'])
     }
+  })
+
+  it('cancels a current turn before returning to the previous confirmed move', () => {
+    let game = finishVsTurn(selectVsCell(createVsLocalGame(() => 0), 4, 4))
+    game = selectVsCell(game, 4, 2)
+    game = toggleVsMoveDirection(game)
+    expect(hasVsTurnDraft(game)).toBe(true)
+    const before = structuredClone(game)
+
+    const cancelled = previousVsMove(game)
+    expect(cancelled).toEqual({
+      ...game.history.positions[game.history.index],
+      ...game,
+      ...game.history.positions[game.history.index],
+      pendingMoveDirection: 'orthogonal',
+      pendingPlacement: null,
+      selectedCellKeys: [],
+    })
+    expect(cancelled.history.index).toBe(1)
+    expect(hasVsTurnDraft(cancelled)).toBe(false)
+    expect(game).toEqual(before)
+
+    const previous = previousVsMove(cancelled)
+    expect(previous.history.index).toBe(0)
+    expect(previous.placedCornerominoes).toEqual([])
+  })
+
+  it('cancels selection-only drafts without changing the current confirmed move', () => {
+    const base = finishVsTurn(selectVsCell(createVsLocalGame(() => 0), 3, 3))
+    const selected = selectVsCell(base, 3, 3)
+    expect(hasVsTurnDraft(selected)).toBe(true)
+    const cancelled = previousVsMove(selected)
+    expect(cancelled.history.index).toBe(1)
+    expect(cancelled.placedCornerominoes).toEqual(base.placedCornerominoes)
+    expect(previousVsMove(cancelled).history.index).toBe(0)
+  })
+
+  it('cancels a placement draft at the initial position instead of navigating', () => {
+    const draft = selectVsCell(createVsLocalGame(() => 0), 3, 3)
+    const cancelled = previousVsMove(draft)
+    expect(cancelled.history.index).toBe(0)
+    expect(cancelled.placedCornerominoes).toEqual([])
+    expect(cancelled.pendingPlacement).toBeNull()
   })
 
   it('does not lock an unselected valid Corneromino', () => {

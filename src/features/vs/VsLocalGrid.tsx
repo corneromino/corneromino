@@ -10,7 +10,7 @@ import { VsPauseDialog } from './VsPauseDialog'
 import { VsVictoryDialog } from './VsVictoryDialog'
 import { isVsLocalBoardSize, VS_LOCAL_CONFIG, VS_LOCAL_DEFAULT_BOARD_SIZE, type VsLocalBoardSize } from './vsLocalConfig'
 import { exportVsDebugState } from './vsDebugState'
-import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsPlayerScores, goToVsHistory, resumeVsLocalGame, selectVsCell, toggleVsMoveDirection, VS_PLAYERS, type VsGameResult, type VsLocalGameState, type VsPlayerId } from './vsLocalGame'
+import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsPlayerScores, goToVsHistory, hasVsTurnDraft, previousVsMove, resumeVsLocalGame, selectVsCell, toggleVsMoveDirection, VS_PLAYERS, type VsGameResult, type VsLocalGameState, type VsPlayerId } from './vsLocalGame'
 
 interface PlayerBandProps {
   active: boolean
@@ -37,10 +37,10 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTur
     <section
       aria-label={`${playerStyle.label}, ${result ? result.winner === player ? 'winner' : result.winner === null ? 'draw' : 'match finished' : active ? 'playing' : 'waiting'}`}
       className={cn(
-        'flex h-[66px] shrink-0 items-center rounded-md border-8 px-3 transition-shadow',
+        'flex h-[66px] shrink-0 items-center rounded-md border-0 border-l-15 px-3 transition-shadow',
         facingOpponent && 'rotate-180',
       )}
-      style={{ backgroundColor: playerStyle.bannerBackground, borderColor: active ? '#FFF' : 'transparent' }}
+      style={{ backgroundColor: playerStyle.bannerBackground, borderColor: active ? '#fff' : 'transparent' }}
     >
       <div aria-label="Toggle orthogonal or diagonal move direction" className={cn('flex min-w-0 flex-1 items-center', canToggleMoveDirection && 'cursor-pointer')} onClick={canToggleMoveDirection ? onToggleMoveDirection : undefined} onKeyDown={handleCardKeyDown} role={canToggleMoveDirection ? 'button' : undefined} tabIndex={canToggleMoveDirection ? 0 : undefined} title={canToggleMoveDirection ? 'Toggle orthogonal or diagonal move direction' : undefined}>
         <div className="shrink-0 pr-3">
@@ -120,7 +120,7 @@ export function VsLocalGrid() {
     setGame((current) => current && toggleVsMoveDirection(current))
   }, [])
   const previousMove = useCallback(() => {
-    setGame((current) => current && goToVsHistory(current, current.history.index - 1))
+    setGame((current) => current && previousVsMove(current))
     setVictoryDialogDismissed(true)
   }, [])
   const nextMove = useCallback(() => {
@@ -138,6 +138,7 @@ export function VsLocalGrid() {
   const lastHistoryIndex = (game?.history.positions.length ?? 1) - 1
   const viewingPast = historyIndex < lastHistoryIndex
   const canFinishTurn = game !== null && canPlayVsTurn(game) && game.pendingPlacement !== null
+  const hasTurnDraft = game !== null && hasVsTurnDraft(game)
 
   function handleVictoryOpenChange(open: boolean) {
     setVictoryDialogDismissed(!open)
@@ -207,7 +208,7 @@ export function VsLocalGrid() {
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
           <div className="flex gap-2">
-            <Button aria-label="Previous move" className="cartoon-press size-10 text-[var(--canvas-foreground)] disabled:opacity-50" disabled={!game || historyIndex === 0} onClick={previousMove} size="icon" title="Previous move" type="button">
+            <Button aria-label={hasTurnDraft ? 'Cancel current turn' : 'Previous move'} className="cartoon-press size-10 text-[var(--canvas-foreground)] disabled:opacity-50" disabled={!game || (!hasTurnDraft && historyIndex === 0)} onClick={previousMove} size="icon" title={hasTurnDraft ? 'Cancel current turn' : 'Previous move'} type="button">
               <ChevronLeft aria-hidden="true" />
             </Button>
             <Button aria-label="Next move" className="cartoon-press size-10 text-[var(--canvas-foreground)] disabled:opacity-50" disabled={!game || !viewingPast} onClick={nextMove} size="icon" title="Next move" type="button">

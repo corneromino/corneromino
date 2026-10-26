@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { Pause } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -142,6 +142,11 @@ export function Cascade(props: { startNew?: boolean }) {
     setIsPaused(true)
   }
 
+  function handlePausePointerUp(event: PointerEvent<HTMLButtonElement>) {
+    // Mobile browsers can suppress a synthetic click immediately after a canvas swipe.
+    if (event.pointerType === 'touch') pauseGame()
+  }
+
   function resumeGame() {
     canvasRef.current?.resume()
     setIsPaused(false)
@@ -195,6 +200,7 @@ export function Cascade(props: { startNew?: boolean }) {
           className="cartoon-press size-10 text-[var(--canvas-foreground)]"
           disabled={initialState === undefined}
           onClick={pauseGame}
+          onPointerUp={handlePausePointerUp}
           size="icon"
           title={t('common.pause')}
           type="button"

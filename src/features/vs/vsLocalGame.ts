@@ -175,6 +175,29 @@ export function goToVsHistory(state: VsLocalGameState, index: number): VsLocalGa
   }
 }
 
+/** A turn draft is local-only state and is never recorded in move history. */
+export function hasVsTurnDraft(state: VsLocalGameState): boolean {
+  return state.pendingPlacement !== null || state.pendingMoveDirection !== 'orthogonal' || state.selectedCellKeys.length > 0
+}
+
+/** Restore the current confirmed position without moving through history. */
+export function cancelVsTurnDraft(state: VsLocalGameState): VsLocalGameState {
+  if (!hasVsTurnDraft(state)) return state
+  return {
+    ...state,
+    ...state.history.positions[state.history.index],
+    pendingMoveDirection: 'orthogonal',
+    pendingPlacement: null,
+    selectedCellKeys: [],
+  }
+}
+
+/** Previous first cancels a current draft; a clean position then moves back one confirmed turn. */
+export function previousVsMove(state: VsLocalGameState): VsLocalGameState {
+  const withoutDraft = cancelVsTurnDraft(state)
+  return withoutDraft === state ? goToVsHistory(state, state.history.index - 1) : withoutDraft
+}
+
 /** Ownership is stored once per board cell, even when lock groups share that cell. */
 export function getVsPlayerScores(placed: readonly VsPlacedCorneromino[]): [number, number] {
   const scores: [number, number] = [0, 0]
