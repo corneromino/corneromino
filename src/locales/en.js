@@ -47,7 +47,7 @@ export default {
             "shapeExample": "A Corneromino has exactly four connected squares, each with a unique corner.\nSelect the four squares.",
             "lockSelection": "Lock your selection.",
             "verifySolution": "Once all squares are locked, you can verify your solution",
-            "tRotations": "The T Corneromino has 4 rotations.",
+            "tRotations": "Each Corneromino has 4 rotations.\nHere are the 4 rotations of the 'T' Corneromino.\nCan you spot them ?",
             "allCornerominos": "There are 8 different cornerominos. Each has 4 different rotations.",
             "completed": "Well done ! You can close the tutorial."
         }

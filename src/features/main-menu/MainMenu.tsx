@@ -28,7 +28,7 @@ export function MainMenu() {
           </h1>
           <Button
             asChild
-            className="cartoon-press classic-menu-button w-full text-[18px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+            className="cartoon-press classic-menu-button w-full text-[18px] font-black text-[var(--canvas-foreground)] uppercase"
             size="lg"
           >
             <Link to="/play" className='gap-10'>
@@ -38,7 +38,7 @@ export function MainMenu() {
           </Button>
           <Button
             asChild
-            className="cartoon-press cascade-menu-button w-full text-[18px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+            className="cartoon-press cascade-menu-button w-full text-[18px] font-black text-[var(--canvas-foreground)] uppercase"
             size="lg"
             >
             <Link to="/cascade" className='gap-10'>
@@ -55,7 +55,7 @@ export function MainMenu() {
           </Button> */}
           <Button
             asChild
-            className="cartoon-press vs-menu-button w-full text-[18px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+            className="cartoon-press vs-menu-button w-full text-[18px] font-black text-[var(--canvas-foreground)] uppercase"
             size="lg"
           >
             <Link to="/vs" className='gap-10'>

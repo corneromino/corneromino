@@ -16,6 +16,7 @@ const TARGET_DOT_RADIUS_RATIO = 0.15
 const TARGET_DOT_ALPHA = 0.5
 const CELL_BORDER_SIZE = 1.5
 const COORDINATE_FONT_SIZE = 24
+const SELECTED_CELL_COLOR = 0x5fc47a
 
 interface CoordinateLabel {
   kind: 'column' | 'row'
@@ -29,24 +30,27 @@ interface VsLocalCanvasProps {
   onCellTap: (column: number, row: number) => void
 }
 
-function drawPlacement(graphics: Graphics, surface: GridSurface, column: number, row: number, corner: number, pending: boolean, lockedBy?: VsPlayerId) {
-  const { x, y } = surface.cellToScreen(column, row)
+function drawPlacement(graphics: Graphics, surface: GridSurface, column: number, row: number, corner: number, pending: boolean, lockedBy?: VsPlayerId, selectedColor?: number) {
+  const screenPosition = surface.cellToScreen(column, row)
   const { cellHeight, cellWidth } = surface.metrics
-  const cellSize = Math.min(cellWidth, cellHeight)
-  drawCellBody(graphics, x, y, cellWidth, cellHeight, {
-    fillColor: pending ? GAME_COLORS.cornerMarker : lockedBy === undefined ? GAME_COLORS.cellFill : VS_PLAYERS[lockedBy].lockedColor,
+  const { x, y } = screenPosition
+  const width = cellWidth
+  const height = cellHeight
+  const cellSize = Math.min(width, height)
+  drawCellBody(graphics, x, y, width, height, {
+    fillColor: selectedColor ?? (pending ? GAME_COLORS.cornerMarker : lockedBy === undefined ? GAME_COLORS.cellFill : VS_PLAYERS[lockedBy].lockedColor),
     borderColor: GAME_COLORS.cellBorder,
     borderSize: CELL_BORDER_SIZE,
     // Match Normal mode: a cell radius is 2% of its size.
     borderRadius: cellSize * 0.02,
   })
   const marker = {
-    size: cellWidth * 0.45,
-    paddingX: Math.max(3, cellWidth * 0.12),
-    paddingY: Math.max(3, cellHeight * 0.12),
-    radius: cellWidth * 0.45 * 0.1,
+    size: width * 0.45,
+    paddingX: Math.max(3, width * 0.12),
+    paddingY: Math.max(3, height * 0.12),
+    radius: width * 0.45 * 0.1,
   }
-  const position = getCornerMarkerPosition(corner, cellWidth, cellHeight, marker)
+  const position = getCornerMarkerPosition(corner, width, height, marker)
   drawCornerMarker(graphics, x + position.x, y + position.y, { ...marker, color: pending ? GAME_COLORS.cellFill : GAME_COLORS.cornerMarker })
 }
 
@@ -239,8 +243,10 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
         const { cellHeight, cellWidth } = surface.metrics
         pieces.circle(x + cellWidth / 2, y + cellHeight / 2, Math.min(cellWidth, cellHeight) * TARGET_DOT_RADIUS_RATIO).fill({ color: GAME_COLORS.cornerMarker, alpha: TARGET_DOT_ALPHA })
       }
+      const selectedCellKeys = new Set(game.selectedCellKeys)
       for (const placement of gameRef.current.placedCornerominoes) {
-        drawPlacement(pieces, surface, placement.column, placement.row, placement.corner, false, placement.lockedBy)
+        const selected = selectedCellKeys.has(`${placement.column},${placement.row}`)
+        drawPlacement(pieces, surface, placement.column, placement.row, placement.corner, false, placement.lockedBy, selected ? SELECTED_CELL_COLOR : undefined)
       }
       // Draw joins after all bodies so neighbouring cell borders cannot cover them.
       for (const bridge of getVsLockedShapeBridges(gameRef.current.lockedCornerominoes, surface.metrics, CELL_BORDER_SIZE)) {

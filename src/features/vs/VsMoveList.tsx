@@ -8,7 +8,7 @@ interface VsMoveListProps {
   onSelect: (index: number) => void
 }
 
-const MOVE_CHIP_CLASS = 'shrink-0 rounded-sm border-2 border-transparent px-2 py-1 text-[11px] whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--canvas-foreground)]'
+const MOVE_CHIP_CLASS = 'shrink-0 rounded-sm border-2 font-bold border-transparent px-2 py-1 text-[11px] whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--canvas-foreground)]'
 
 export function VsMoveList({ history, onSelect }: VsMoveListProps) {
   const scrollRef = useRef<HTMLElement>(null)
@@ -38,7 +38,7 @@ export function VsMoveList({ history, onSelect }: VsMoveListProps) {
   }
 
   return (
-    <nav aria-label="Move history" className="relative flex w-full min-w-0 basis-full items-center gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain px-1" ref={scrollRef}>
+    <nav aria-label="Move history" className="relative tracking-widest flex w-full min-w-0 basis-full items-center gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" ref={scrollRef}>
       {moves.map((move) => (
         <button
           aria-current={move.historyIndex === history.index ? 'step' : undefined}

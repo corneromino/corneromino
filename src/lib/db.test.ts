@@ -62,6 +62,28 @@ describe('Local VS persistence', () => {
     await expect(loadVsLocalGameState()).resolves.toEqual(state)
   })
 
+  it('round-trips a manually selected shared-cell combination and its winning history', async () => {
+    const game = createVsLocalGame(() => 0)
+    for (const direction of [-1, 1]) {
+      for (const corner of [1, 2, 3] as const) {
+        game.placedCornerominoes.push({ column: 4 + direction * corner, row: 4, corner, player: 1 })
+      }
+    }
+    game.pendingPlacement = { column: 4, row: 4, corner: 0 }
+    game.selectedCellKeys = ['1,4', '2,4', '3,4', '5,4', '6,4', '7,4']
+    game.history = { positions: [getVsHistoryPosition(game)], index: 0 }
+    await saveVsLocalGameState(structuredClone(game))
+    const restored = await loadVsLocalGameState()
+    expect(restored).toEqual(game)
+
+    const finished = finishVsTurn(restored!)
+    expect(finished.result).toEqual({ reason: 'combination', winner: 0, shapeCount: 2 })
+    expect(finished.lockedCornerominoes).toHaveLength(2)
+    await saveVsLocalGameState(finished)
+    await expect(loadVsLocalGameState()).resolves.toEqual(finished)
+    expect(goToVsHistory(goToVsHistory(finished, 0), 1)).toEqual(finished)
+  })
+
   it('does not restore malformed saved data', async () => {
     await (await db).put('games', { id: 'vs:local:current', state: { activePlayer: 3 }, updatedAt: Date.now() })
     await expect(loadVsLocalGameState()).resolves.toBeNull()

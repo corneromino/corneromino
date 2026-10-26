@@ -52,7 +52,7 @@ export interface CascadeGameSaveState {
 
 export type VsLocalGameSaveState = VsLocalGameState
 
-type OptionalLegacyVsFields = 'allowHistoryRewrite' | 'allowOverlappingCombinationWin' | 'history' | 'captureStreak' | 'combinationWinCount' | 'consecutiveTurnWinCount' | 'result' | 'nextMoveConstraint' | 'pendingMoveDirection' | 'trapResolution'
+type OptionalLegacyVsFields = 'allowHistoryRewrite' | 'allowOverlappingCombinationWin' | 'history' | 'captureStreak' | 'combinationWinCount' | 'consecutiveTurnWinCount' | 'result' | 'nextMoveConstraint' | 'pendingMoveDirection' | 'selectedCellKeys' | 'trapResolution'
 type LegacyVsLocalGameSaveState = Omit<VsLocalGameSaveState, OptionalLegacyVsFields>
   & Partial<Pick<VsLocalGameSaveState, OptionalLegacyVsFields>>
 
@@ -172,6 +172,9 @@ function isVsLocalGameSaveState(value: unknown): value is LegacyVsLocalGameSaveS
     && (!('consecutiveTurnWinCount' in value) || isVsWinCount(value.consecutiveTurnWinCount))
     && (!('trapResolution' in value) || isVsTrapResolution(value.trapResolution))
     && (!('pendingMoveDirection' in value) || isVsMoveDirection(value.pendingMoveDirection))
+    && (!('selectedCellKeys' in value) || (Array.isArray(value.selectedCellKeys)
+      && value.selectedCellKeys.every((cellKey) => typeof cellKey === 'string')
+      && new Set(value.selectedCellKeys).size === value.selectedCellKeys.length))
     && 'pendingPlacement' in value && (value.pendingPlacement === null || isVsPlacement(value.pendingPlacement))
 }
 
@@ -414,6 +417,7 @@ export async function loadVsLocalGameState(): Promise<VsLocalGameSaveState | nul
     // Old saves lack the per-turn direction choices needed to rebuild earlier positions.
     history: storedState.state.history ?? { positions: [position], index: 0 },
     pendingMoveDirection: storedState.state.pendingMoveDirection ?? 'orthogonal',
+    selectedCellKeys: storedState.state.selectedCellKeys ?? [],
     trapResolution: storedState.state.trapResolution ?? VS_LOCAL_CONFIG.trapResolution,
   }
   return hasValidVsResult(state) && hasValidVsHistory(state) ? state : null

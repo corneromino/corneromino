@@ -14,8 +14,8 @@ export interface VsMoveConstraint {
 
 /** Player identities and lock colours live here so future themes can change them in one place. */
 export const VS_PLAYERS = [
-  { id: 0, label: 'Player 1', lockedColor: LOCKED_CELL_COLORS[0], bannerBackground: '#1e4a58', bannerBorder: pixiColorToCss(LOCKED_CELL_COLORS[0]), bannerScoreBackground: '#2a6173' },
-  { id: 1, label: 'Player 2', lockedColor: LOCKED_CELL_COLORS[4], bannerBackground: '#622d35', bannerBorder: pixiColorToCss(LOCKED_CELL_COLORS[4]), bannerScoreBackground: '#7d3b45' },
+  { id: 0, label: 'Player 1', lockedColor: LOCKED_CELL_COLORS[0], bannerBackground: '#176b83', bannerBorder: pixiColorToCss(LOCKED_CELL_COLORS[0]), bannerScoreBackground: '#2186a3' },
+  { id: 1, label: 'Player 2', lockedColor: LOCKED_CELL_COLORS[4], bannerBackground: '#85303b', bannerBorder: pixiColorToCss(LOCKED_CELL_COLORS[4]), bannerScoreBackground: '#ad3e49' },
 ] as const satisfies readonly { id: VsPlayerId; label: string; lockedColor: number; bannerBackground: string; bannerBorder: string; bannerScoreBackground: string }[]
 
 export interface VsPlacement {
@@ -86,6 +86,8 @@ export interface VsLocalGameState extends VsLocalPosition, VsLocalConfig {
   history: VsMoveHistory
   pendingMoveDirection: VsMoveDirection
   pendingPlacement: VsPlacement | null
+  /** Explicit claims on existing cells; the pending cell is considered contextually on confirmation. */
+  selectedCellKeys: string[]
 }
 
 export function createVsLocalGame(random = Math.random, config: Readonly<Partial<VsLocalConfig> & { boardSize?: VsLocalBoardSize }> = {}): VsLocalGameState {
@@ -126,6 +128,7 @@ export function createVsLocalGame(random = Math.random, config: Readonly<Partial
     history: { positions: [position], index: 0 },
     pendingMoveDirection: 'orthogonal',
     pendingPlacement: null,
+    selectedCellKeys: [],
     trapResolution,
   }
 }
@@ -138,14 +141,20 @@ export function getVsHistoryPosition(state: VsLocalPosition): VsLocalPosition {
 /** Refresh unused saved matches from code defaults; started matches keep their recorded rules. */
 export function resumeVsLocalGame(savedGame: VsLocalGameState | null): VsLocalGameState {
   if (!savedGame) return createVsLocalGame()
-  const unstarted = savedGame.history.positions.length === 1
-    && savedGame.placedCornerominoes.length === 0
-    && savedGame.pendingPlacement === null
-    && savedGame.result === null
-  if (isVsLocalBoardSize(savedGame.boardSize)) {
-    return unstarted ? { ...savedGame, ...VS_LOCAL_CONFIG } : savedGame
+  let migratedSelection = Array.isArray(savedGame.selectedCellKeys) ? savedGame : { ...savedGame, selectedCellKeys: [] }
+  const pending = migratedSelection.pendingPlacement
+  if (pending && migratedSelection.selectedCellKeys.includes(cellKey(pending.column, pending.row))) {
+    // Older drafts allowed long-press selection of the pending cell.
+    migratedSelection = { ...migratedSelection, selectedCellKeys: migratedSelection.selectedCellKeys.filter((key) => key !== cellKey(pending.column, pending.row)) }
   }
-  const migratedGame: VsLocalGameState = { ...savedGame, boardSize: VS_LOCAL_DEFAULT_BOARD_SIZE }
+  const unstarted = migratedSelection.history.positions.length === 1
+    && migratedSelection.placedCornerominoes.length === 0
+    && migratedSelection.pendingPlacement === null
+    && migratedSelection.result === null
+  if (isVsLocalBoardSize(migratedSelection.boardSize)) {
+    return unstarted ? { ...migratedSelection, ...VS_LOCAL_CONFIG } : migratedSelection
+  }
+  const migratedGame: VsLocalGameState = { ...migratedSelection, boardSize: VS_LOCAL_DEFAULT_BOARD_SIZE }
   return unstarted ? { ...migratedGame, ...VS_LOCAL_CONFIG } : migratedGame
 }
 
@@ -162,6 +171,7 @@ export function goToVsHistory(state: VsLocalGameState, index: number): VsLocalGa
     history: { ...state.history, index },
     pendingMoveDirection: 'orthogonal',
     pendingPlacement: null,
+    selectedCellKeys: [],
   }
 }
 
@@ -307,48 +317,23 @@ export function findValidatedVsCellKeys(placed: readonly VsPlacedCorneromino[], 
   return [...new Set(findValidatedVsShapes(placed, latest, previouslyLocked).flat())]
 }
 
-/** Count the largest subset sharing only the new cell, without filtering actual captures. */
-function countNonOverlappingVsShapes(shapes: readonly (readonly string[])[], latestKey: string): number {
-  if (shapes.length < 2) return shapes.length
-  const cellBits = new Map<string, bigint>()
-  const masks = shapes.map((shape) => shape.reduce((mask, key) => {
-    if (key === latestKey) return mask
-    let bit = cellBits.get(key)
-    if (bit === undefined) {
-      bit = 1n << BigInt(cellBits.size)
-      cellBits.set(key, bit)
-    }
-    return mask | bit
-  }, 0n))
-  let best = 0
-
-  function search(candidates: readonly bigint[], count: number) {
-    if (count + candidates.length <= best) return
-    let availableCells = candidates.reduce((union, mask) => union | mask, 0n)
-    let cellCount = 0
-    while (availableCells !== 0n) {
-      availableCells &= availableCells - 1n
-      cellCount += 1
-    }
-    // Each counted shape needs three different pre-existing cells.
-    if (count + Math.floor(cellCount / 3) <= best) return
-    for (let index = 0; index < candidates.length && count + candidates.length - index > best; index += 1) {
-      best = Math.max(best, count + 1)
-      search(candidates.slice(index + 1).filter((mask) => (mask & candidates[index]) === 0n), count + 1)
-    }
-  }
-
-  search(masks, 0)
-  return best
-}
-
-/** Places a fixed corner at top-right. Tap it to rotate; tap elsewhere to choose + or ×. */
+/** Tap the pending cell to rotate, existing unlocked cells to select, or empty space to choose + or ×. */
 export function selectVsCell(state: VsLocalGameState, column: number, row: number): VsLocalGameState {
   if (!canPlayVsTurn(state)) return state
   const pending = state.pendingPlacement
   if (!isInsideVsBoard(state, column, row)) return state
   if (pending?.column === column && pending.row === row) {
     return { ...state, pendingPlacement: { ...pending, corner: ((pending.corner + 1) % 4) as VsCorner } }
+  }
+  const placement = state.placedCornerominoes.find((item) => item.column === column && item.row === row)
+  if (placement && placement.lockedBy === undefined) {
+    const key = cellKey(column, row)
+    return {
+      ...state,
+      selectedCellKeys: state.selectedCellKeys.includes(key)
+        ? state.selectedCellKeys.filter((selectedKey) => selectedKey !== key)
+        : [...state.selectedCellKeys, key],
+    }
   }
   if (pending) return toggleVsMoveDirection(state)
   if (isOccupied(state, column, row)) return state
@@ -378,10 +363,55 @@ export function finishVsTurn(state: VsLocalGameState): VsLocalGameState {
   }
 }
 
+/** Cover the entire selection with one shape or an exact combination, sharing at most one junction cell. */
+function findSelectedVsShapes(placed: readonly VsPlacedCorneromino[], selectedKeys: readonly string[], previouslyLocked: readonly VsLockedCorneromino[], player: VsPlayerId, combinationWinCount: number): string[][] {
+  const selected = new Set(selectedKeys)
+  if (selected.size !== selectedKeys.length || selected.size < 4) return []
+  const wantedCount = selected.size === 4 ? 1 : combinationWinCount
+  // A combination uses four cells per shape, or three new cells plus a shared junction.
+  if (selected.size < wantedCount * 3 + 1 || selected.size > wantedCount * 4) return []
+  const available = new Map(placed.filter((placement) => placement.lockedBy === undefined && selected.has(cellKey(placement.column, placement.row))).map((placement) => [cellKey(placement.column, placement.row), placement]))
+  if (available.size !== selected.size) return []
+  const friendlyShapes = indexFriendlyLockedShapes(previouslyLocked, player)
+  const keys = [...selected]
+  const candidates: string[][] = []
+  for (let a = 0; a < keys.length; a += 1) for (let b = a + 1; b < keys.length; b += 1) for (let c = b + 1; c < keys.length; c += 1) for (let d = c + 1; d < keys.length; d += 1) {
+    const shapeKeys = [keys[a], keys[b], keys[c], keys[d]]
+    const shape = shapeKeys.map((key) => available.get(key)!)
+    const kind = getTetrominoKind(shape.map(({ column, row }) => ({ x: column, y: row })))
+    if (kind === null || new Set(shape.map((placement) => placement.corner)).size !== 4 || !matchesFriendlyShapeRule(shape, kind, friendlyShapes)) continue
+    candidates.push(shapeKeys)
+  }
+  function search(remaining: Set<string>, chosen: string[][], sharedKey?: string): string[][] | null {
+    if (remaining.size === 0) return chosen.length === wantedCount ? chosen : null
+    if (chosen.length >= wantedCount) return null
+    const shapesLeft = wantedCount - chosen.length
+    if (remaining.size < shapesLeft * 3 || remaining.size > shapesLeft * 4) return null
+    const first = remaining.values().next().value as string
+    for (const candidate of candidates) {
+      if (!candidate.includes(first)) continue
+      const sharedCells = candidate.filter((key) => !remaining.has(key))
+      if (sharedCells.length > 1 || (sharedCells.length === 1 && sharedKey !== undefined && sharedCells[0] !== sharedKey)) continue
+      const next = new Set(remaining)
+      candidate.forEach((key) => next.delete(key))
+      const result = search(next, [...chosen, candidate], sharedKey ?? sharedCells[0])
+      if (result) return result
+    }
+    return null
+  }
+  return search(selected, []) ?? []
+}
+
 function resolveVsTurn(state: VsLocalGameState, pending: VsPlacement): VsLocalGameState {
   const latest: VsPlacedCorneromino = { ...pending, player: state.activePlayer }
   const placedCornerominoes = [...state.placedCornerominoes, latest]
-  const validatedShapes = findValidatedVsShapes(placedCornerominoes, latest, state.lockedCornerominoes)
+  const pendingKey = cellKey(pending.column, pending.row)
+  const selectedKeys = state.selectedCellKeys.filter((key) => key !== pendingKey)
+  // Prefer the explicit claim; include the pending cell only if the claim is otherwise invalid.
+  let validatedShapes = findSelectedVsShapes(placedCornerominoes, selectedKeys, state.lockedCornerominoes, state.activePlayer, state.combinationWinCount)
+  if (validatedShapes.length === 0) {
+    validatedShapes = findSelectedVsShapes(placedCornerominoes, [...selectedKeys, pendingKey], state.lockedCornerominoes, state.activePlayer, state.combinationWinCount)
+  }
   const validatedCellKeys = new Set(validatedShapes.flat())
   const lockedCornerominoes = [
     ...state.lockedCornerominoes,
@@ -396,9 +426,7 @@ function resolveVsTurn(state: VsLocalGameState, pending: VsPlacement): VsLocalGa
   const captureStreak: VsCaptureStreak | null = validatedShapes.length > 0
     ? { player: state.activePlayer, turnCount: state.captureStreak?.player === state.activePlayer ? state.captureStreak.turnCount + 1 : 1 }
     : state.captureStreak?.player === state.activePlayer ? null : state.captureStreak
-  const combinationShapeCount = state.allowOverlappingCombinationWin
-    ? validatedShapes.length
-    : countNonOverlappingVsShapes(validatedShapes, cellKey(pending.column, pending.row))
+  const combinationShapeCount = validatedShapes.length
   // Combination takes precedence if both victory conditions are met on this turn.
   const result: VsGameResult | null = combinationShapeCount >= state.combinationWinCount
     ? { reason: 'combination', shapeCount: combinationShapeCount, winner: state.activePlayer }
@@ -419,6 +447,7 @@ function resolveVsTurn(state: VsLocalGameState, pending: VsPlacement): VsLocalGa
     },
     pendingMoveDirection: 'orthogonal',
     pendingPlacement: null,
+    selectedCellKeys: [],
     placedCornerominoes: placedCornerominoes.map((placement) => (
       validatedCellKeys.has(cellKey(placement.column, placement.row))
         ? { ...placement, lockedBy: state.activePlayer }

@@ -10,9 +10,9 @@ export function isVsLocalBoardSize(value: unknown): value is VsLocalBoardSize {
 export interface VsLocalConfig {
   /** Allow a confirmed move from an earlier position to replace all later moves. */
   allowHistoryRewrite: boolean
-  /** Count overlapping captures toward combination victory. If false, counted shapes may share only the newly placed cell. */
+  /** Retained for legacy saves. Manual combinations may share one junction cell only. */
   allowOverlappingCombinationWin: boolean
-  /** Minimum eligible shapes captured in one turn to win. Integer >= 2. */
+  /** Exact number of manually selected shapes required for a combination win. Integer >= 2. */
   combinationWinCount: number
   /** Own consecutive turns with a lock, uninterrupted by an opponent lock. Integer >= 2. */
   consecutiveTurnWinCount: number
