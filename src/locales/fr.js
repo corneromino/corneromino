@@ -1,0 +1,126 @@
+export default {
+    "common": {
+        "back": "Retour",
+        "backToMainMenu": "Retour au menu principal",
+        "cancel": "Annuler",
+        "continue": "Continuer",
+        "delete": "Supprimer",
+        "doNotSave": "Ne pas enregistrer",
+        "discard": "Ignorer",
+        "load": "Charger",
+        "loading": "Chargement…",
+        "new": "Nouveau",
+        "next": "Suivant",
+        "previous": "Precedent",
+        "pause": "Pause",
+        "quit": "Quitter",
+        "restart": "Recommencer",
+        "resume": "Reprendre",
+        "save": "Sauvegarder",
+        "saveAndQuit": "Sauvegarder et quitter",
+        "quitWithoutSaving": "Quitter sans sauvegarder",
+        "settings": "Parametres",
+        "close": "Fermer"
+    },
+    "difficulty": {
+        "superEasy": "Tres facile",
+        "easy": "Facile",
+        "medium": "Moyen",
+        "hard": "Difficile"
+    },
+    "tutorial": {
+        "title": "Tutoriel",
+        "open": "Ouvrir le tutoriel Classique",
+        "classicSteps": {
+            "corners": "Il existe quatre coins possible...",
+            "topRight": "En haut à droite...",
+            "bottomRight": "En bas à droite...",
+            "bottomLeft": "En bas à gauche...",
+            "topLeft": "En haut à gauche...",
+            "shapeExample": "Un Corneromino est composé de quatre carrés qui se touchent, chacun avec un coin unique.\nSélectionne les quatre carrés.",
+            "lockSelection": "Verrouille ta sélection.",
+            "verifySolution": "Une fois que tous les carrés sont verrouillés, tu peux vérifier ta solution.",
+            "tRotations": "Chaque Corneromino possède 4 rotations.\nVoici les 4 rotations du Corneromino 'T'.",
+            "allCornerominos": "Il existe 8 Cornerominos différents. Chacun possèdant 4 rotations differentes.",
+            "completed": "Bravo ! Tu peux fermer le tutoriel."
+        }
+    },
+    "settings": {
+        "language": "Langue",
+        "english": "English",
+        "french": "Francais"
+    },
+    "classic": {
+        "title": "Classique",
+        "saved": "Sauvegardes",
+        "generating": "Génération de la partie…",
+        "paused": "En pause",
+        "verify": "Verifier",
+        "correct": "Bien joué !",
+        "completedBoard": "Plateau terminé",
+        "saveGame": "Sauvegarder la partie",
+        "savePrompt": "Sauvegarder cette partie pour la reprendre plus tard ?"
+    },
+    "cascade": {
+        "title": "Cascade",
+        "newGame": "Nouvelle partie",
+        "score": "Score",
+        "loading": "Chargement…",
+        "paused": "En pause",
+        "lines": "Lignes",
+        "locked": "Verrouillés",
+        "dragInstructions": "Glisser ← → pour déplacer · Balayer ↓ pour lâcher",
+        "keyboardInstructions": "← → Déplacer · ↓ Lâcher · Maintenir Maj : flèches pour cibler, Espace pour sélectionner",
+        "reportBug": "Signaler un bug"
+    },
+    "versus": {
+        "title": "VS",
+        "local": "Local",
+        "online": "En ligne"
+    },
+    "sandbox": {
+        "title": "$t(en:sandbox.title)",
+        "newWorld": "Nouveau",
+        "loadingWorlds": "Chargement des mondes…"
+    },
+    "savedGames": {
+        "title": "Sauvegardes classiques",
+        "backToClassic": "Retour à Classique",
+        "loadGame": "Charger une partie",
+        "loading": "Chargement des sauvegardes…",
+        "empty": "Aucune sauvegarde",
+        "copySeed": "Copier le seed",
+        "deleteGame": "Supprimer la partie",
+        "deletePrompt": "Supprimer cette sauvegarde ? Cette action est irréversible.",
+        "savedBoard": "Plateau sauvegardé",
+        "loadPrompt": "Saisissez une valeur mode-de-jeu:seed copiée.",
+        "gameModeAndSeed": "Mode de jeu et seed",
+        "invalidSeed": "Saisissez une valeur mode-de-jeu:seed."
+    },
+    "versusGame": {
+        "paused": "En pause",
+        "resume": "Reprendre",
+        "restart": "Recommencer",
+        "finishTurn": "Terminer le tour",
+        "previousMove": "Coup précédent",
+        "nextMove": "Coup suivant",
+        "viewOnly": "Lecture seule",
+        "reportBug": "Signaler un bug",
+        "copied": "État de la partie copié. Collez-le dans votre rapport de bug.",
+        "copyFailed": "Copie automatique impossible. Copiez le rapport ci-dessous.",
+        "debugReport": "Rapport de débogage",
+        "winner": "Gagnant",
+        "draw": "Égalité",
+        "newMatch": "Nouvelle partie",
+        "viewBoard": "Voir le plateau",
+        "combination": "Victoire par combinaison",
+        "consecutive": "Victoire consécutive",
+        "trap": "Victoire par blocage",
+        "noLegalMoves": "Aucun coup légal",
+        "trapDraw": "Égalité par blocage",
+        "player": "Joueur {{number}}",
+        "points": "{{count}} points",
+        "move": "Coup {{number}}",
+        "moveHistory": "Historique des coups"
+    }
+}

@@ -209,9 +209,6 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
             shakeLayer.addChild(label)
           }
 
-          const marker = current.markers.get(key)
-          if (marker) shakeLayer.addChild(new Graphics().circle(cellWidth / 2, cellHeight / 2, cellSize * 0.15).fill({ color: MARKER_COLORS[marker] }))
-
           if (cell) {
             const markerSize = cellWidth * 0.45
             const offsetX = Math.max(3, cellWidth * 0.12)
@@ -222,6 +219,9 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
             drawCornerMarker(markerGraphic, position.x, position.y, style)
             shakeLayer.addChild(markerGraphic)
           }
+
+          const marker = current.markers.get(key)
+          if (marker) shakeLayer.addChild(new Graphics().circle(cellWidth / 2, cellHeight / 2, cellSize * 0.15).fill({ color: MARKER_COLORS[marker] }))
 
           board.addChild(cellContainer)
 

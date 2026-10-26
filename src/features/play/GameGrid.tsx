@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Eraser, Lock, Unlock } from 'lucide-react'
+import { Eraser, Lock, Pencil, Unlock } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { CellMarkerColor, GameConfig, GameMode, GameSelectionState, LockedCellGroup, PlacedTetromino } from '@/game/gameConfig'
 import { isTetrominoShape } from '@/game/tetrominoes'
 import { clearGameSelection, loadGameSelection, saveGameSelection } from '@/lib/db'
@@ -11,7 +10,6 @@ import { cn } from '@/lib/utils'
 import { LOCKED_CELL_COLOR_HEX } from '@/rendering/colors'
 import { CorrectGameDialog } from './CorrectGameDialog'
 import { ClassicPauseDialog } from './ClassicPauseDialog'
-import { SaveGameDialog } from './SaveGameDialog'
 import { GameGridCanvas } from './GameGridCanvas'
 
 interface GameGridProps {
@@ -64,13 +62,10 @@ export function GameGrid(props: GameGridProps) {
   const [selectedCellKeys, setSelectedCellKeys] = useState<Set<string>>(() => new Set())
   const [lockedCellGroups, setLockedCellGroups] = useState<LockedCellGroup[]>([])
   const [markers, setMarkers] = useState<Map<string, CellMarkerColor>>(() => new Map())
-  const [markerColor, setMarkerColor] = useState<CellMarkerColor>('black')
-  const [markerMenuOpen, setMarkerMenuOpen] = useState(false)
   const [markerMode, setMarkerMode] = useState(false)
   const [selectedLockedGroupId, setSelectedLockedGroupId] = useState<string | null>(null)
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
   const [selectionLoaded, setSelectionLoaded] = useState(false)
-  const [exitDialogOpen, setExitDialogOpen] = useState(false)
   const [isExiting, setIsExiting] = useState(false)
   const [gameGridScreenshot, setGameGridScreenshot] = useState<Blob | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
@@ -126,18 +121,19 @@ export function GameGrid(props: GameGridProps) {
     return queuedTask
   }
 
-  function requestExit() {
-    setExitDialogOpen(true)
-  }
-
   function restartFromPause() {
     resetGame()
     props.onPauseOpenChange(false)
   }
 
-  function quitFromPause() {
+  function quitWithoutSavingFromPause() {
     props.onPauseOpenChange(false)
-    requestExit()
+    void exitGame(false)
+  }
+
+  function saveAndQuitFromPause() {
+    props.onPauseOpenChange(false)
+    void exitGame(true)
   }
 
   async function captureGameGridScreenshot(): Promise<Blob | null> {
@@ -191,14 +187,6 @@ export function GameGrid(props: GameGridProps) {
     }
   }
 
-  function discardAndExit() {
-    void exitGame(false)
-  }
-
-  function saveAndExit() {
-    void exitGame(true)
-  }
-
   function handleCompletionOpenChange(open: boolean) {
     if (!open) setCompletionScreenshot(null)
   }
@@ -212,7 +200,7 @@ export function GameGrid(props: GameGridProps) {
         if (nextMarkers.has(cellKey)) {
           nextMarkers.delete(cellKey)
         } else {
-          nextMarkers.set(cellKey, markerColor)
+          nextMarkers.set(cellKey, 'black')
         }
         return nextMarkers
       })
@@ -471,48 +459,20 @@ export function GameGrid(props: GameGridProps) {
         >
           <Eraser aria-hidden="true" />
         </Button>
-        <DropdownMenu
-          onOpenChange={(open) => {
-            if (markerMode && open) {
-              setMarkerMode(false)
-              setMarkerMenuOpen(false)
-              return
-            }
-            setMarkerMenuOpen(open)
-          }}
-          open={markerMenuOpen}
+        <Button
+          aria-label="Take notes"
+          aria-pressed={markerMode}
+          className={cn(
+            'cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--canvas-foreground)]',
+            markerMode && '!bg-[var(--yellow)]',
+          )}
+          onClick={() => setMarkerMode((active) => !active)}
+          size="icon"
+          title="Take notes"
+          type="button"
         >
-          <DropdownMenuTrigger asChild>
-            <Button
-              aria-label="Choose marker color"
-              aria-pressed={markerMode}
-              className={cn(
-                'cartoon-press size-[clamp(36px,11vw,44px)]',
-                markerMode && '!bg-[var(--yellow)]',
-              )}
-              size="icon"
-              title="Choose marker color"
-              type="button"
-            >
-              <span aria-hidden="true" className={cn('size-4 rounded-full', markerColor === 'white' ? 'bg-[#8d8d8d]' : 'bg-[#15100e]')} />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="center" side="top" sideOffset={8}>
-            {(['white', 'black'] as const).map((color) => (
-              <DropdownMenuItem
-                key={color}
-                onSelect={() => {
-                  setMarkerColor(color)
-                  setMarkerMode(true)
-                  setMarkerMenuOpen(false)
-                }}
-              >
-                <span className={cn('size-4 rounded-full', color === 'white' ? 'bg-[#8d8d8d]' : 'bg-[#15100e]')} />
-                {color === 'white' ? 'Gray' : 'Black'}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          <Pencil aria-hidden="true" />
+        </Button>
         <Button
           aria-label="Lock four selected cells"
           className="cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--mint)]"
@@ -561,14 +521,7 @@ export function GameGrid(props: GameGridProps) {
         onOpenChange={handleCompletionOpenChange}
         screenshot={completionScreenshot}
       />
-      <ClassicPauseDialog onOpenChange={props.onPauseOpenChange} onQuit={quitFromPause} onRestart={restartFromPause} onResume={() => props.onPauseOpenChange(false)} open={props.paused} />
-      <SaveGameDialog
-        isSaving={isExiting}
-        onDiscard={discardAndExit}
-        onOpenChange={setExitDialogOpen}
-        onSave={saveAndExit}
-        open={exitDialogOpen}
-      />
+      <ClassicPauseDialog isSaving={isExiting} onOpenChange={props.onPauseOpenChange} onQuitWithoutSaving={quitWithoutSavingFromPause} onRestart={restartFromPause} onResume={() => props.onPauseOpenChange(false)} onSaveAndQuit={saveAndQuitFromPause} open={props.paused} />
     </div>
   )
 }

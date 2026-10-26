@@ -190,6 +190,7 @@ const TUTORIAL_STEP_INDEX = {
   allCornerominosGrid: 11,
   allCornerominosLock: 12,
   allCornerominosVerify: 13,
+  completed: 14,
 } as const
 
 const TUTORIAL_HIGHLIGHT_AREAS: readonly { height: number; id: string; left: number; top: number; width: number }[] = [
@@ -246,6 +247,8 @@ export function ClassicTutorial() {
     } else if (tutorialScenario === 't-rotations') {
       setTutorialScenario('all-corneromino')
       tutorialRef.current?.moveTo(TUTORIAL_STEP_INDEX.allCornerominosGrid)
+    } else if (tutorialScenario === 'all-corneromino') {
+      tutorialRef.current?.moveTo(TUTORIAL_STEP_INDEX.completed)
     }
   }
 
@@ -323,6 +326,10 @@ export function ClassicTutorial() {
       nextLocked: true,
       onHighlightStarted: () => setTutorialScenario('all-corneromino'),
       popover: { description: t('tutorial.classicSteps.verifySolution'), side: 'top' },
+    }, {
+      element: '#classic-tutorial-board',
+      onHighlightStarted: () => setTutorialScenario('all-corneromino'),
+      popover: { description: t('tutorial.classicSteps.completed'), side: 'bottom' },
     }], {
       labels: {
         close: t('common.close'),
