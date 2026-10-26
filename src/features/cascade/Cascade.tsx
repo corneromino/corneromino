@@ -250,8 +250,8 @@ export function Cascade(props: { startNew?: boolean }) {
         </div>
       </div>
       <p className="poster-kicker px-2 pt-3 text-center text-[11px] text-[var(--muted-text-color)]">
-        <span className="[@media(pointer:fine)]:hidden">{t('cascade.dragInstructions')}</span>
-        <span className="hidden [@media(pointer:fine)]:inline">{t('cascade.keyboardInstructions')}</span>
+        <span>{t('cascade.dragInstructions')}</span>
+        {/* <span className="hidden [@media(pointer:fine)]:inline">{t('cascade.keyboardInstructions')}</span> */}
       </p>
       <CascadePauseDialog onCopyDebugState={() => void copyDebugState()} onOpenChange={handlePauseDialogChange} onRestart={restartGame} onResume={resumeGame} onSaveAndQuit={() => void saveAndQuit()} open={isPaused} />
     </main>

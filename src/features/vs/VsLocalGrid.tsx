@@ -37,7 +37,7 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTur
     <section
       aria-label={`${playerStyle.label}, ${result ? result.winner === player ? 'winner' : result.winner === null ? 'draw' : 'match finished' : active ? 'playing' : 'waiting'}`}
       className={cn(
-        'flex h-[66px] shrink-0 items-center border-8 px-3 transition-shadow',
+        'flex h-[66px] shrink-0 items-center rounded-md border-8 px-3 transition-shadow',
         facingOpponent && 'rotate-180',
       )}
       style={{ backgroundColor: playerStyle.bannerBackground, borderColor: active ? '#FFF' : 'transparent' }}
@@ -48,7 +48,7 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTur
           {result?.winner === player && <p className="poster-kicker mt-1 text-[10px] leading-none text-[var(--paper)]">Winner</p>}
           {result?.winner === null && <p className="poster-kicker mt-1 text-[10px] leading-none text-[var(--paper)]">Draw</p>}
         </div>
-        <p aria-label={`${points} points`} className="flex h-8 flex-1 items-center justify-between px-3 text-[18px] leading-none text-[var(--paper)]" style={{ backgroundColor: playerStyle.bannerScoreBackground }}>
+        <p aria-label={`${points} points`} className="flex h-8 flex-1 items-center rounded-md justify-between px-3 text-[18px] leading-none text-[var(--paper)]" style={{ backgroundColor: playerStyle.bannerScoreBackground }}>
           <span>{points}</span>
           {pointDifference !== 0 && <span>{pointDifference > 0 ? `+${pointDifference}` : pointDifference}</span>}
         </p>

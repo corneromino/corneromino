@@ -69,7 +69,7 @@ export default {
         "paused": "En pause",
         "lines": "Lignes",
         "locked": "Verrouillés",
-        "dragInstructions": "Glisser ← → pour déplacer · Balayer ↓ pour lâcher",
+        "dragInstructions": "← → pour déplacer · ↓ pour lâcher",
         "keyboardInstructions": "← → Déplacer · ↓ Lâcher · Maintenir Maj : flèches pour cibler, Espace pour sélectionner",
         "reportBug": "Signaler un bug"
     },

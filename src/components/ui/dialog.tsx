@@ -12,7 +12,7 @@ function DialogContent(props: React.ComponentProps<typeof DialogPrimitive.Conten
       <DialogPrimitive.Content
         {...props}
         className={cn(
-          'dialog-content fixed top-1/2 left-1/2 z-50 w-[calc(100%-2.5rem)] max-w-[340px] -translate-x-1/2 -translate-y-1/2 border border-[var(--outline-color)] bg-[var(--paper)] p-5 shadow-[0_12px_0_var(--canvas-deep)] outline-none',
+          'dialog-content fixed top-1/2 left-1/2 z-50 w-[calc(100%-2.5rem)] max-w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-[var(--outline-color)] bg-[var(--paper)] p-5 shadow-[0_12px_0_var(--canvas-deep)] outline-none',
           props.className,
         )}
       />

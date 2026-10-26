@@ -11,7 +11,7 @@ function DropdownMenuContent(props: React.ComponentProps<typeof DropdownMenuPrim
       <DropdownMenuPrimitive.Content
         {...props}
         className={cn(
-          'z-50 min-w-[94px] border border-[var(--outline-color)] bg-[var(--paper)] p-1 shadow-[0_4px_0_var(--canvas-deep)] outline-none',
+          'z-50 min-w-[94px] rounded-md border border-[var(--outline-color)] bg-[var(--paper)] p-1 shadow-[0_4px_0_var(--canvas-deep)] outline-none',
           props.className,
         )}
       />
@@ -24,7 +24,7 @@ function DropdownMenuItem(props: React.ComponentProps<typeof DropdownMenuPrimiti
     <DropdownMenuPrimitive.Item
       {...props}
       className={cn(
-        'flex h-8 cursor-pointer items-center gap-2 px-2 text-[11px] font-bold uppercase outline-none hover:bg-[var(--paper-muted)] focus:bg-[var(--paper-muted)]',
+          'flex h-8 cursor-pointer items-center gap-2 rounded-sm px-2 text-[11px] font-bold uppercase outline-none hover:bg-[var(--paper-muted)] focus:bg-[var(--paper-muted)]',
         props.className,
       )}
     />

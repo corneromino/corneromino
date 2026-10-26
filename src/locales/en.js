@@ -76,7 +76,7 @@ export default {
         "paused": "Paused",
         "lines": "Lines",
         "locked": "Locked",
-        "dragInstructions": "Drag ← → to move · Swipe ↓ to drop",
+        "dragInstructions": "← → to move · ↓ to drop",
         "keyboardInstructions": "← → Move · ↓ Drop · Hold Shift: arrows focus, Space selects",
         "reportBug": "Report a bug"
     },

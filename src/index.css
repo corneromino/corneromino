@@ -45,7 +45,7 @@
   --muted-foreground: var(--muted-text-color);
   --border: var(--outline-color);
   --ring: var(--outline-color);
-  --radius: 0;
+  --radius: 10px;
   --canvas: #f0ad61;
   --canvas-deep: #d37a36;
   --canvas-foreground: #15100e;
@@ -237,10 +237,6 @@
   transition-duration: 0ms;
 }
 
-[data-slot='button'] {
-  border-radius: 0 !important;
-}
-
 @media (hover: hover) and (pointer: fine) {
   .cartoon-press:hover:not(:disabled) {
     background-color: var(--press-face-hover);
@@ -386,7 +382,7 @@
 .element-shadow {
   background-color: color-mix(in srgb, var(--element-color, var(--paper)) 72%, transparent);
   border: 1px solid var(--outline-color);
-  border-radius: 0;
+  border-radius: var(--radius-md);
   box-shadow: 0 0 0 1px rgb(21 16 14 / 12%), inset 0 0 24px rgb(113 51 36 / 12%);
 }
 
