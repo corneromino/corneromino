@@ -499,7 +499,7 @@ export function GameGrid(props: GameGridProps) {
         <Button
           aria-label={t('classic.verify')}
           className={cn(
-            'cartoon-press relative h-[clamp(36px,11vw,44px)] !overflow-visible px-2 text-[15px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase',
+            'cartoon-press relative h-[clamp(36px,11vw,44px)] px-2 text-[15px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase',
             validationResult?.isCorrect ? 'cartoon-press--green' : validationResult ? 'cartoon-press--red' : 'cartoon-press--blue',
           )}
           disabled={!canValidate}
@@ -509,7 +509,7 @@ export function GameGrid(props: GameGridProps) {
           type="button"
         >
           {validationResult && !validationResult.isCorrect && (
-            <span className="absolute -right-2 -top-2 z-10 grid size-5 place-items-center rounded-full border border-[var(--canvas-foreground)] bg-[var(--yellow)] text-[11px] font-black text-[#030505]">
+              <span className="absolute right-0 top-0 z-10 grid size-5 place-items-center rounded-full border border-[var(--canvas-foreground)] bg-[var(--yellow)] text-[11px] font-black text-[#030505]">
               {lockedCellGroups.length - validationResult.validLockCount}
             </span>
           )}

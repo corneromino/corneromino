@@ -7,7 +7,7 @@
   max-width: none;
   padding: 16px 16px calc(16px + var(--tutorial-band-depth));
   border: 1px solid var(--outline-color);
-  border-radius: 0;
+  border-radius: var(--radius-lg);
   background: var(--paper);
   color: var(--canvas-foreground);
   font-family: var(--font-sans);
@@ -27,6 +27,7 @@
   left: 0;
   height: var(--tutorial-band-depth);
   background: var(--tutorial-band-color);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   pointer-events: none;
 }
 
@@ -51,6 +52,7 @@
 
 .driver-popover.corneromino-tutorial .cartoon-press {
   box-sizing: border-box;
+  overflow: hidden;
   pointer-events: auto;
   position: relative;
   inset: auto;
@@ -61,7 +63,7 @@
   height: 36px;
   margin: 0;
   padding: 0 4px var(--press-shadow-depth);
-  border-radius: 0;
+  border-radius: var(--radius-md);
   background-color: var(--press-face);
   color: var(--canvas-foreground);
   font-family: inherit;
