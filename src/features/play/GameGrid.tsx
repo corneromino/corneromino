@@ -24,8 +24,11 @@ interface GameGridProps {
   gameId: string
   gameMode: GameMode
   onElapsedSecondsChange: (elapsedSeconds: number) => void
+  onLockAvailable?: () => void
+  onLocked?: () => void
   onMoveCountChange: (moveCount: number) => void
   onCorrectSolution?: () => void
+  onVerifyAvailable?: () => void
   onNextGame: () => void
   onPauseOpenChange: (open: boolean) => void
   paused: boolean
@@ -78,6 +81,8 @@ export function GameGrid(props: GameGridProps) {
   const gameBoardRef = useRef<HTMLElement>(null)
   const persistenceQueueRef = useRef<Promise<void>>(Promise.resolve())
   const savedSelectionRef = useRef<GameSelectionState | null>(null)
+  const lockWasAvailableRef = useRef(false)
+  const verifyWasAvailableRef = useRef(false)
   const cellMap = createCellMap(props.pieces)
   const lockedCellMap = createLockedCellMap(lockedCellGroups)
   const canLockSelectedCells = selectedCellKeys.size === 4 && isTetrominoShape(parseCellKeys(selectedCellKeys))
@@ -86,6 +91,16 @@ export function GameGrid(props: GameGridProps) {
     aspectRatio: `${props.config.columns} / ${props.config.rows}`,
     width: `min(100%, calc(100cqh * ${props.config.columns} / ${props.config.rows}))`,
   }
+
+  useEffect(() => {
+    if (canLockSelectedCells && !lockWasAvailableRef.current) props.onLockAvailable?.()
+    lockWasAvailableRef.current = canLockSelectedCells
+  }, [canLockSelectedCells, props.onLockAvailable])
+
+  useEffect(() => {
+    if (canValidate && !verifyWasAvailableRef.current) props.onVerifyAvailable?.()
+    verifyWasAvailableRef.current = canValidate
+  }, [canValidate, props.onVerifyAvailable])
   function clearSelectedCells() {
     setSelectedCellKeys(new Set())
     setSelectedLockedGroupId(null)
@@ -263,6 +278,7 @@ export function GameGrid(props: GameGridProps) {
     setValidationResult(null)
     setMoveCount(nextMoveCount)
     props.onMoveCountChange(nextMoveCount)
+    props.onLocked?.()
   }
 
   function unlockSelectedCells() {

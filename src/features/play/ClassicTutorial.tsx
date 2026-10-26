@@ -21,6 +21,13 @@ const TUTORIAL_ALL_CORNEROMINOS_CONFIG: GameConfig = {
   tetrominoCount: 0,
 }
 
+const TUTORIAL_T_ROTATIONS_CONFIG: GameConfig = {
+  columns: 6,
+  rows: 6,
+  spread: 0,
+  tetrominoCount: 0,
+}
+
 interface TutorialScenario {
   pieces: readonly PlacedTetromino[],
   config : GameConfig
@@ -50,6 +57,46 @@ const TUTORIAL_SCENARIOS = {
         { cellId: 'b', corner: 'bottom-right', x: 1, y: 2 },
         { cellId: 'c', corner: 'bottom-left', x: 1, y: 3 },
         { cellId: 'd', corner: 'top-left', x: 2, y: 3 },
+      ],
+    }],
+  },
+  't-rotations': {
+    config: TUTORIAL_T_ROTATIONS_CONFIG,
+    pieces: [{
+      id: 1,
+      kind: 'T',
+      cells: [
+        { cellId: 'a', corner: 'top-right', x: 1, y: 0 },
+        { cellId: 'b', corner: 'bottom-right', x: 0, y: 1 },
+        { cellId: 'c', corner: 'bottom-left', x: 1, y: 1 },
+        { cellId: 'd', corner: 'top-left', x: 2, y: 1 },
+      ],
+    }, {
+      id: 2,
+      kind: 'T',
+      cells: [
+        { cellId: 'a', corner: 'top-right', x: 4, y: 0 },
+        { cellId: 'b', corner: 'bottom-right', x: 4, y: 1 },
+        { cellId: 'c', corner: 'bottom-left', x: 5, y: 1 },
+        { cellId: 'd', corner: 'top-left', x: 4, y: 2 },
+      ],
+    }, {
+      id: 3,
+      kind: 'T',
+      cells: [
+        { cellId: 'a', corner: 'top-right', x: 0, y: 4 },
+        { cellId: 'b', corner: 'bottom-right', x: 1, y: 4 },
+        { cellId: 'c', corner: 'bottom-left', x: 2, y: 4 },
+        { cellId: 'd', corner: 'top-left', x: 1, y: 5 },
+      ],
+    }, {
+      id: 4,
+      kind: 'T',
+      cells: [
+        { cellId: 'a', corner: 'top-right', x: 5, y: 3 },
+        { cellId: 'b', corner: 'bottom-right', x: 4, y: 4 },
+        { cellId: 'c', corner: 'bottom-left', x: 5, y: 4 },
+        { cellId: 'd', corner: 'top-left', x: 5, y: 5 },
       ],
     }],
   },
@@ -133,6 +180,18 @@ const TUTORIAL_SCENARIOS = {
 
 type TutorialScenarioKey = keyof typeof TUTORIAL_SCENARIOS
 
+const TUTORIAL_STEP_INDEX = {
+  shapeGrid: 5,
+  shapeLock: 6,
+  shapeVerify: 7,
+  tGrid: 8,
+  tLock: 9,
+  tVerify: 10,
+  allCornerominosGrid: 11,
+  allCornerominosLock: 12,
+  allCornerominosVerify: 13,
+} as const
+
 const TUTORIAL_HIGHLIGHT_AREAS: readonly { height: number; id: string; left: number; top: number; width: number }[] = [
   { id: 'classic-tutorial-corners', left: 1, top: 1, width: 3, height: 3 },
   { id: 'classic-tutorial-top-right', left: 3, top: 1, width: 1, height: 1 },
@@ -140,6 +199,7 @@ const TUTORIAL_HIGHLIGHT_AREAS: readonly { height: number; id: string; left: num
   { id: 'classic-tutorial-bottom-left', left: 1, top: 3, width: 1, height: 1 },
   { id: 'classic-tutorial-top-left', left: 1, top: 1, width: 1, height: 1 },
   { id: 'classic-tutorial-shape-example', left: 1, top: 1, width: 2, height: 3 },
+  // { id: 'classic-tutorial-all-cornerominos', left: 0, top: 0, width: 5, height: 5 },
 ]
 
 function formatElapsedTime(elapsedSeconds: number) {
@@ -158,19 +218,36 @@ export function ClassicTutorial() {
   const [pauseOpen, setPauseOpen] = useState(false)
   const [tutorialScenario, setTutorialScenario] = useState<TutorialScenarioKey>('corners')
   const tutorialRef = useRef<ReturnType<typeof createTutorialDriver> | null>(null)
-  const advanceAfterScenarioChangeRef = useRef(false)
 
-  function showAllCornerominos() {
-    advanceAfterScenarioChangeRef.current = true
-    setTutorialScenario('all-corneromino')
+  function handleLockAvailable() {
+    const activeIndex = tutorialRef.current?.getActiveIndex()
+    if (activeIndex === TUTORIAL_STEP_INDEX.shapeGrid || activeIndex === TUTORIAL_STEP_INDEX.tGrid || activeIndex === TUTORIAL_STEP_INDEX.allCornerominosGrid) {
+      tutorialRef.current?.moveNext()
+    }
   }
 
-  useEffect(() => {
-    if (tutorialScenario !== 'all-corneromino' || !advanceAfterScenarioChangeRef.current) return
-    advanceAfterScenarioChangeRef.current = false
-    const frame = window.requestAnimationFrame(() => tutorialRef.current?.moveNext())
-    return () => window.cancelAnimationFrame(frame)
-  }, [tutorialScenario])
+  function handleLocked() {
+    const activeIndex = tutorialRef.current?.getActiveIndex()
+    if (activeIndex === TUTORIAL_STEP_INDEX.shapeLock || activeIndex === TUTORIAL_STEP_INDEX.tLock || activeIndex === TUTORIAL_STEP_INDEX.allCornerominosLock) {
+      tutorialRef.current?.movePrevious()
+    }
+  }
+
+  function handleVerifyAvailable() {
+    if (tutorialScenario === 'shape-example') tutorialRef.current?.moveTo(TUTORIAL_STEP_INDEX.shapeVerify)
+    if (tutorialScenario === 't-rotations') tutorialRef.current?.moveTo(TUTORIAL_STEP_INDEX.tVerify)
+    if (tutorialScenario === 'all-corneromino') tutorialRef.current?.moveTo(TUTORIAL_STEP_INDEX.allCornerominosVerify)
+  }
+
+  function handleCorrectSolution() {
+    if (tutorialScenario === 'shape-example') {
+      setTutorialScenario('t-rotations')
+      tutorialRef.current?.moveTo(TUTORIAL_STEP_INDEX.tGrid)
+    } else if (tutorialScenario === 't-rotations') {
+      setTutorialScenario('all-corneromino')
+      tutorialRef.current?.moveTo(TUTORIAL_STEP_INDEX.allCornerominosGrid)
+    }
+  }
 
   useEffect(() => {
     const showCornerExamples = () => setTutorialScenario('corners')
@@ -200,6 +277,7 @@ export function ClassicTutorial() {
       popover: { description: t('tutorial.classicSteps.topLeft'), side: 'bottom' },
     }, {
       element: '#classic-tutorial-shape-example',
+      nextLocked: true,
       onHighlightStarted: showShapeExample,
       popover: {
         description: t('tutorial.classicSteps.shapeExample'),
@@ -207,6 +285,7 @@ export function ClassicTutorial() {
       }
     }, {
       element: '#classic-tutorial-lock-button',
+      nextLocked: true,
       onHighlightStarted: showShapeExample,
       popover: { description: t('tutorial.classicSteps.lockSelection'), side: 'top' },
     }, {
@@ -216,7 +295,34 @@ export function ClassicTutorial() {
       popover: { description: t('tutorial.classicSteps.verifySolution'), side: 'top' },
     }, {
       element: '#classic-tutorial-board',
+      nextLocked: true,
+      onHighlightStarted: () => setTutorialScenario('t-rotations'),
+      popover: { description: t('tutorial.classicSteps.tRotations'), side: 'bottom' },
+    }, {
+      element: '#classic-tutorial-lock-button',
+      nextLocked: true,
+      onHighlightStarted: () => setTutorialScenario('t-rotations'),
+      popover: { description: t('tutorial.classicSteps.lockSelection'), side: 'top' },
+    }, {
+      element: '#classic-tutorial-verify-button',
+      nextLocked: true,
+      onHighlightStarted: () => setTutorialScenario('t-rotations'),
+      popover: { description: t('tutorial.classicSteps.verifySolution'), side: 'top' },
+    }, {
+      element: '#classic-tutorial-board',
+      nextLocked: true,
+      onHighlightStarted: () => setTutorialScenario('all-corneromino'),
       popover: { description: t('tutorial.classicSteps.allCornerominos'), side: 'bottom' },
+    }, {
+      element: '#classic-tutorial-lock-button',
+      nextLocked: true,
+      onHighlightStarted: () => setTutorialScenario('all-corneromino'),
+      popover: { description: t('tutorial.classicSteps.lockSelection'), side: 'top' },
+    }, {
+      element: '#classic-tutorial-verify-button',
+      nextLocked: true,
+      onHighlightStarted: () => setTutorialScenario('all-corneromino'),
+      popover: { description: t('tutorial.classicSteps.verifySolution'), side: 'top' },
     }], {
       labels: {
         close: t('common.close'),
@@ -266,14 +372,17 @@ export function ClassicTutorial() {
           gameMode="super-easy"
           highlightAreas={TUTORIAL_HIGHLIGHT_AREAS}
           lockButtonId="classic-tutorial-lock-button"
-          onCorrectSolution={showAllCornerominos}
+          onCorrectSolution={handleCorrectSolution}
           onElapsedSecondsChange={setElapsedSeconds}
+          onLockAvailable={handleLockAvailable}
+          onLocked={handleLocked}
           onMoveCountChange={setMoveCount}
           onNextGame={() => undefined}
           onPauseOpenChange={setPauseOpen}
           paused={pauseOpen}
           persistSelection={false}
           pieces={TUTORIAL_SCENARIOS[tutorialScenario].pieces}
+          onVerifyAvailable={handleVerifyAvailable}
           verifyButtonId="classic-tutorial-verify-button"
         />
       </div>

@@ -37,6 +37,12 @@
   white-space: pre-line;
 }
 
+/* Only the current Driver target may receive input. This keeps inactive
+   tutorial hit regions from covering cells during a board-wide spotlight. */
+[id^='classic-tutorial-'].pointer-events-none:not(.driver-active-element) {
+  pointer-events: none !important;
+}
+
 .corneromino-tutorial .driver-popover-navigation-btns {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
