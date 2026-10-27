@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FocusEvent, type KeyboardEvent } from 'react'
 import { Check, ChevronLeft, ChevronRight, Pause } from 'lucide-react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { loadVsLocalGameState, saveVsLocalGameState } from '@/lib/db'
@@ -26,7 +25,6 @@ interface PlayerBandProps {
 }
 
 function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTurn, onToggleMoveDirection, player, pointDifference, points, result }: PlayerBandProps) {
-  const { t } = useTranslation()
   const playerStyle = VS_PLAYERS[player]
   const canToggleMoveDirection = active && canFinishTurn
 
