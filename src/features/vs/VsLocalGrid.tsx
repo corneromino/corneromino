@@ -37,7 +37,8 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTur
     <section
       aria-label={`${playerStyle.label}, ${result ? result.winner === player ? 'winner' : result.winner === null ? 'draw' : 'match finished' : active ? 'playing' : 'waiting'}`}
       className={cn(
-        'flex h-[66px] shrink-0 items-center rounded-md border-0 border-l-15 px-3 transition-shadow',
+        'flex h-[66px] shrink-0 items-center rounded-md border-0 border-l-15 px-3 mx-1 transition-shadow',
+        // 'ring-4 ring-(--paper)',
         facingOpponent && 'rotate-180',
       )}
       style={{ backgroundColor: playerStyle.bannerBackground, borderColor: active ? '#fff' : 'transparent' }}
