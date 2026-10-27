@@ -4,7 +4,7 @@ import { CELL_CORNERS, GAME_CONFIGS, type GameConfig } from './gameConfig'
 import { generateTetrominoPlacementsV2 } from './placementV2'
 
 describe('generateTetrominoPlacementsV2', () => {
-  const testConfig: GameConfig = { columns: 8, rows: 8, spread: 0.5, tetrominoCount: 5 }
+  const testConfig: GameConfig = { columns: 8, rows: 8, spread: 0.5, tetrominoCount: 5, lockingMode: 'manual' }
 
   it('places every requested tetromino inside the board without overlaps and with every corner once', async () => {
     const pieces = await generateTetrominoPlacementsV2(testConfig, {

@@ -15,7 +15,7 @@ interface GameGridCanvasProps {
   config: GameConfig
   lockedCellGroups: readonly LockedCellGroup[]
   markers: ReadonlyMap<string, CellMarkerColor>
-  onToggle: (cellKey: string) => void
+  onToggle: (cellKey: string, timeStamp: number) => void
   pieces: readonly PlacedTetromino[]
   selectedCellKeys: ReadonlySet<string>
   selectedLockedGroupId: string | null
@@ -350,9 +350,9 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
       }
     }
 
-    function handleCellTap({ column: x, row: y }: GridCellEvent) {
+    function handleCellTap({ column: x, row: y, originalEvent }: GridCellEvent) {
       if (!surface!.contains(x, y)) return
-      propsRef.current.onToggle(cellKey(x, y))
+      propsRef.current.onToggle(cellKey(x, y), originalEvent.timeStamp)
     }
 
     drawRef.current = draw

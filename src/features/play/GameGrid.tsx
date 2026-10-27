@@ -12,6 +12,8 @@ import { CorrectGameDialog } from './CorrectGameDialog'
 import { ClassicPauseDialog } from './ClassicPauseDialog'
 import { GameGridCanvas } from './GameGridCanvas'
 
+const DOUBLE_TAP_UNLOCK_MS = 200
+
 interface GameGridProps {
   boardId?: string
   boardResetKey?: string
@@ -78,9 +80,11 @@ export function GameGrid(props: GameGridProps) {
   const savedSelectionRef = useRef<GameSelectionState | null>(null)
   const lockWasAvailableRef = useRef(false)
   const verifyWasAvailableRef = useRef(false)
+  const lastLockedTapRef = useRef<{ groupId: string; time: number } | null>(null)
+  const autoLock = props.config.lockingMode === 'auto'
   const cellMap = createCellMap(props.pieces)
   const lockedCellMap = createLockedCellMap(lockedCellGroups)
-  const canLockSelectedCells = selectedCellKeys.size === 4 && isTetrominoShape(parseCellKeys(selectedCellKeys))
+  const canLockSelectedCells = canLockCells(selectedCellKeys)
   const canValidate = cellMap.size > 0 && [...cellMap.keys()].every((cellKey) => lockedCellMap.has(cellKey))
   const boardStyle = {
     aspectRatio: `${props.config.columns} / ${props.config.rows}`,
@@ -96,13 +100,26 @@ export function GameGrid(props: GameGridProps) {
     if (canValidate && !verifyWasAvailableRef.current) props.onVerifyAvailable?.()
     verifyWasAvailableRef.current = canValidate
   }, [canValidate, props.onVerifyAvailable])
+
+  useEffect(() => {
+    lastLockedTapRef.current = null
+  }, [props.paused, props.config.lockingMode, props.gameId, props.gameMode, props.boardResetKey, markerMode])
+
+  function canLockCells(selection: ReadonlySet<string>) {
+    return selection.size === 4
+      && [...selection].every((key) => cellMap.has(key) && !lockedCellMap.has(key))
+      && isTetrominoShape(parseCellKeys(selection))
+  }
+
   function clearSelectedCells() {
+    lastLockedTapRef.current = null
     setSelectedCellKeys(new Set())
     setSelectedLockedGroupId(null)
     setValidationResult(null)
   }
 
   function resetGame() {
+    lastLockedTapRef.current = null
     setSelectedCellKeys(new Set())
     setLockedCellGroups([])
     setMarkers(new Map())
@@ -191,10 +208,15 @@ export function GameGrid(props: GameGridProps) {
     if (!open) setCompletionScreenshot(null)
   }
 
-  function toggleCellSelection(cellKey: string) {
-    if (!cellMap.has(cellKey)) return
+  function toggleCellSelection(cellKey: string, time: number) {
+    if (!selectionLoaded || props.paused || isExiting || completionScreenshot) return
+    if (!cellMap.has(cellKey)) {
+      lastLockedTapRef.current = null
+      return
+    }
 
     if (markerMode) {
+      lastLockedTapRef.current = null
       setMarkers((currentMarkers) => {
         const nextMarkers = new Map(currentMarkers)
         if (nextMarkers.has(cellKey)) {
@@ -209,22 +231,28 @@ export function GameGrid(props: GameGridProps) {
 
     const lockedGroup = lockedCellMap.get(cellKey)
     if (lockedGroup) {
+      if (autoLock) {
+        const previousTap = lastLockedTapRef.current
+        if (previousTap?.groupId === lockedGroup.id && time >= previousTap.time && time - previousTap.time <= DOUBLE_TAP_UNLOCK_MS) {
+          unlockGroup(lockedGroup.id)
+          return
+        }
+        lastLockedTapRef.current = { groupId: lockedGroup.id, time }
+      }
       setSelectedCellKeys(new Set())
       setSelectedLockedGroupId((selectedGroupId) => (selectedGroupId === lockedGroup.id ? null : lockedGroup.id))
       return
     }
 
+    // An unlocked-cell tap (including the fourth selection) cannot start an unlock gesture.
+    lastLockedTapRef.current = null
     setSelectedLockedGroupId(null)
     setValidationResult(null)
-    setSelectedCellKeys((selectedCells) => {
-      const nextSelectedCells = new Set(selectedCells)
-      if (nextSelectedCells.has(cellKey)) {
-        nextSelectedCells.delete(cellKey)
-      } else {
-        nextSelectedCells.add(cellKey)
-      }
-      return nextSelectedCells
-    })
+    const nextSelectedCells = new Set(selectedCellKeys)
+    if (nextSelectedCells.has(cellKey)) nextSelectedCells.delete(cellKey)
+    else nextSelectedCells.add(cellKey)
+    if (autoLock && canLockCells(nextSelectedCells)) lockCells(nextSelectedCells)
+    else setSelectedCellKeys(nextSelectedCells)
   }
 
   function selectHighlightedCell(event: React.PointerEvent<HTMLDivElement>) {
@@ -235,13 +263,18 @@ export function GameGrid(props: GameGridProps) {
     const column = Math.floor((event.clientX - bounds.left) / bounds.width * props.config.columns)
     const row = Math.floor((event.clientY - bounds.top) / bounds.height * props.config.rows)
     if (column < 0 || column >= props.config.columns || row < 0 || row >= props.config.rows) return
-    toggleCellSelection(`${column},${row}`)
+    toggleCellSelection(`${column},${row}`, event.timeStamp)
   }
 
   function lockSelectedCells() {
-    if (!canLockSelectedCells) return
+    lockCells(selectedCellKeys)
+  }
 
-    const cellKeys = [...selectedCellKeys]
+  function lockCells(selection: ReadonlySet<string>) {
+    if (!canLockCells(selection)) return
+    lastLockedTapRef.current = null
+
+    const cellKeys = [...selection]
     const neighboringColors = new Set<string>()
 
     for (const cellKey of cellKeys) {
@@ -263,6 +296,7 @@ export function GameGrid(props: GameGridProps) {
     setIsCompleted(false)
     setCompletionScreenshot(null)
     setSelectedCellKeys(new Set())
+    setSelectedLockedGroupId(null)
     setValidationResult(null)
     setMoveCount(nextMoveCount)
     props.onMoveCountChange(nextMoveCount)
@@ -271,8 +305,12 @@ export function GameGrid(props: GameGridProps) {
 
   function unlockSelectedCells() {
     if (!selectedLockedGroupId) return
+    unlockGroup(selectedLockedGroupId)
+  }
 
-    const group = lockedCellGroups.find((lockedGroup) => lockedGroup.id === selectedLockedGroupId)
+  function unlockGroup(groupId: string) {
+    lastLockedTapRef.current = null
+    const group = lockedCellGroups.find((lockedGroup) => lockedGroup.id === groupId)
     if (!group) return
 
     setLockedCellGroups((groups) => groups.filter((lockedGroup) => lockedGroup.id !== group.id))
@@ -284,6 +322,7 @@ export function GameGrid(props: GameGridProps) {
   }
 
   function validateLockedCells() {
+    lastLockedTapRef.current = null
     if (!canValidate) return
 
     const validLockCount = lockedCellGroups.filter((group) => {
@@ -473,7 +512,7 @@ export function GameGrid(props: GameGridProps) {
         >
           <Pencil aria-hidden="true" />
         </Button>
-        <Button
+        {!autoLock && <Button
           aria-label="Lock four selected cells"
           className="cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--mint)]"
           disabled={!canLockSelectedCells}
@@ -484,8 +523,8 @@ export function GameGrid(props: GameGridProps) {
           type="button"
         >
           <Lock aria-hidden="true" />
-        </Button>
-        <Button
+        </Button>}
+        {!autoLock && <Button
           aria-label="Unlock selected cells"
           className="cartoon-press size-[clamp(36px,11vw,44px)] [--element-color:var(--paper-muted)] text-[var(--canvas-foreground)]"
           disabled={!selectedLockedGroupId}
@@ -495,7 +534,7 @@ export function GameGrid(props: GameGridProps) {
           type="button"
         >
           <Unlock aria-hidden="true" />
-        </Button>
+        </Button>}
         <Button
           aria-label={t('classic.verify')}
           className={cn(
