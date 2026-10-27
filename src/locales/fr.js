@@ -48,14 +48,14 @@ export default {
     "settings": {
         "language": "Langue",
         "english": "English",
-        "french": "Francais"
+        "french": "Français"
     },
     "classic": {
         "title": "Classique",
         "saved": "Sauvegardes",
         "generating": "Génération de la partie…",
         "paused": "En pause",
-        "verify": "Verifier",
+        "verify": "Vérifier",
         "correct": "Bien joué !",
         "completedBoard": "Plateau terminé",
         "saveGame": "Sauvegarder la partie",
