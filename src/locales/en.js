@@ -132,6 +132,7 @@ export default {
         "player": "Player {{number}}",
         "points": "{{count}} points",
         "move": "Move {{number}}",
-        "moveHistory": "Move history"
+        "moveHistory": "Move history",
+        "yourTurn": "Your turn"
     }
 }

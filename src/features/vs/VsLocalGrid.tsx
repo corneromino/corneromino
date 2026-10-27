@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type FocusEvent, type KeyboardEvent } from 'react'
 import { Check, ChevronLeft, ChevronRight, Pause } from 'lucide-react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { loadVsLocalGameState, saveVsLocalGameState } from '@/lib/db'
@@ -25,6 +26,7 @@ interface PlayerBandProps {
 }
 
 function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTurn, onToggleMoveDirection, player, pointDifference, points, result }: PlayerBandProps) {
+  const { t } = useTranslation()
   const playerStyle = VS_PLAYERS[player]
   const canToggleMoveDirection = active && canFinishTurn
 
@@ -37,11 +39,16 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTur
     <section
       aria-label={`${playerStyle.label}, ${result ? result.winner === player ? 'winner' : result.winner === null ? 'draw' : 'match finished' : active ? 'playing' : 'waiting'}`}
       className={cn(
-        'flex h-[66px] shrink-0 items-center rounded-md border-0 border-l-15 px-3 mx-1 transition-shadow',
-        // 'ring-4 ring-(--paper)',
+        'flex h-[66px] shrink-0 items-center rounded-md border-0 border-x-15 px-3 mx-1 transition-[box-shadow,opacity] duration-200',
+        active ? 'ring-4 ring-offset-(--paper) ring-offset-2 ring-(--player-turn-color)' : 'opacity-65',
         facingOpponent && 'rotate-180',
       )}
-      style={{ backgroundColor: playerStyle.bannerBackground, borderColor: active ? '#fff' : 'transparent' }}
+      style={{
+        backgroundColor: playerStyle.bannerBackground,
+        borderRightColor: playerStyle.bannerBackground,
+        borderLeftColor: active ? '#fff' : 'transparent',
+        '--player-turn-color': playerStyle.bannerBorder
+      } as CSSProperties}
     >
       <div aria-label="Toggle orthogonal or diagonal move direction" className={cn('flex min-w-0 flex-1 items-center', canToggleMoveDirection && 'cursor-pointer')} onClick={canToggleMoveDirection ? onToggleMoveDirection : undefined} onKeyDown={handleCardKeyDown} role={canToggleMoveDirection ? 'button' : undefined} tabIndex={canToggleMoveDirection ? 0 : undefined} title={canToggleMoveDirection ? 'Toggle orthogonal or diagonal move direction' : undefined}>
         <div className="shrink-0 pr-3">

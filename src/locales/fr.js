@@ -125,6 +125,7 @@ export default {
         "player": "Joueur {{number}}",
         "points": "{{count}} points",
         "move": "Coup {{number}}",
-        "moveHistory": "Historique des coups"
+        "moveHistory": "Historique des coups",
+        "yourTurn": "À vous"
     }
 }

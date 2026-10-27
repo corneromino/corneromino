@@ -278,6 +278,26 @@
   --press-shadow: #84343b;
 }
 
+.vs-player-turn-badge {
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--canvas-foreground);
+  box-shadow: 0 1px 0 rgb(21 16 14 / 22%);
+}
+
+.vs-player-turn-dot {
+  background: var(--player-turn-color);
+  animation: vs-turn-pulse 1.3s ease-in-out infinite;
+}
+
+@keyframes vs-turn-pulse {
+  50% { transform: scale(1.65); opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vs-player-turn-dot { animation: none; }
+}
+
 .dropdown-menu-content {
   --dropdown-band-color: #b95c2e;
   --dropdown-band-depth: 6px;
