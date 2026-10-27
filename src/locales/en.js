@@ -63,6 +63,7 @@ export default {
         "generating": "Generating game…",
         "paused": "Paused",
         "verify": "Verify",
+        "errors": "{{count}} errors",
         "correct": "Well Done !",
         "completedBoard": "Completed game board",
         "saveGame": "Save game",

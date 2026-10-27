@@ -5,6 +5,8 @@ export const CLASSIC_LOCKING_MODE: GameConfig['lockingMode'] = 'auto'
 
 export interface GameConfig {
   lockingMode: 'manual' | 'auto'
+  /** Tutorials disable navigation so their cell highlights stay aligned. Defaults to true. */
+  navigationEnabled?: boolean
   columns: number
   rows: number
   /** 0 uses the full board; 1 strongly favors placements around its center. */
@@ -17,12 +19,13 @@ export interface GameModeConfig extends GameConfig {
   title: string
 }
 
-export const GAME_CONFIGS = {
+export const GAME_CONFIGS: Record<string, GameModeConfig> = {
   'super-easy': { columns: 8, rows: 8, spread: 1, tetrominoCount: 5, title: 'difficulty.superEasy', lockingMode: CLASSIC_LOCKING_MODE },
   easy: { columns: 8, rows: 8, spread: 0, tetrominoCount: 10, title: 'difficulty.easy', lockingMode: CLASSIC_LOCKING_MODE },
   medium: { columns: 10, rows: 15, spread: 0.5, tetrominoCount: 20, title: 'difficulty.medium', lockingMode: CLASSIC_LOCKING_MODE },
   hard: { columns: 12, rows: 18, spread: 0.8, tetrominoCount: 35, title: 'difficulty.hard', lockingMode: CLASSIC_LOCKING_MODE },
-} as const satisfies Record<string, GameModeConfig>
+  'super-hard': { columns: 20, rows: 20, spread: 0.8, tetrominoCount: 35, title: 'difficulty.superHard', lockingMode: CLASSIC_LOCKING_MODE },
+}
 
 export type GameMode = keyof typeof GAME_CONFIGS
 export const GAME_MODES = Object.keys(GAME_CONFIGS) as GameMode[]

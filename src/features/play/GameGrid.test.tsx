@@ -9,7 +9,7 @@ import type { GameGridCanvas } from './GameGridCanvas'
 import { GameGrid } from './GameGrid'
 
 vi.mock('@/lib/db', () => ({ loadGameSelection: vi.fn(), saveGameSelection: vi.fn().mockResolvedValue(undefined), clearGameSelection: vi.fn() }))
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: { count?: number }) => key === 'classic.errors' ? `${values?.count} errors` : key }) }))
 vi.mock('./ClassicPauseDialog', () => ({ ClassicPauseDialog: () => null }))
 vi.mock('./CorrectGameDialog', () => ({ CorrectGameDialog: () => null }))
 // Exercise the real React interaction state; only replace the Pixi drawing surface.
@@ -20,6 +20,7 @@ vi.mock('./GameGridCanvas', () => ({
         <button key={`${x},${y}`} onClick={() => props.onToggle(`${x},${y}`, performance.now())}>{`Cell ${x},${y}`}</button>
       )))}
       <button onClick={() => props.onToggle('6,5', performance.now())}>Empty cell</button>
+      <button onClick={props.onNavigate}>Navigate grid</button>
       <output data-testid="board-state">{JSON.stringify({
         locked: props.lockedCellGroups,
         selected: [...props.selectedCellKeys],
@@ -83,6 +84,16 @@ afterEach(() => {
 })
 
 describe('Classic locking modes', () => {
+  it('cancels a pending double-tap unlock after moving or zooming the grid', () => {
+    setup()
+    tap(...firstSquare, '0,0')
+    fireEvent.click(screen.getByRole('button', { name: 'Navigate grid' }))
+    tap('0,0')
+    expect(board().locked).toHaveLength(1)
+    tap('1,0')
+    expect(board().locked).toHaveLength(0)
+  })
+
   it('locks once on the fourth selection and counts one move, including in Strict Mode', () => {
     const { props } = setup()
     expect(screen.queryByRole('button', { name: 'Lock four selected cells' })).toBeNull()
@@ -116,7 +127,9 @@ describe('Classic locking modes', () => {
     expect(board().locked).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
     expect(props.onCorrectSolution).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'classic.verify' }).className).toContain('cartoon-press--red')
+    const verify = screen.getByRole('button', { name: '1 errors' })
+    expect(verify.className).toContain('cartoon-press--red')
+    expect(verify.querySelector('[class*="rounded-full"]')).toBeNull()
   })
 
   it('requires the explicit Verify action even when all automatically locked groups are correct', () => {

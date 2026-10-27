@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react'
-import { Application, Container, Graphics, Sprite, Text, TextStyle } from 'pixi.js'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { Application, Container, Graphics, Rectangle, Sprite, Text, TextStyle } from 'pixi.js'
 import { GridSurface } from '@/rendering/grid/GridSurface'
 import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
 import { GAME_COLORS } from '@/rendering/colors'
 import { attachGridInput, type GridCellEvent } from '@/rendering/grid/gridInput'
+import { constrainGridView, createGridNavigation, type GridView } from '@/rendering/grid/gridNavigation'
 import { drawCellBody, drawCornerMarker, getCornerMarkerPosition } from '@/rendering/grid/drawCorneromino'
 import { CELL_CORNERS } from '@/game/gameConfig'
 import { ShockwaveFilter } from 'pixi-filters'
@@ -13,13 +14,20 @@ import { CASCADE_LOCK_EFFECTS } from '@/features/cascade/cascadeEffects'
 
 interface GameGridCanvasProps {
   config: GameConfig
+  interactive?: boolean
   lockedCellGroups: readonly LockedCellGroup[]
   markers: ReadonlyMap<string, CellMarkerColor>
   onToggle: (cellKey: string, timeStamp: number) => void
+  onNavigate?: () => void
   pieces: readonly PlacedTetromino[]
   selectedCellKeys: ReadonlySet<string>
   selectedLockedGroupId: string | null
   showCellIds: boolean
+}
+
+export interface GameGridCanvasHandle {
+  captureBoard: () => HTMLCanvasElement | null
+  resetView: () => void
 }
 
 const BOARD_COLOR = GAME_COLORS.cellBorder
@@ -45,7 +53,7 @@ function lockedColorToNumber(color: string): number {
   return match ? Number.parseInt(match[1]!, 16) : CELL_COLOR
 }
 
-export function GameGridCanvas(props: GameGridCanvasProps) {
+export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasProps>(function GameGridCanvas(props, ref) {
   const containerRef = useRef<HTMLDivElement>(null)
   const appRef = useRef<Application | null>(null)
   const boardRef = useRef<Container | null>(null)
@@ -53,7 +61,16 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
   const previousLockedCellKeysRef = useRef<Set<string>>(new Set())
   const previousSelectedKeysRef = useRef<Set<string>>(new Set())
   const propsRef = useRef(props)
+  const navigationRef = useRef<ReturnType<typeof createGridNavigation> | null>(null)
+  const captureRef = useRef<GameGridCanvasHandle['captureBoard']>(() => null)
+  const resetViewRef = useRef<() => void>(() => undefined)
   propsRef.current = props
+
+  useImperativeHandle(ref, () => ({ captureBoard: () => captureRef.current(), resetView: () => resetViewRef.current() }), [])
+
+  useEffect(() => {
+    if (props.interactive === false) navigationRef.current?.reset()
+  }, [props.interactive])
 
   useEffect(() => {
     drawRef.current()
@@ -78,6 +95,48 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
     const gridShakeMotion = { time: 0 }
     const lockWaves = new Set<ShockwaveFilter>()
     const cellShakeMotions = new Set<{ time: number }>()
+    let view: GridView = { zoom: 1, offsetX: 0, offsetY: 0 }
+    let previousSize = { width: 0, height: 0, cellSize: 0 }
+
+    function updateViewport() {
+      if (!surface) return
+      const { columns, rows } = propsRef.current.config
+      const { width, height } = app.screen
+      const cellSize = Math.min(width / columns, height / rows)
+      view = constrainGridView(view, { width, height }, { width: columns * cellSize, height: rows * cellSize })
+      surface.update({ width, height, cellSize, fit: 'manual', ...view }, {
+        cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR,
+        borderSize: 1.5, borderRadius: cellSize * 0.02, gap: 0,
+      })
+      board.position.set(view.offsetX, view.offsetY)
+      board.scale.set(view.zoom)
+    }
+
+    function stopViewportEffects() {
+      gsap.killTweensOf(gridShakeMotion)
+      app.stage.position.set(0, 0)
+      for (const wave of lockWaves) {
+        gsap.killTweensOf(wave)
+        wave.destroy()
+      }
+      lockWaves.clear()
+      app.stage.filters = []
+    }
+
+    function resize() {
+      const { width, height } = app.screen
+      const cellSize = Math.min(width / propsRef.current.config.columns, height / propsRef.current.config.rows)
+      if (previousSize.cellSize > 0) {
+        // Keep the same board location at the viewport center on orientation/size changes.
+        const scale = cellSize / previousSize.cellSize
+        view.offsetX = width / 2 - (previousSize.width / 2 - view.offsetX) * scale
+        view.offsetY = height / 2 - (previousSize.height / 2 - view.offsetY) * scale
+      }
+      previousSize = { width, height, cellSize }
+      navigationRef.current?.reset()
+      stopViewportEffects()
+      draw()
+    }
 
     function stopCellAnimations() {
       for (const motion of cellShakeMotions) gsap.killTweensOf(motion)
@@ -91,14 +150,10 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
     function draw() {
       if (disposed || !appRef.current || !boardRef.current) return
       const current = propsRef.current
-      const width = app.screen.width
-      const height = app.screen.height
-      const baseCellSize = Math.min(width / current.config.columns, height / current.config.rows)
-      surface!.update({ width, height, cellSize: baseCellSize, fit: 'stretch' }, {
-        cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR,
-        borderSize: 1.5, borderRadius: baseCellSize * 0.02, gap: 0,
-      })
-      const { cellWidth, cellHeight } = surface!.metrics
+      updateViewport()
+      // Draw in fitted-board coordinates; navigation only transforms the container.
+      const cellWidth = surface!.metrics.cellWidth / view.zoom
+      const cellHeight = surface!.metrics.cellHeight / view.zoom
       const cellSize = Math.min(cellWidth, cellHeight)
       const pieceMap = createPieceMap(current.pieces)
       const lockedCellMap = createLockedCellMap(current.lockedCellGroups)
@@ -262,7 +317,7 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
       if (!config.enabled || config.durationSeconds <= 0) return
 
       gridShakeMotion.time = 0
-      const amplitude = cellSize * config.amplitudeCells
+      const amplitude = cellSize * view.zoom * config.amplitudeCells
       gsap.to(gridShakeMotion, {
         duration: config.durationSeconds,
         ease: 'none',
@@ -320,12 +375,12 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
         y: total.y + (row! + 0.5) * cellHeight,
       }), { x: 0, y: 0 })
       const wave = new ShockwaveFilter({
-        amplitude: cellSize * config.amplitudeCells,
+        amplitude: cellSize * view.zoom * config.amplitudeCells,
         brightness: config.brightness,
-        center: { x: center.x / cells.length, y: center.y / cells.length },
-        radius: cellSize * config.radiusCells,
-        speed: cellSize * config.speedCellsPerSecond,
-        wavelength: cellSize * config.wavelengthCells,
+        center: { x: view.offsetX + center.x / cells.length * view.zoom, y: view.offsetY + center.y / cells.length * view.zoom },
+        radius: cellSize * view.zoom * config.radiusCells,
+        speed: cellSize * view.zoom * config.speedCellsPerSecond,
+        wavelength: cellSize * view.zoom * config.wavelengthCells,
       })
       lockWaves.add(wave)
       app.stage.filters = [...lockWaves]
@@ -359,7 +414,7 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
 
     async function start() {
       host = new PixiCanvasHost({
-        app, container: stableContainer, canvasClassName: 'size-full touch-manipulation',
+        app, container: stableContainer, canvasClassName: 'size-full touch-none',
         init: { background: BOARD_COLOR, preserveDrawingBuffer: true },
         onReady: () => {
           appRef.current = app
@@ -370,14 +425,42 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
           }, { cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR, borderSize: 1.5, borderRadius: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows) * 0.02, gap: 0 })
           surface.layers.pieces.addChild(board)
           app.stage.addChild(surface.root)
+          resetViewRef.current = () => {
+            navigationRef.current?.reset()
+            stopViewportEffects()
+            view = { zoom: 1, offsetX: 0, offsetY: 0 }
+            updateViewport()
+          }
+          captureRef.current = () => {
+            const savedView = view
+            try {
+              view = { zoom: 1, offsetX: 0, offsetY: 0 }
+              updateViewport()
+              return app.renderer.extract.canvas({ target: surface!.root, frame: new Rectangle(0, 0, app.screen.width, app.screen.height) }) as HTMLCanvasElement
+            } finally {
+              view = savedView
+              updateViewport()
+            }
+          }
+          const navigation = propsRef.current.config.navigationEnabled === false ? null : createGridNavigation(app.canvas, {
+            minZoom: 1, maxZoom: 4,
+            getView: () => view,
+            getSize: () => app.screen,
+            setView: (next) => { view = next; updateViewport() },
+            onNavigate: () => { stopViewportEffects(); propsRef.current.onNavigate?.() },
+            onTap: (originalEvent) => handleCellTap({ ...surface!.pointerToCell(originalEvent), originalEvent }),
+          })
+          navigationRef.current = navigation
           detachInput = attachGridInput(app.canvas, {
+            enabled: () => propsRef.current.interactive !== false,
+            gestures: navigation === null,
             cellAt: (event) => surface!.pointerToCell(event),
-            callbacks: { onCellTap: handleCellTap },
+            callbacks: navigation?.callbacks ?? { onCellTap: handleCellTap },
           })
           app.ticker.add(update)
           canvasReady = true
         },
-        onResize: () => drawRef.current(),
+        onResize: resize,
       })
       await host.start()
     }
@@ -385,6 +468,10 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
     void start()
     return () => {
       disposed = true
+      captureRef.current = () => null
+      resetViewRef.current = () => undefined
+      navigationRef.current?.reset()
+      navigationRef.current = null
       if (canvasReady) {
         detachInput?.()
         app.ticker.remove(update)
@@ -403,7 +490,7 @@ export function GameGridCanvas(props: GameGridCanvasProps) {
       boardRef.current = null
       drawRef.current = () => undefined
     }
-  }, [props.config.columns, props.config.rows])
+  }, [props.config.columns, props.config.rows, props.config.navigationEnabled])
 
-  return <div className="size-full touch-manipulation" ref={containerRef} />
-}
+  return <div className="size-full overflow-hidden touch-none" ref={containerRef} />
+})

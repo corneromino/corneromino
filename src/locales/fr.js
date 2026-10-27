@@ -56,6 +56,7 @@ export default {
         "generating": "Génération de la partie…",
         "paused": "En pause",
         "verify": "Vérifier",
+        "errors": "{{count}} erreurs",
         "correct": "Bien joué !",
         "completedBoard": "Plateau terminé",
         "saveGame": "Sauvegarder la partie",

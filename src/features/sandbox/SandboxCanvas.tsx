@@ -4,6 +4,7 @@ import { GridSurface } from '@/rendering/grid/GridSurface'
 import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
 import { GAME_COLORS } from '@/rendering/colors'
 import { attachGridInput } from '@/rendering/grid/gridInput'
+import { createGridNavigation } from '@/rendering/grid/gridNavigation'
 import { drawCellBody, drawCornerMarker, getCornerMarkerPosition as getSharedMarkerPosition } from '@/rendering/grid/drawCorneromino'
 import type { SandboxWorldState } from '@/lib/db'
 import { SandboxCellSystem, type SandboxCornerMarker, updatePowerStateFromNeighbors } from './cellSystem'
@@ -19,11 +20,6 @@ const SANDBOX_TICK_INTERVAL_MS = 2
 const MAX_UPDATES_PER_TICK = 10_000
 const UPDATE_BUDGET_MS = 100
 const CORNER_TRANSITION_DURATION_MS = 20
-
-interface PointerPosition {
-  x: number
-  y: number
-}
 
 interface CellPosition {
   column: number
@@ -138,16 +134,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
     let gridOffsetX = props.initialState?.gridOffsetX ?? 0
     let gridOffsetY = props.initialState?.gridOffsetY ?? 0
     let hasInitialPosition = props.initialState !== null
-    let isPanning = false
-    let hasPanned = false
-    let interactionWasPinch = false
-    let lastPointerX = 0
-    let lastPointerY = 0
-    const activePointers = new Map<number, PointerPosition>()
-    let pinchGridX = 0
-    let pinchGridY = 0
-    let pinchStartDistance = 0
-    let pinchStartZoom = 1
+    let navigation: ReturnType<typeof createGridNavigation> | undefined
     let zoom = props.initialState?.zoom ?? 1
     const cellSystem = new SandboxCellSystem(props.initialState?.cornerMarkers ?? [], [updatePowerStateFromNeighbors])
     const cornerTransitions = new Map<string, CornerTransition>()
@@ -505,53 +492,28 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       drawGrid()
     }
 
-    function handlePointerDown(event: PointerEvent) {
-      activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
-      app.canvas.setPointerCapture(event.pointerId)
-
-      if (activePointers.size === 1) {
-        const pointerCell = getCellPosition(event)
-        if (moveEnabledRef.current && upperSelectionBound && lowerSelectionBound && (isInsideSelection(pointerCell) || isInsideMoveSilhouette(pointerCell))) {
-          isMovingSelection = true
-          moveStartCell = pointerCell
-          moveStartOffset = { ...moveOffset }
-          hasPanned = false
-          isPanning = false
-          return
-        }
-        if (selectEnabledRef.current && upperSelectionBound && lowerSelectionBound) {
-          const cell = getCellPosition(event)
-          if (isSameCell(cell, upperSelectionBound)) {
-            draggedSelectionBound = 'upper'
-            isPanning = false
-            return
-          }
-          if (isSameCell(cell, lowerSelectionBound)) {
-            draggedSelectionBound = 'lower'
-            isPanning = false
-            return
-          }
-        }
-        isPanning = true
-        hasPanned = false
-        interactionWasPinch = false
-        lastPointerX = event.clientX
-        lastPointerY = event.clientY
-        return
+    function startTool(event: PointerEvent) {
+      const pointerCell = getCellPosition(event)
+      if (moveEnabledRef.current && upperSelectionBound && lowerSelectionBound && (isInsideSelection(pointerCell) || isInsideMoveSilhouette(pointerCell))) {
+        isMovingSelection = true
+        moveStartCell = pointerCell
+        moveStartOffset = { ...moveOffset }
+        return true
       }
-
-      if (activePointers.size === 2) beginPinch()
+      if (selectEnabledRef.current && upperSelectionBound && lowerSelectionBound) {
+        if (isSameCell(pointerCell, upperSelectionBound)) {
+          draggedSelectionBound = 'upper'
+          return true
+        }
+        if (isSameCell(pointerCell, lowerSelectionBound)) {
+          draggedSelectionBound = 'lower'
+          return true
+        }
+      }
+      return false
     }
 
-    function handlePointerMove(event: PointerEvent) {
-      if (!activePointers.has(event.pointerId)) return
-      activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
-
-      if (activePointers.size >= 2) {
-        updatePinch()
-        return
-      }
-
+    function moveTool(event: PointerEvent) {
       if (isMovingSelection && moveStartCell) {
         const cell = getCellPosition(event)
         const nextOffset = {
@@ -573,120 +535,30 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
           else lowerSelectionBound = cell
           drawGrid()
         }
-        return
       }
-
-      if (!isPanning) return
-
-      if (!hasPanned && Math.hypot(event.clientX - lastPointerX, event.clientY - lastPointerY) < PAN_THRESHOLD) return
-      hasPanned = true
-
-      gridOffsetX += event.clientX - lastPointerX
-      gridOffsetY += event.clientY - lastPointerY
-      lastPointerX = event.clientX
-      lastPointerY = event.clientY
-      drawGrid()
     }
 
-    function handlePointerUp(event: PointerEvent) {
-      const shouldSelectCell = activePointers.size === 1 && !hasPanned && !interactionWasPinch && !draggedSelectionBound
-      const shouldRotateCorner = shouldSelectCell
-      activePointers.delete(event.pointerId)
-      if (app.canvas.hasPointerCapture(event.pointerId)) app.canvas.releasePointerCapture(event.pointerId)
+    function endTool() {
+      draggedSelectionBound = null
+      isMovingSelection = false
+      moveStartCell = null
+    }
 
-      if (draggedSelectionBound) {
-        draggedSelectionBound = null
-      } else if (isMovingSelection) {
-        isMovingSelection = false
-        moveStartCell = null
-      } else if (shouldSelectCell && selectEnabledRef.current && !drawEnabledRef.current && !deleteEnabledRef.current) {
+    function handleCellTap(event: PointerEvent) {
+      if (selectEnabledRef.current && !drawEnabledRef.current && !deleteEnabledRef.current) {
         const cell = getCellPosition(event)
         if (!upperSelectionBound) upperSelectionBound = cell
         else if (!lowerSelectionBound) lowerSelectionBound = cell
         drawGrid()
-      } else if (shouldRotateCorner && deleteEnabledRef.current) {
+      } else if (deleteEnabledRef.current) {
         deleteCornerMarker(event)
-      } else if (shouldRotateCorner && drawEnabledRef.current) {
+      } else if (drawEnabledRef.current) {
         if (selectEnabledRef.current && isInsideSelection(getCellPosition(event))) {
           rotateSelectedCorners()
         } else {
           rotateCornerMarker(event)
         }
       }
-
-      const [remainingPointer] = activePointers.values()
-      if (remainingPointer) {
-        isPanning = true
-        hasPanned = false
-        lastPointerX = remainingPointer.x
-        lastPointerY = remainingPointer.y
-      } else {
-        isPanning = false
-        interactionWasPinch = false
-      }
-    }
-
-    function beginPinch() {
-      const pointers = [...activePointers.values()]
-      const firstPointer = pointers[0]
-      const secondPointer = pointers[1]
-      if (!firstPointer || !secondPointer) return
-
-      const centerX = (firstPointer.x + secondPointer.x) / 2
-      const centerY = (firstPointer.y + secondPointer.y) / 2
-      const bounds = app.canvas.getBoundingClientRect()
-      const cellSize = BASE_CELL_SIZE * zoom
-      const canvasCenterX = centerX - bounds.left
-      const canvasCenterY = centerY - bounds.top
-
-      isPanning = false
-      interactionWasPinch = true
-      pinchStartDistance = Math.hypot(secondPointer.x - firstPointer.x, secondPointer.y - firstPointer.y)
-      pinchStartZoom = zoom
-      pinchGridX = (canvasCenterX - gridOffsetX) / cellSize
-      pinchGridY = (canvasCenterY - gridOffsetY) / cellSize
-    }
-
-    function handlePointerCancel(event: PointerEvent) {
-      // Cancellation must never place, rotate or delete a cell.
-      hasPanned = true
-      interactionWasPinch = true
-      handlePointerUp(event)
-    }
-
-    function updatePinch() {
-      const pointers = [...activePointers.values()]
-      const firstPointer = pointers[0]
-      const secondPointer = pointers[1]
-      if (!firstPointer || !secondPointer || pinchStartDistance === 0) return
-
-      const centerX = (firstPointer.x + secondPointer.x) / 2
-      const centerY = (firstPointer.y + secondPointer.y) / 2
-      const bounds = app.canvas.getBoundingClientRect()
-      const currentDistance = Math.hypot(secondPointer.x - firstPointer.x, secondPointer.y - firstPointer.y)
-
-      zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchStartZoom * (currentDistance / pinchStartDistance)))
-      const cellSize = BASE_CELL_SIZE * zoom
-      gridOffsetX = centerX - bounds.left - pinchGridX * cellSize
-      gridOffsetY = centerY - bounds.top - pinchGridY * cellSize
-      drawGrid()
-    }
-
-    function handleWheel(event: WheelEvent) {
-      event.preventDefault()
-      const bounds = app.canvas.getBoundingClientRect()
-      const pointerX = event.clientX - bounds.left
-      const pointerY = event.clientY - bounds.top
-      const previousCellSize = BASE_CELL_SIZE * zoom
-      const gridX = (pointerX - gridOffsetX) / previousCellSize
-      const gridY = (pointerY - gridOffsetY) / previousCellSize
-      const zoomDirection = event.deltaY < 0 ? 1.1 : 0.9
-
-      zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom * zoomDirection))
-      const nextCellSize = BASE_CELL_SIZE * zoom
-      gridOffsetX = pointerX - gridX * nextCellSize
-      gridOffsetY = pointerY - gridY * nextCellSize
-      drawGrid()
     }
 
     async function startCanvas() {
@@ -732,16 +604,23 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
             screenshot: await canvasToBlob(app.canvas),
             state: { cornerMarkers: cellSystem.getMarkers(), gridOffsetX, gridOffsetY, zoom },
           })
+          navigation = createGridNavigation(app.canvas, {
+            minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM, threshold: PAN_THRESHOLD,
+            getView: () => ({ zoom, offsetX: gridOffsetX, offsetY: gridOffsetY }),
+            getSize: () => app.screen,
+            setView: (view) => {
+              zoom = view.zoom
+              gridOffsetX = view.offsetX
+              gridOffsetY = view.offsetY
+              drawGrid()
+            },
+            onTap: handleCellTap,
+            tool: { start: startTool, move: moveTool, end: endTool },
+          })
           detachInput = attachGridInput(app.canvas, {
             gestures: false,
             cellAt: getCellPosition,
-            callbacks: {
-              onPointerDown: handlePointerDown,
-              onPointerMove: handlePointerMove,
-              onPointerUp: handlePointerUp,
-              onPointerCancel: handlePointerCancel,
-              onWheel: handleWheel,
-            },
+            callbacks: navigation.callbacks,
           })
           updateTimer = window.setInterval(processUpdateTick, SANDBOX_TICK_INTERVAL_MS)
         },
@@ -765,6 +644,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       if (cornerAnimationFrame !== 0) window.cancelAnimationFrame(cornerAnimationFrame)
       if (!host) return
       detachInput?.()
+      navigation?.reset()
       surface?.destroy()
       host.destroy()
     }
