@@ -84,9 +84,9 @@ export default {
         "loadingWorlds": "Chargement des mondes…"
     },
     "savedGames": {
-        "title": "Sauvegardes classiques",
-        "backToClassic": "Retour à Classique",
-        "loadGame": "Charger une partie",
+        "title": "Sauvegardes",
+        "backToClassic": "Retour à Classic",
+        "loadGame": "Charger",
         "loading": "Chargement des sauvegardes…",
         "empty": "Aucune sauvegarde",
         "copySeed": "Copier le seed",
@@ -95,7 +95,11 @@ export default {
         "savedBoard": "Plateau sauvegardé",
         "loadPrompt": "Saisissez une valeur mode-de-jeu:seed copiée.",
         "gameModeAndSeed": "Mode de jeu et seed",
-        "invalidSeed": "Saisissez une valeur mode-de-jeu:seed."
+        "invalidSeed": "Saisissez une valeur mode-de-jeu:seed.",
+        "seedPlaceholder": "facile:votre-seed",
+        "continueSavedGame": "Reprendre la partie {{mode}} sauvegardée le {{date}}",
+        "copySeedForGame": "Copier le seed de la partie {{mode}} sauvegardée",
+        "deleteSavedGame": "Supprimer la partie {{mode}} sauvegardée"
     },
     "versusGame": {
         "paused": "En pause",

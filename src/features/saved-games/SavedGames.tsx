@@ -1,26 +1,30 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, Copy, Trash2 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { isGameMode } from '@/game/gameConfig'
+import { GAME_CONFIGS, isGameMode } from '@/game/gameConfig'
 import { deleteSavedGame, type SavedGame, loadSavedGames } from '@/lib/db'
 
 function formatSeed(seed: string): string {
   return seed.length > 14 ? `${seed.slice(0, 7)}…${seed.slice(-5)}` : seed
 }
 
-function formatSavedAt(savedAt: number): string {
-  return new Intl.DateTimeFormat(undefined, {
+function formatSavedAt(savedAt: number, language: string): string {
+  return new Intl.DateTimeFormat(language, {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(savedAt)
 }
 
 function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => void }) {
+  const { i18n, t } = useTranslation()
   const [screenshotUrl, setScreenshotUrl] = useState('')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const gamePath = `/play?mode=${props.game.gameMode}&seed=${encodeURIComponent(props.game.gameId)}`
+  const gameMode = t(GAME_CONFIGS[props.game.gameMode].title)
+  const savedAt = formatSavedAt(props.game.savedAt, i18n.resolvedLanguage ?? i18n.language)
 
   function deleteGame() {
     setDeleteDialogOpen(false)
@@ -43,17 +47,17 @@ function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => 
   return (
     <article className="saved-game-card flex gap-3 p-2 text-[var(--canvas-foreground)]">
       <Link
-        aria-label={`Continue ${props.game.gameMode} game saved ${formatSavedAt(props.game.savedAt)}`}
+        aria-label={t('savedGames.continueSavedGame', { date: savedAt, mode: gameMode })}
         className="shrink-0 self-start"
         to={gamePath}
       >
-        {screenshotUrl && <img alt="Saved game board" className="h-auto w-28 shrink-0 self-start" src={screenshotUrl} />}
+        {screenshotUrl && <img alt={t('savedGames.savedBoard')} className="h-auto w-28 shrink-0 self-start" src={screenshotUrl} />}
       </Link>
       <div className="flex min-w-0 flex-1 flex-col justify-between py-1">
         <Link className="block" to={gamePath}>
           <div>
-            <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{formatSavedAt(props.game.savedAt)}</p>
-            <h2 className="mt-1 text-[22px] font-black uppercase">{props.game.gameMode}</h2>
+            <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{savedAt}</p>
+            <h2 className="mt-1 text-[22px] font-black uppercase">{gameMode}</h2>
           </div>
         </Link>
         <div className="flex min-w-0 items-center gap-2">
@@ -63,21 +67,21 @@ function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => 
             </p>
           </Link>
            <Button
-              aria-label={`Copy seed for ${props.game.gameMode} saved game`}
+              aria-label={t('savedGames.copySeedForGame', { mode: gameMode })}
               className="cartoon-press size-9 shrink-0 text-[var(--canvas-foreground)]"
               onClick={copySeed}
               size="icon"
-              title="Copy seed"
+              title={t('savedGames.copySeed')}
               type="button"
             >
               <Copy aria-hidden="true" />
             </Button>
             <Button
-              aria-label={`Delete ${props.game.gameMode} saved game`}
+              aria-label={t('savedGames.deleteSavedGame', { mode: gameMode })}
               className="cartoon-press size-9 shrink-0 text-[var(--coral)]"
               onClick={() => setDeleteDialogOpen(true)}
             size="icon"
-            title="Delete saved game"
+            title={t('savedGames.deleteSavedGame', { mode: gameMode })}
             type="button"
           >
             <Trash2 aria-hidden="true" />
@@ -87,17 +91,17 @@ function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => 
       <Dialog onOpenChange={setDeleteDialogOpen} open={deleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete game</DialogTitle>
-            <DialogDescription>Delete this saved game? This cannot be undone.</DialogDescription>
+            <DialogTitle>{t('savedGames.deleteGame')}</DialogTitle>
+            <DialogDescription>{t('savedGames.deletePrompt')}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <DialogClose asChild>
               <Button className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">
-                Cancel
+                {t('common.cancel')}
               </Button>
             </DialogClose>
             <Button className="cartoon-press h-[42px] !bg-[var(--coral)] text-[11px] font-black tracking-[0.1em] !text-[var(--paper)] uppercase" onClick={deleteGame} size="lg" type="button">
-              Delete
+              {t('common.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -107,6 +111,7 @@ function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => 
 }
 
 export function SavedGames() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [loadDialogOpen, setLoadDialogOpen] = useState(false)
   const [loadError, setLoadError] = useState('')
@@ -118,7 +123,7 @@ export function SavedGames() {
     const [gameMode, ...seedParts] = seedToLoad.trim().split(':')
     const seed = seedParts.join(':').trim()
     if (!isGameMode(gameMode) || !seed) {
-      setLoadError('Enter a game-mode:seed value.')
+      setLoadError(t('savedGames.invalidSeed'))
       return
     }
 
@@ -153,21 +158,21 @@ export function SavedGames() {
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
-            <h1 className="poster-title mt-2 whitespace-nowrap text-[33px] leading-none">Classic saves</h1>
+            <h1 className="poster-title mt-2 whitespace-nowrap text-[33px] leading-none">{t('savedGames.title')}</h1>
           </div>
-          <Button asChild className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title="Back to Classic">
-            <Link aria-label="Back to Classic" to="/play"><ArrowLeft aria-hidden="true" /></Link>
+          <Button asChild className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('savedGames.backToClassic')}>
+            <Link aria-label={t('savedGames.backToClassic')} to="/play"><ArrowLeft aria-hidden="true" /></Link>
           </Button>
         </div>
 
         <Button className="cartoon-press mt-6 h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => setLoadDialogOpen(true)} size="sm" type="button">
-          Load game
+          {t('savedGames.loadGame')}
         </Button>
 
         <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
-          {loading && <p className="poster-kicker mt-2 text-center text-[11px] text-[var(--muted-text-color)]">Loading saved games…</p>}
+          {loading && <p className="poster-kicker mt-2 text-center text-[11px] text-[var(--muted-text-color)]">{t('savedGames.loading')}</p>}
           {!loading && savedGames.length === 0 && (
-            <p className="poster-kicker mt-2 text-center text-[11px] text-[var(--muted-text-color)]">No saved games yet</p>
+            <p className="poster-kicker mt-2 text-center text-[11px] text-[var(--muted-text-color)]">{t('savedGames.empty')}</p>
           )}
           {!loading && savedGames.length > 0 && (
             <div className="grid gap-4 pb-1 sm:grid-cols-2">
@@ -178,11 +183,11 @@ export function SavedGames() {
         <Dialog onOpenChange={setLoadDialogOpen} open={loadDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Load game</DialogTitle>
-              <DialogDescription>Enter a copied game-mode:seed value.</DialogDescription>
+              <DialogTitle>{t('savedGames.loadGame')}</DialogTitle>
+              <DialogDescription>{t('savedGames.loadPrompt')}</DialogDescription>
             </DialogHeader>
             <label className="poster-kicker mt-5 block text-[11px] text-[var(--muted-text-color)]">
-              Game mode and seed
+              {t('savedGames.gameModeAndSeed')}
               <input
                 autoFocus
                 className="mt-2 h-[42px] w-full border border-[var(--outline-color)] bg-[var(--paper-muted)] px-3 text-[11px] text-[var(--canvas-foreground)] outline-none focus:border-[var(--canvas-foreground)]"
@@ -190,7 +195,7 @@ export function SavedGames() {
                   setSeedToLoad(event.target.value)
                   setLoadError('')
                 }}
-                placeholder="easy:your-seed"
+                placeholder={t('savedGames.seedPlaceholder')}
                 type="text"
                 value={seedToLoad}
               />
@@ -199,11 +204,11 @@ export function SavedGames() {
             <DialogFooter>
               <DialogClose asChild>
                 <Button className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
               </DialogClose>
               <Button className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={!seedToLoad.trim()} onClick={loadGame} size="lg" type="button">
-                Load
+                {t('common.load')}
               </Button>
             </DialogFooter>
           </DialogContent>

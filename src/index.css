@@ -384,6 +384,7 @@
   overflow: hidden;
   background-color: var(--paper);
   border: 1px solid var(--outline-color);
+  border-radius: var(--radius);
   box-shadow: inset 0 -6px 0 color-mix(in srgb, var(--outline-color) 72%, var(--canvas-deep));
   padding-bottom: 14px !important;
 }
@@ -397,6 +398,7 @@
   height: 6px;
   pointer-events: none;
   background: color-mix(in srgb, var(--outline-color) 72%, var(--canvas-deep));
+  border-radius: 0 0 var(--radius) var(--radius);
 }
 
 .dialog-content {

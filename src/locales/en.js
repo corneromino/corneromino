@@ -102,7 +102,11 @@ export default {
         "savedBoard": "Saved game board",
         "loadPrompt": "Enter a copied game-mode:seed value.",
         "gameModeAndSeed": "Game mode and seed",
-        "invalidSeed": "Enter a game-mode:seed value."
+        "invalidSeed": "Enter a game-mode:seed value.",
+        "seedPlaceholder": "easy:your-seed",
+        "continueSavedGame": "Continue {{mode}} game saved {{date}}",
+        "copySeedForGame": "Copy seed for saved {{mode}} game",
+        "deleteSavedGame": "Delete saved {{mode}} game"
     },
     "versusGame": {
         "paused": "Paused",
