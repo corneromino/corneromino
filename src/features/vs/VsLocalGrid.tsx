@@ -8,6 +8,7 @@ import { VsLocalCanvas } from './VsLocalCanvas'
 import { VsMoveList } from './VsMoveList'
 import { VsPauseDialog } from './VsPauseDialog'
 import { VsVictoryDialog } from './VsVictoryDialog'
+import { PixelCrownIcon } from './PixelCrownIcon'
 import { isVsLocalBoardSize, VS_LOCAL_CONFIG, VS_LOCAL_DEFAULT_BOARD_SIZE, type VsLocalBoardSize } from './vsLocalConfig'
 import { exportVsDebugState } from './vsDebugState'
 import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsPlayerScores, goToVsHistory, hasVsTurnDraft, previousVsMove, resumeVsLocalGame, selectVsCell, toggleVsMoveDirection, VS_PLAYERS, type VsGameResult, type VsLocalGameState, type VsPlayerId } from './vsLocalGame'
@@ -37,7 +38,7 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTur
     <section
       aria-label={`${playerStyle.label}, ${result ? result.winner === player ? 'winner' : result.winner === null ? 'draw' : 'match finished' : active ? 'playing' : 'waiting'}`}
       className={cn(
-        'flex h-[66px] shrink-0 items-center rounded-md border-0 border-x-15 px-3 mx-1 transition-[box-shadow,opacity] duration-200',
+        'relative flex h-[66px] shrink-0 items-center rounded-md border-0 border-x-15 px-3 mx-1 transition-[box-shadow,opacity] duration-200',
         active ? 'ring-4 ring-offset-(--paper) ring-offset-2 ring-(--player-turn-color)' : 'opacity-65',
         facingOpponent && 'rotate-180',
       )}
@@ -51,7 +52,6 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTur
       <div aria-label="Toggle orthogonal or diagonal move direction" className={cn('flex min-w-0 flex-1 items-center', canToggleMoveDirection && 'cursor-pointer')} onClick={canToggleMoveDirection ? onToggleMoveDirection : undefined} onKeyDown={handleCardKeyDown} role={canToggleMoveDirection ? 'button' : undefined} tabIndex={canToggleMoveDirection ? 0 : undefined} title={canToggleMoveDirection ? 'Toggle orthogonal or diagonal move direction' : undefined}>
         <div className="shrink-0 pr-3">
           <p className="poster-kicker text-[18px] leading-none text-[var(--paper)]">{playerStyle.label}</p>
-          {result?.winner === player && <p className="poster-kicker mt-1 text-[10px] leading-none text-[var(--paper)]">Winner</p>}
           {result?.winner === null && <p className="poster-kicker mt-1 text-[10px] leading-none text-[var(--paper)]">Draw</p>}
         </div>
         <p aria-label={`${points} points`} className="flex h-8 flex-1 items-center rounded-md justify-between px-3 text-[18px] leading-none text-[var(--paper)]" style={{ backgroundColor: playerStyle.bannerScoreBackground }}>
@@ -70,6 +70,11 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTur
       >
         <Check aria-hidden="true" />
       </Button>
+      {result?.winner === player && (
+        <span aria-hidden="true" className="pointer-events-none absolute -top-5 -left-5 z-10">
+          <PixelCrownIcon />
+        </span>
+      )}
     </section>
   )
 }
