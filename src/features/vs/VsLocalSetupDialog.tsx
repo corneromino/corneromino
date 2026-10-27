@@ -2,7 +2,7 @@ import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { VS_LOCAL_BOARD_SIZES, VS_LOCAL_DEFAULT_BOARD_SIZE, type VsLocalBoardSize } from './vsLocalConfig'
 
 interface VsLocalSetupDialogProps {
@@ -16,6 +16,11 @@ export function VsLocalSetupDialog(props: VsLocalSetupDialogProps) {
   const { onContinue, onOpenChange, onStart, open } = props
   const [boardSize, setBoardSize] = useState<VsLocalBoardSize>(VS_LOCAL_DEFAULT_BOARD_SIZE)
 
+  function changeBoardSize(value: string) {
+    const size = VS_LOCAL_BOARD_SIZES.find((size) => String(size) === value)
+    if (size !== undefined) setBoardSize(size)
+  }
+
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent aria-describedby={undefined}>
@@ -28,16 +33,18 @@ export function VsLocalSetupDialog(props: VsLocalSetupDialogProps) {
             <DropdownMenuTrigger asChild>
               <Button aria-label={`Mode ${boardSize} by ${boardSize}`} className="cartoon-press h-[48px] shrink-0 px-4 text-[12px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" type="button">
                 <span className="-translate-y-1 inline-flex items-center gap-2">
-                  {boardSize}×{boardSize}<ChevronDown aria-hidden="true" />
+                  {boardSize}×{boardSize}<ChevronDown aria-hidden="true" className="dropdown-menu-chevron" />
                 </span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={8}>
-              {VS_LOCAL_BOARD_SIZES.map((size) => (
-                <DropdownMenuItem key={size} onSelect={() => setBoardSize(size)}>
-                  {size}×{size}
-                </DropdownMenuItem>
-              ))}
+            <DropdownMenuContent align="end">
+              <DropdownMenuRadioGroup onValueChange={changeBoardSize} value={String(boardSize)}>
+                {VS_LOCAL_BOARD_SIZES.map((size) => (
+                  <DropdownMenuRadioItem key={size} value={String(size)}>
+                    {size}×{size}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -1,8 +1,8 @@
-import { ArrowLeft, Check, ChevronDown } from 'lucide-react'
+import { ArrowLeft, ChevronDown } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
 
 export function Settings() {
@@ -30,17 +30,15 @@ export function Settings() {
               <DropdownMenuTrigger asChild>
                 <Button aria-labelledby="language-label language-current" className="cartoon-press h-[48px] shrink-0 px-4 text-[12px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" type="button">
                   <span className="-translate-y-1 inline-flex items-center gap-2">
-                    <span id="language-current">{currentLanguage}</span><ChevronDown aria-hidden="true" />
+                    <span id="language-current">{currentLanguage}</span><ChevronDown aria-hidden="true" className="dropdown-menu-chevron" />
                   </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[150px]" sideOffset={8}>
-                <DropdownMenuItem aria-label={t('settings.english')} onSelect={() => void i18n.changeLanguage('en')}>
-                  {language === 'en' && <Check aria-hidden="true" />} {t('settings.english')}
-                </DropdownMenuItem>
-                <DropdownMenuItem aria-label={t('settings.french')} onSelect={() => void i18n.changeLanguage('fr')}>
-                  {language === 'fr' && <Check aria-hidden="true" />} {t('settings.french')}
-                </DropdownMenuItem>
+              <DropdownMenuContent align="end">
+                <DropdownMenuRadioGroup onValueChange={(value) => void i18n.changeLanguage(value)} value={language === 'fr' ? 'fr' : 'en'}>
+                  <DropdownMenuRadioItem value="en">{t('settings.english')}</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="fr">{t('settings.french')}</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
