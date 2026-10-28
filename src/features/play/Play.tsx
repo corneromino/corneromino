@@ -27,19 +27,24 @@ interface GameSessionProps {
 function GameModeMenu() {
   const { t } = useTranslation()
   return (
-    <main className="poster-page app-page relative overflow-hidden px-5 text-[var(--canvas-foreground)]">
+    <main className="poster-page app-page relative flex flex-col overflow-hidden px-5 text-[var(--canvas-foreground)]">
       <TetrominoBackground />
-      <div className="menu-scroll">
-        <section className="menu-content mx-auto flex w-full max-w-[430px] flex-col items-center text-center">
+      <section className="relative z-10 mx-auto flex min-h-0 w-full max-w-[430px] flex-1 flex-col items-center pt-[clamp(12px,calc(var(--app-content-height)*0.04),32px)] text-center">
+        <div className="shrink-0">
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
           <h1 className="poster-title mode-menu-title leading-none">{t('classic.title')}</h1>
+        </div>
+        <div aria-label={t('classic.title')} className="mt-4 flex min-h-0 w-full flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain px-1 pb-1">
           {MODE_ENTRIES.map(([mode, config]) => (
             <AppNavigationButton className={MODE_BUTTON_CLASS} key={mode} navigationOptions={{ state: { returnToClassicMenu: true } }} size="lg" to={`/play?mode=${mode}`}>{t(config.title)}</AppNavigationButton>
           ))}
+          <AppNavigationButton className={MODE_BUTTON_CLASS} navigationOptions={{ state: { returnToClassicMenu: true } }} size="lg" to="/play/infinite">{t('classic.infinite')}</AppNavigationButton>
+        </div>
+        <div className="flex w-full shrink-0 flex-col gap-3 pt-3 pb-[clamp(12px,calc(var(--app-content-height)*0.04),32px)]">
           <AppNavigationButton className="cartoon-press mode-menu-button w-full !border-[var(--canvas-foreground)] !bg-[var(--coral)] text-[11px] font-black tracking-[0.2em] !text-[var(--paper)] uppercase hover:!bg-[#b73a2c]" size="lg" to="/saved">{t('classic.saved')}</AppNavigationButton>
-          <AppNavigationButton className="cartoon-press mt-3 h-[42px] w-full [--element-color:var(--paper-muted)] text-[11px] font-black tracking-[0.16em] text-[var(--canvas-foreground)] uppercase [@media(max-height:480px)]:mt-0" size="sm" to="/">{t('common.back')}</AppNavigationButton>
-        </section>
-      </div>
+          <AppNavigationButton className="cartoon-press h-[42px] w-full [--element-color:var(--paper-muted)] text-[11px] font-black tracking-[0.16em] text-[var(--canvas-foreground)] uppercase" size="sm" to="/">{t('common.back')}</AppNavigationButton>
+        </div>
+      </section>
     </main>
   )
 }

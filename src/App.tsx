@@ -5,6 +5,7 @@ import { isGameMode } from '@/game/gameConfig'
 import { observeDialogViewport } from '@/lib/dialogViewport'
 import { Play } from '@/features/play/Play'
 import { ClassicTutorial } from '@/features/play/ClassicTutorial'
+import { ClassicInfinitePage } from '@/features/play/ClassicInfinitePage'
 import { MainMenu } from '@/features/main-menu/MainMenu'
 import { SavedGames } from '@/features/saved-games/SavedGames'
 import { Sandbox } from '@/features/sandbox/Sandbox'
@@ -19,6 +20,7 @@ const APP_ROUTES = [
   { path: '/', element: <MainMenu />, handle: { menu: true } },
   { path: '/play', element: <Play />, handle: { menu: true } },
   { path: '/play/tutorial', element: <ClassicTutorial /> },
+  { path: '/play/infinite', element: <ClassicInfinitePage /> },
   { path: '/sandbox', element: <Sandbox />, handle: { menu: true } },
   { path: '/sandbox/new', element: <SandboxWorld /> },
   { path: '/sandbox/:worldId', element: <SandboxWorld /> },

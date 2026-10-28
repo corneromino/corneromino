@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Eraser, Lock, Pencil, RotateCcw, Unlock } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -11,7 +11,7 @@ import { LOCKED_CELL_COLOR_HEX } from '@/rendering/colors'
 import { CorrectGameDialog } from './CorrectGameDialog'
 import { ClassicPauseDialog } from './ClassicPauseDialog'
 import { ClassicMistakesDialog } from './ClassicMistakesDialog'
-import { GameGridCanvas, type GameGridCanvasHandle } from './GameGridCanvas'
+import { GameGridCanvas, type GameGridCanvasHandle, type ScrollingGridViewport } from './GameGridCanvas'
 
 const DOUBLE_TAP_UNLOCK_MS = 200
 
@@ -35,6 +35,9 @@ interface GameGridProps {
   paused: boolean
   persistSelection?: boolean
   pieces: readonly PlacedTetromino[]
+  scrolling?: ScrollingGridViewport
+  onRestart?: () => void
+  pauseDialog?: ReactNode
 }
 
 function createCellMap(pieces: readonly PlacedTetromino[]): Map<string, PlacedTetromino> {
@@ -78,6 +81,7 @@ export function GameGrid(props: GameGridProps) {
   const [completionScreenshot, setCompletionScreenshot] = useState<string | null>(null)
   const [moveCount, setMoveCount] = useState(0)
   const [savedAt, setSavedAt] = useState<number | null>(null)
+  const [previousScrollingPieces, setPreviousScrollingPieces] = useState(props.pieces)
   const gameBoardRef = useRef<HTMLElement>(null)
   const gameCanvasRef = useRef<GameGridCanvasHandle>(null)
   const persistenceQueueRef = useRef<Promise<void>>(Promise.resolve())
@@ -91,14 +95,28 @@ export function GameGrid(props: GameGridProps) {
   const cellMap = createCellMap(props.pieces)
   const lockedCellMap = createLockedCellMap(lockedCellGroups)
   const canLockSelectedCells = canLockCells(selectedCellKeys)
-  const canValidate = cellMap.size > 0 && [...cellMap.keys()].every((cellKey) => lockedCellMap.has(cellKey))
+  const canValidate = !props.scrolling && cellMap.size > 0 && [...cellMap.keys()].every((cellKey) => lockedCellMap.has(cellKey))
   const verificationErrorCount = validationResult && !validationResult.isCorrect
     ? lockedCellGroups.length - validationResult.validLockCount
     : 0
   const verificationLabel = t('classic.verify')
+  const visibleRows = props.scrolling?.visibleRows ?? props.config.rows
   const boardStyle = {
-    aspectRatio: `${props.config.columns} / ${props.config.rows}`,
-    width: `min(100%, calc(100cqh * ${props.config.columns} / ${props.config.rows}))`,
+    aspectRatio: `${props.config.columns} / ${visibleRows}`,
+    width: `min(100%, calc(100cqh * ${props.config.columns} / ${visibleRows}))`,
+  }
+
+  // Prune a recycled section before its replacement reaches the canvas. Cells
+  // and group fragments still on screen retain their selection, locks and notes.
+  if (props.scrolling && props.pieces !== previousScrollingPieces) {
+    const retainedGroups = lockedCellGroups.map((group) => ({
+      ...group, cellKeys: group.cellKeys.filter((key) => cellMap.has(key)),
+    })).filter((group) => group.cellKeys.length > 0)
+    setPreviousScrollingPieces(props.pieces)
+    setSelectedCellKeys(new Set([...selectedCellKeys].filter((key) => cellMap.has(key))))
+    setMarkers(new Map([...markers].filter(([key]) => cellMap.has(key))))
+    setLockedCellGroups(retainedGroups)
+    if (!retainedGroups.some((group) => group.id === selectedLockedGroupId)) setSelectedLockedGroupId(null)
   }
 
   useEffect(() => {
@@ -153,6 +171,10 @@ export function GameGrid(props: GameGridProps) {
   }
 
   function restartFromPause() {
+    if (props.onRestart) {
+      props.onRestart()
+      return
+    }
     resetGame()
     props.onPauseOpenChange(false)
   }
@@ -496,6 +518,7 @@ export function GameGrid(props: GameGridProps) {
               selectedCellKeys={selectedCellKeys}
               selectedLockedGroupId={selectedLockedGroupId}
               showCellIds={showCellIds}
+              scrolling={props.scrolling}
             />
             {props.highlightAreas?.map((area) => (
               <div
@@ -575,7 +598,7 @@ export function GameGrid(props: GameGridProps) {
         >
           <Unlock aria-hidden="true" />
         </Button>}
-        {!autoFinalVerification && <Button
+        {!props.scrolling && !autoFinalVerification && <Button
           aria-label={verificationLabel}
           className={cn(
             'cartoon-press relative text-[15px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase',
@@ -608,7 +631,7 @@ export function GameGrid(props: GameGridProps) {
         screenshot={completionScreenshot}
       />
       <ClassicMistakesDialog mistakeCount={verificationErrorCount} onOpenChange={setMistakeDialogOpen} open={mistakeDialogOpen} />
-      <ClassicPauseDialog gameMode={props.gameMode} isSaving={isExiting} onOpenChange={props.onPauseOpenChange} onQuitWithoutSaving={quitWithoutSavingFromPause} onRestart={restartFromPause} onResume={() => props.onPauseOpenChange(false)} onSaveAndQuit={saveAndQuitFromPause} open={props.paused} seed={props.gameId} />
+      {props.pauseDialog ?? <ClassicPauseDialog gameMode={props.gameMode} isSaving={isExiting} onOpenChange={props.onPauseOpenChange} onQuitWithoutSaving={quitWithoutSavingFromPause} onRestart={restartFromPause} onResume={() => props.onPauseOpenChange(false)} onSaveAndQuit={saveAndQuitFromPause} open={props.paused} seed={props.gameId} />}
     </div>
   )
 }

@@ -110,6 +110,16 @@ export class GridSurface {
     return gridCellToScreen(this.metrics, column, row)
   }
 
+  /** Translate the viewport without rebuilding textures or background geometry. */
+  setOffset(offsetX: number, offsetY: number) {
+    this.viewport = { ...this.viewport, offsetX, offsetY }
+    this.metrics.offsetX = offsetX
+    this.metrics.offsetY = offsetY
+    if (this.bounds.infinite) this.background.tilePosition.set(offsetX, offsetY)
+    else this.background.position.set(offsetX, offsetY)
+    for (const layer of Object.values(this.worldLayers)) layer.position.set(offsetX, offsetY)
+  }
+
   screenToCell(x: number, y: number) {
     return screenToGridCell(this.metrics, x, y)
   }

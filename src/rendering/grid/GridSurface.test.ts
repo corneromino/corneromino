@@ -22,6 +22,21 @@ function setup() {
 }
 
 describe('shared textured grid surface', () => {
+  it('scrolls textures, world layers and hit testing together without rebuilding a texture', () => {
+    const { surface, generateTexture } = setup()
+    const texture = surface.texture
+    surface.setOffset(0, 14)
+    expect(surface.texture).toBe(texture)
+    expect(generateTexture).toHaveBeenCalledOnce()
+    expect(surface.background.tilePosition.y).toBe(14)
+    expect(surface.worldLayers.pieces.position.y).toBe(14)
+    expect(surface.pointerToCell({ clientX: 20 + 28, clientY: 30 + 14 + 28 })).toEqual({ column: 0, row: 0 })
+    surface.setOffset(0, 70)
+    expect(surface.pointerToCell({ clientX: 20 + 28, clientY: 30 + 14 + 28 })).toEqual({ column: 0, row: -1 })
+    expect(generateTexture).toHaveBeenCalledOnce()
+    surface.destroy()
+  })
+
   it.each([37.125, 43.75, 56.9])('bakes an unclipped, aligned tile for fractional cell size %s', (cellSize) => {
     const { surface, generateTexture, generatedBounds, viewport } = setup()
     surface.update({ ...viewport, cellSize })
@@ -36,19 +51,22 @@ describe('shared textured grid surface', () => {
     surface.destroy()
   })
 
-  it('reuses its texture during pan/zoom/resize and updates world layers and hit testing together', () => {
+  it('rebakes at a new zoom and reuses that texture during pan/resize, keeping hit testing aligned', () => {
     const { surface, generateTexture, viewport } = setup()
     const texture = surface.texture
     surface.update({ ...viewport, zoom: 0.5, offsetX: 7, offsetY: 14 })
-    expect(generateTexture).toHaveBeenCalledOnce()
-    expect(surface.texture).toBe(texture)
-    expect(surface.background.tileScale.x).toBe(0.5)
+    expect(generateTexture).toHaveBeenCalledTimes(2)
+    expect(surface.texture).not.toBe(texture)
+    expect(texture.destroyed).toBe(true)
+    expect(surface.background.tileScale.x * surface.texture.width).toBe(28)
     expect(surface.background.tilePosition.x).toBe(7)
     expect(surface.worldLayers.overlay.scale.x).toBe(28)
     expect(surface.worldLayers.overlay.position.y).toBe(14)
     expect(surface.pointerToCell({ clientX: 20 + 7 + 28 * 2.5, clientY: 30 + 14 + 28 * 3.5 })).toEqual({ column: 2, row: 3 })
-    surface.update({ ...viewport, width: 800, height: 600 })
-    expect(generateTexture).toHaveBeenCalledOnce()
+    const zoomTexture = surface.texture
+    surface.update({ ...viewport, zoom: 0.5, width: 800, height: 600, offsetX: 21, offsetY: 28 })
+    expect(generateTexture).toHaveBeenCalledTimes(2)
+    expect(surface.texture).toBe(zoomTexture)
     surface.destroy()
   })
 

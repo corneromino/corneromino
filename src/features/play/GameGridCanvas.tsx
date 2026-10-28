@@ -12,6 +12,13 @@ import { gsap } from 'gsap'
 import type { CellMarkerColor, GameConfig, LockedCellGroup, PlacedTetromino } from '@/game/gameConfig'
 import { CASCADE_LOCK_EFFECTS } from '@/features/cascade/cascadeEffects'
 
+export interface ScrollingGridViewport {
+  firstRow: number
+  visibleRows: number
+  getOffsetRows: () => number
+  advance: (deltaMs: number) => void
+}
+
 interface GameGridCanvasProps {
   config: GameConfig
   interactive?: boolean
@@ -23,6 +30,7 @@ interface GameGridCanvasProps {
   selectedCellKeys: ReadonlySet<string>
   selectedLockedGroupId: string | null
   showCellIds: boolean
+  scrolling?: ScrollingGridViewport
 }
 
 export interface GameGridCanvasHandle {
@@ -76,7 +84,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
 
   useEffect(() => {
     drawRef.current()
-  }, [props.config, props.lockedCellGroups, props.markers, props.pieces, props.selectedCellKeys, props.selectedLockedGroupId, props.showCellIds])
+  }, [props.config, props.lockedCellGroups, props.markers, props.pieces, props.selectedCellKeys, props.selectedLockedGroupId, props.showCellIds, props.scrolling])
 
   useEffect(() => {
     const container = containerRef.current
@@ -104,8 +112,11 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       if (!surface) return
       const { columns, rows } = propsRef.current.config
       const { width, height } = app.screen
-      const cellSize = Math.min(width / columns, height / rows)
-      view = constrainGridView(view, { width, height }, { width: columns * cellSize, height: rows * cellSize })
+      const scrolling = propsRef.current.scrolling
+      const cellSize = scrolling ? width / columns : Math.min(width / columns, height / rows)
+      view = scrolling
+        ? { zoom: 1, offsetX: 0, offsetY: scrolling.getOffsetRows() * cellSize }
+        : constrainGridView(view, { width, height }, { width: columns * cellSize, height: rows * cellSize })
       surface.update({ width, height, cellSize, fit: 'manual', ...view }, {
         cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR,
         borderSize: cellSize * CELL_BORDER_RATIO, borderRadius: cellSize * 0.02, gap: 0,
@@ -178,7 +189,8 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       cellShakeLayers = new Map()
       emptyCellSprites = new Map()
 
-      for (let y = 0; y < current.config.rows; y += 1) {
+      const firstRow = current.scrolling?.firstRow ?? 0
+      for (let y = firstRow; y < firstRow + current.config.rows; y += 1) {
         for (let x = 0; x < current.config.columns; x += 1) {
           const key = cellKey(x, y)
           const piece = pieceMap.get(key)
@@ -408,6 +420,13 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     }
 
     function update() {
+      const scrolling = propsRef.current.scrolling
+      if (scrolling && surface) {
+        if (propsRef.current.interactive !== false && !document.hidden) scrolling.advance(app.ticker.deltaMS)
+        view.offsetY = scrolling.getOffsetRows() * surface.metrics.cellHeight
+        surface.setOffset(0, view.offsetY)
+        board.position.set(0, view.offsetY)
+      }
       const time = performance.now() / 4000
       for (const { layer, size } of shineLayers) {
         layer.position.set(-size * 1.5 + (time % 1) * size * 3.5, size / 2)
@@ -415,7 +434,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     }
 
     function handleCellTap({ column: x, row: y, originalEvent }: GridCellEvent) {
-      if (!surface!.contains(x, y)) return
+      if (!surface!.contains(x, y) || x < 0 || x >= propsRef.current.config.columns) return
       propsRef.current.onToggle(cellKey(x, y), originalEvent.timeStamp)
     }
 
@@ -428,7 +447,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         onReady: () => {
           appRef.current = app
           boardRef.current = board
-          surface = new GridSurface(app, { infinite: false, columns: propsRef.current.config.columns, rows: propsRef.current.config.rows }, {
+          surface = new GridSurface(app, propsRef.current.scrolling ? { infinite: true } : { infinite: false, columns: propsRef.current.config.columns, rows: propsRef.current.config.rows }, {
             width: app.screen.width, height: app.screen.height,
             cellSize: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows), fit: 'stretch',
           }, { cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR, borderSize: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows) * CELL_BORDER_RATIO, borderRadius: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows) * 0.02, gap: 0 })
@@ -451,7 +470,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
               updateViewport()
             }
           }
-          const navigation = propsRef.current.config.navigationEnabled === false ? null : createGridNavigation(app.canvas, {
+          const navigation = propsRef.current.scrolling || propsRef.current.config.navigationEnabled === false ? null : createGridNavigation(app.canvas, {
             minZoom: 1, maxZoom: 4,
             getView: () => view,
             getSize: () => app.screen,

@@ -189,12 +189,6 @@ const TUTORIAL_SCENARIOS = {
 
 type TutorialScenarioKey = keyof typeof TUTORIAL_SCENARIOS
 
-const TUTORIAL_STEP_INDEX = {
-  tGrid: 6,
-  allCornerominosGrid: 7,
-  completed: 8,
-} as const
-
 const TUTORIAL_HIGHLIGHT_AREAS: readonly { height: number; id: string; left: number; top: number; width: number }[] = [
   { id: 'classic-tutorial-corners', left: 1, top: 1, width: 3, height: 3 },
   { id: 'classic-tutorial-top-right', left: 3, top: 1, width: 1, height: 1 },

@@ -28,6 +28,7 @@ vi.mock('./GameGridCanvas', () => ({
       <output data-testid="board-state">{JSON.stringify({
         locked: props.lockedCellGroups,
         selected: [...props.selectedCellKeys],
+        selectedLockedGroupId: props.selectedLockedGroupId,
         markers: [...props.markers.keys()],
       })}</output>
     </div>
@@ -50,7 +51,7 @@ function emptySave(): GameSelectionState {
 
 function board() {
   return JSON.parse(screen.getByTestId('board-state').textContent!) as {
-    locked: GameSelectionState['lockedCellGroups']; selected: string[]; markers: string[]
+    locked: GameSelectionState['lockedCellGroups']; selected: string[]; markers: string[]; selectedLockedGroupId: string | null
   }
 }
 
@@ -88,6 +89,28 @@ afterEach(() => {
 })
 
 describe('Classic locking modes', () => {
+  it('keeps Infinite playable after all current pieces lock and prunes only recycled cells', () => {
+    const scrolling = { firstRow: 0, visibleRows: 6, getOffsetRows: () => 0, advance: vi.fn() }
+    const { props, rerender } = setup('auto', {
+      config: { ...GAME_CONFIGS.easy, lockingMode: 'auto', finalVerificationMode: 'auto' }, scrolling,
+    })
+    tap(...firstSquare, ...secondSquare)
+    expect(board().locked).toHaveLength(2)
+    expect(props.onCorrectSolution).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'classic.verify' })).toBeNull()
+    tap(secondSquare[0])
+    const selectedGroup = board().selectedLockedGroupId
+    expect(selectedGroup).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Take notes' }))
+    tap(firstSquare[0], secondSquare[0])
+    rerender({ pieces: [pieces[1]] })
+    expect(board().locked).toHaveLength(1)
+    expect(board().locked[0].cellKeys).toEqual(secondSquare)
+    expect(board().selectedLockedGroupId).toBe(selectedGroup)
+    expect(board().markers).toEqual([secondSquare[0]])
+    expect(saveGameSelection).not.toHaveBeenCalled()
+  })
+
   it('cancels a pending double-tap unlock after moving or zooming the grid', () => {
     setup()
     tap(...firstSquare, '0,0')

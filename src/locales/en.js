@@ -63,6 +63,10 @@ export default {
     },
     "classic": {
         "title": "Classic",
+        "infinite": "Infinite",
+        "infiniteGenerationFailed": "Could not generate the next section. Restart to try again.",
+        "moves_one": "{{count}} move",
+        "moves_other": "{{count}} moves",
         "saved": "Saved",
         "generating": "Generating game…",
         "paused": "Paused",

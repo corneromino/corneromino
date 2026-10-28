@@ -56,6 +56,10 @@ export default {
     },
     "classic": {
         "title": "Classic",
+        "infinite": "Infini",
+        "infiniteGenerationFailed": "Impossible de générer la section suivante. Recommencez pour réessayer.",
+        "moves_one": "{{count}} coup",
+        "moves_other": "{{count}} coups",
         "saved": "Sauvegardes",
         "generating": "Génération de la partie…",
         "paused": "En pause",
