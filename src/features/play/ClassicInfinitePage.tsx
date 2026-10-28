@@ -7,11 +7,12 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { createRandomSeed } from '@/game/random'
 import { GameGrid } from './GameGrid'
 import { CLASSIC_INFINITE_CONFIG, ClassicInfiniteStream, createInfiniteSectionGenerator, type ClassicInfiniteSection } from './classicInfiniteStream'
+import type { ClassicInfiniteCellExit } from './classicInfiniteCellExit'
 
 const BOARD_CONFIG = { ...CLASSIC_INFINITE_CONFIG, rows: CLASSIC_INFINITE_CONFIG.rows * 2 }
 const PAUSE_BUTTON_CLASS = 'cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase'
 
-function InfiniteSession({ onRestart }: { onRestart: () => void }) {
+function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: ClassicInfiniteCellExit) => void; onRestart: () => void }) {
   const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
@@ -93,6 +94,7 @@ function InfiniteSession({ onRestart }: { onRestart: () => void }) {
           gameId={seed}
           gameMode="infinite"
           onElapsedSecondsChange={setElapsedSeconds}
+          onCellExit={onCellExit}
           onMoveCountChange={setMoveCount}
           onNextGame={onRestart}
           onPauseOpenChange={setPaused}
@@ -111,8 +113,8 @@ function InfiniteSession({ onRestart }: { onRestart: () => void }) {
   )
 }
 
-export function ClassicInfinitePage() {
+export function ClassicInfinitePage({ onCellExit }: { onCellExit?: (event: ClassicInfiniteCellExit) => void }) {
   const [run, setRun] = useState(0)
   function restart() { setRun((current) => current + 1) }
-  return <InfiniteSession key={run} onRestart={restart} />
+  return <InfiniteSession key={run} onCellExit={onCellExit} onRestart={restart} />
 }

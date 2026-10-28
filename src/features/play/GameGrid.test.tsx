@@ -18,13 +18,28 @@ vi.mock('./ClassicPauseDialog', () => ({ ClassicPauseDialog: () => null }))
 vi.mock('./CorrectGameDialog', () => ({ CorrectGameDialog: () => null }))
 // Exercise the real React interaction state; only replace the Pixi drawing surface.
 vi.mock('./GameGridCanvas', () => ({
-  GameGridCanvas: (props: ComponentProps<typeof GameGridCanvas>) => (
-    <div>
+  GameGridCanvas: (props: ComponentProps<typeof GameGridCanvas>) => {
+    const corneromino = props.pieces[0]
+    const cell = corneromino?.cells[0]
+    const key = cell ? `${cell.x},${cell.y}` : ''
+    const lockedGroup = props.lockedCellGroups.find((group) => group.cellKeys.includes(key))
+    return <div>
       {props.pieces.flatMap((piece) => piece.cells.map(({ x, y }) => (
         <button key={`${x},${y}`} onClick={() => props.onToggle(`${x},${y}`, performance.now())}>{`Cell ${x},${y}`}</button>
       )))}
       <button onClick={() => props.onToggle('6,5', performance.now())}>Empty cell</button>
       <button onClick={props.onNavigate}>Navigate grid</button>
+      {cell && <button onClick={() => props.onCellExit?.({
+        cell,
+        cellKey: key,
+        corneromino,
+        cornerominoCellKeys: corneromino.cells.map(({ x, y }) => `${x},${y}`),
+        cornerominoId: corneromino.id,
+        cornerominoKind: corneromino.kind,
+        locked: lockedGroup !== undefined,
+        lockedGroupId: lockedGroup?.id ?? null,
+        selected: props.selectedCellKeys.has(key) || lockedGroup?.id === props.selectedLockedGroupId,
+      })}>Exit first cell</button>}
       <output data-testid="board-state">{JSON.stringify({
         locked: props.lockedCellGroups,
         selected: [...props.selectedCellKeys],
@@ -32,7 +47,7 @@ vi.mock('./GameGridCanvas', () => ({
         markers: [...props.markers.keys()],
       })}</output>
     </div>
-  ),
+  },
 }))
 
 const pieces: PlacedTetromino[] = [0, 3].map((offset, id) => ({
@@ -89,6 +104,32 @@ afterEach(() => {
 })
 
 describe('Classic locking modes', () => {
+  it('deselects an unlocked selected cell when that cell exits Infinite', () => {
+    const onCellExit = vi.fn()
+    const scrolling = { firstRow: 0, visibleRows: 6, getOffsetRows: () => 0, advance: vi.fn() }
+    setup('auto', { onCellExit, scrolling })
+    tap(firstSquare[0], firstSquare[1])
+    expect(board().selected).toEqual(firstSquare.slice(0, 2))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Exit first cell' }))
+    expect(board().selected).toEqual([firstSquare[1]])
+    expect(onCellExit).toHaveBeenCalledWith(expect.objectContaining({
+      cellKey: firstSquare[0], locked: false, selected: true, cornerominoId: pieces[0].id,
+    }))
+  })
+
+  it('does not deselect a locked group when one of its cells exits Infinite', () => {
+    const scrolling = { firstRow: 0, visibleRows: 6, getOffsetRows: () => 0, advance: vi.fn() }
+    setup('auto', { scrolling })
+    tap(...firstSquare, firstSquare[0])
+    const selectedGroupId = board().selectedLockedGroupId
+    expect(selectedGroupId).not.toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Exit first cell' }))
+    expect(board().selectedLockedGroupId).toBe(selectedGroupId)
+    expect(board().locked).toHaveLength(1)
+  })
+
   it('keeps Infinite playable after all current pieces lock and prunes only recycled cells', () => {
     const scrolling = { firstRow: 0, visibleRows: 6, getOffsetRows: () => 0, advance: vi.fn() }
     const { props, rerender } = setup('auto', {

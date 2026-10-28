@@ -12,6 +12,7 @@ import { CorrectGameDialog } from './CorrectGameDialog'
 import { ClassicPauseDialog } from './ClassicPauseDialog'
 import { ClassicMistakesDialog } from './ClassicMistakesDialog'
 import { GameGridCanvas, type GameGridCanvasHandle, type ScrollingGridViewport } from './GameGridCanvas'
+import type { ClassicInfiniteCellExit } from './classicInfiniteCellExit'
 
 const DOUBLE_TAP_UNLOCK_MS = 200
 
@@ -38,6 +39,7 @@ interface GameGridProps {
   scrolling?: ScrollingGridViewport
   onRestart?: () => void
   pauseDialog?: ReactNode
+  onCellExit?: (event: ClassicInfiniteCellExit) => void
 }
 
 function createCellMap(pieces: readonly PlacedTetromino[]): Map<string, PlacedTetromino> {
@@ -145,6 +147,18 @@ export function GameGrid(props: GameGridProps) {
     setSelectedLockedGroupId(null)
     setValidationResult(null)
     setMistakeDialogOpen(false)
+  }
+
+  function handleCellExit(event: ClassicInfiniteCellExit) {
+    if (event.selected && !event.locked) {
+      setSelectedCellKeys((currentKeys) => {
+        if (!currentKeys.has(event.cellKey)) return currentKeys
+        const nextKeys = new Set(currentKeys)
+        nextKeys.delete(event.cellKey)
+        return nextKeys
+      })
+    }
+    props.onCellExit?.(event)
   }
 
   function resetGame() {
@@ -512,6 +526,7 @@ export function GameGrid(props: GameGridProps) {
               lockedCellGroups={lockedCellGroups}
               markers={markers}
               onNavigate={handleGridNavigation}
+              onCellExit={handleCellExit}
               onToggle={toggleCellSelection}
               pieces={props.pieces}
               ref={gameCanvasRef}

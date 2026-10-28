@@ -11,6 +11,7 @@ import { ShockwaveFilter } from 'pixi-filters'
 import { gsap } from 'gsap'
 import type { CellMarkerColor, GameConfig, LockedCellGroup, PlacedTetromino } from '@/game/gameConfig'
 import { CASCADE_LOCK_EFFECTS } from '@/features/cascade/cascadeEffects'
+import { collectExitedInfiniteCells, pruneReportedInfiniteCells, type ClassicInfiniteCellExit } from './classicInfiniteCellExit'
 
 export interface ScrollingGridViewport {
   firstRow: number
@@ -31,6 +32,7 @@ interface GameGridCanvasProps {
   selectedLockedGroupId: string | null
   showCellIds: boolean
   scrolling?: ScrollingGridViewport
+  onCellExit?: (event: ClassicInfiniteCellExit) => void
 }
 
 export interface GameGridCanvasHandle {
@@ -105,6 +107,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     const gridShakeMotion = { time: 0 }
     const lockWaves = new Set<ShockwaveFilter>()
     const cellShakeMotions = new Set<{ time: number }>()
+    const reportedExitedCellKeys = new Set<string>()
     let view: GridView = { zoom: 1, offsetX: 0, offsetY: 0 }
     let previousSize = { width: 0, height: 0, cellSize: 0 }
 
@@ -170,6 +173,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     function draw() {
       if (disposed || !appRef.current || !boardRef.current) return
       const current = propsRef.current
+      if (current.scrolling) pruneReportedInfiniteCells(reportedExitedCellKeys, current.pieces)
       updateViewport()
       // Draw in fitted-board coordinates; navigation only transforms the container.
       const cellWidth = surface!.metrics.cellWidth / view.zoom
@@ -426,6 +430,17 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         view.offsetY = scrolling.getOffsetRows() * surface.metrics.cellHeight
         surface.setOffset(0, view.offsetY)
         board.position.set(0, view.offsetY)
+        const current = propsRef.current
+        const exitedCells = collectExitedInfiniteCells({
+          lockedCellGroups: current.lockedCellGroups,
+          offsetRows: scrolling.getOffsetRows(),
+          pieces: current.pieces,
+          reportedCellKeys: reportedExitedCellKeys,
+          selectedCellKeys: current.selectedCellKeys,
+          selectedLockedGroupId: current.selectedLockedGroupId,
+          visibleRows: scrolling.visibleRows,
+        })
+        for (const event of exitedCells) current.onCellExit?.(event)
       }
       const time = performance.now() / 4000
       for (const { layer, size } of shineLayers) {
