@@ -40,9 +40,11 @@ export default {
             "bottomLeft": "En bas à gauche...",
             "topLeft": "En haut à gauche...",
             "shapeExample": "Un Corneromino est composé de quatre carrés qui se touchent, chacun avec un coin unique.\nSélectionne les quatre carrés.",
+            "shapeExampleCompleted": "Bravo !",
             "lockSelection": "Verrouille ta sélection.",
             "verifySolution": "Une fois que tous les carrés sont verrouillés, tu peux vérifier ta solution.",
             "tRotations": "Chaque Corneromino possède 4 rotations.\nVoici les 4 rotations du Corneromino 'T'.\nPeux-tu les trouver ?",
+            "tRotationsCompleted": "Super !",
             "allCornerominos": "Il existe 8 Cornerominos différents. Chacun possèdant 4 rotations differentes.",
             "completed": "Bravo ! Tu peux fermer le tutoriel."
         }
