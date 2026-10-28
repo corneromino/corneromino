@@ -8,7 +8,7 @@ import { createRandomSeed } from '@/game/random'
 import { GameGrid } from './GameGrid'
 import { CLASSIC_INFINITE_CONFIG, ClassicInfiniteStream, createInfiniteSectionGenerator, type ClassicInfiniteSection } from './classicInfiniteStream'
 import type { ClassicInfiniteCellExit } from './classicInfiniteCellExit'
-import { CLASSIC_INFINITE_VHS_CRT } from './classicInfiniteEffects'
+// import { CLASSIC_INFINITE_VHS_CRT } from './classicInfiniteEffects'
 
 const BOARD_CONFIG = { ...CLASSIC_INFINITE_CONFIG, rows: CLASSIC_INFINITE_CONFIG.rows * 2 }
 const PAUSE_BUTTON_CLASS = 'cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase'
