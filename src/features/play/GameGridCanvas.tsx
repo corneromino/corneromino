@@ -34,6 +34,8 @@ const BOARD_COLOR = GAME_COLORS.cellBorder
 const CELL_COLOR = GAME_COLORS.cellFill
 const OUTLINE_COLOR = GAME_COLORS.cornerMarker
 const TEXT_COLOR = GAME_COLORS.ink
+/** Retains the existing 1.5px border at a 50px cell while scaling dense boards down. */
+const CELL_BORDER_RATIO = 0.04
 const MARKER_COLORS: Record<CellMarkerColor, number> = { black: GAME_COLORS.ink, white: GAME_COLORS.markerWhite }
 
 function cellKey(x: number, y: number): string {
@@ -106,8 +108,12 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       view = constrainGridView(view, { width, height }, { width: columns * cellSize, height: rows * cellSize })
       surface.update({ width, height, cellSize, fit: 'manual', ...view }, {
         cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR,
-        borderSize: 1.5, borderRadius: cellSize * 0.02, gap: 0,
+        borderSize: cellSize * CELL_BORDER_RATIO, borderRadius: cellSize * 0.02, gap: 0,
       })
+      // Empty cells temporarily use individual sprites while a nearby lock
+      // shake is active. Keep those sprites on the replacement zoom texture
+      // before Pixi renders again; GridSurface releases the old one on update.
+      for (const tile of emptyCellSprites.values()) tile.texture = surface.texture
       board.position.set(view.offsetX, view.offsetY)
       board.scale.set(view.zoom)
     }
@@ -115,12 +121,15 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     function stopViewportEffects() {
       gsap.killTweensOf(gridShakeMotion)
       app.stage.position.set(0, 0)
+      // Detach filters before destroying their GPU resources. Zoom/pan can
+      // interrupt a ripple mid-frame, when leaving a destroyed filter on the
+      // stage causes Pixi to access a null texture source.
+      app.stage.filters = []
       for (const wave of lockWaves) {
         gsap.killTweensOf(wave)
         wave.destroy()
       }
       lockWaves.clear()
-      app.stage.filters = []
     }
 
     function resize() {
@@ -226,7 +235,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
             cellContainer.scale.set(0.9)
           }
 
-          const borderSize = 1.5
+          const borderSize = cellSize * CELL_BORDER_RATIO
           const radius = cellSize * 0.02
           const outerColor = selected ? CELL_COLOR : BOARD_COLOR
           const fillColor = selected ? BOARD_COLOR : lockedGroup ? lockedColorToNumber(lockedGroup.color) : CELL_COLOR
@@ -264,10 +273,10 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
             shakeLayer.addChild(label)
           }
 
-          if (cell) {
-            const markerSize = cellWidth * 0.45
-            const offsetX = Math.max(3, cellWidth * 0.12)
-            const offsetY = Math.max(3, cellHeight * 0.12)
+            if (cell) {
+              const markerSize = cellWidth * 0.45
+              const offsetX = cellWidth * 0.12
+              const offsetY = cellHeight * 0.12
             const style = { color: selected ? CELL_COLOR : OUTLINE_COLOR, size: markerSize, paddingX: offsetX, paddingY: offsetY, radius: markerSize * 0.1 }
             const position = getCornerMarkerPosition(CELL_CORNERS.indexOf(cell.corner), cellWidth, cellHeight, style)
             const markerGraphic = new Graphics()
@@ -422,7 +431,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           surface = new GridSurface(app, { infinite: false, columns: propsRef.current.config.columns, rows: propsRef.current.config.rows }, {
             width: app.screen.width, height: app.screen.height,
             cellSize: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows), fit: 'stretch',
-          }, { cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR, borderSize: 1.5, borderRadius: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows) * 0.02, gap: 0 })
+          }, { cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR, borderSize: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows) * CELL_BORDER_RATIO, borderRadius: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows) * 0.02, gap: 0 })
           surface.layers.pieces.addChild(board)
           app.stage.addChild(surface.root)
           resetViewRef.current = () => {
@@ -477,12 +486,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         app.ticker.remove(update)
         stopCellAnimations()
         gsap.killTweensOf(gridShakeMotion)
-        for (const wave of lockWaves) {
-          gsap.killTweensOf(wave)
-          wave.destroy()
-        }
-        lockWaves.clear()
-        app.stage.filters = []
+        stopViewportEffects()
         surface?.destroy()
       }
       host?.destroy()

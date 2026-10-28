@@ -10,6 +10,7 @@ export default {
         "load": "Load",
         "loading": "Loading…",
         "new": "New",
+        "ok": "Ok",
         "next": "Next",
         "previous": "Previous",
         "pause": "Pause",
@@ -33,7 +34,8 @@ export default {
         "superEasy": "Super easy",
         "easy": "Easy",
         "medium": "Medium",
-        "hard": "Hard"
+        "hard": "Hard",
+        "superHard": "Impossible"
     },
     "tutorial": {
         "title": "Tutorial",
@@ -62,9 +64,12 @@ export default {
         "saved": "Saved",
         "generating": "Generating game…",
         "paused": "Paused",
+        "copySeed": "Copy seed",
         "verify": "Verify",
         "errors": "{{count}} errors",
+        "mistakes": "{{count}} mistakes",
         "correct": "Well Done !",
+        "result": "Result",
         "completedBoard": "Completed game board",
         "saveGame": "Save game",
         "savePrompt": "Save this game to continue it later?"
@@ -84,7 +89,9 @@ export default {
     "versus": {
         "title": "VS",
         "local": "Local",
-        "online": "Online"
+        "online": "Online",
+        "gameType": "VS game type",
+        "localVs": "Local VS"
     },
     "sandbox": {
         "title": "Sandbox",
@@ -111,9 +118,13 @@ export default {
     },
     "versusGame": {
         "paused": "Paused",
+        "mode": "Mode",
+        "boardSize": "Board size {{size}} by {{size}}",
+        "start": "Start",
         "resume": "Resume",
         "restart": "Restart",
         "finishTurn": "Finish turn",
+        "cancelCurrentTurn": "Cancel current turn",
         "previousMove": "Previous move",
         "nextMove": "Next move",
         "viewOnly": "View only",
@@ -122,7 +133,14 @@ export default {
         "copyFailed": "Could not copy automatically. Copy the report below.",
         "debugReport": "Game debug report",
         "winner": "Winner",
+        "playerWins": "{{player}} wins!",
         "draw": "Draw",
+        "playing": "Playing",
+        "waiting": "Waiting",
+        "matchFinished": "Match finished",
+        "toggleMoveDirection": "Toggle orthogonal or diagonal move direction",
+        "localBoard": "Local VS board",
+        "pauseLocalVs": "Pause Local VS",
         "newMatch": "New match",
         "viewBoard": "View board",
         "combination": "Combination win",
@@ -133,6 +151,7 @@ export default {
         "player": "Player {{number}}",
         "points": "{{count}} points",
         "move": "Move {{number}}",
+        "moveNotation": "Move {{number}}, {{player}}: {{notation}}",
         "moveHistory": "Move history",
         "yourTurn": "Your turn"
     }

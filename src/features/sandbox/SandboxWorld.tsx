@@ -131,13 +131,13 @@ export function SandboxWorld() {
           <Button
             aria-label="Toggle draw mode"
             aria-pressed={drawEnabled}
-            className={`cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--canvas-foreground)] ${drawEnabled ? '!bg-[var(--yellow)]' : ''}`}
+            className={`cartoon-press text-[var(--canvas-foreground)] ${drawEnabled ? '!bg-[var(--yellow)]' : ''}`}
             onClick={() => {
               setDrawEnabled((enabled) => !enabled)
               setDeleteEnabled(false)
               setMoveEnabled(false)
             }}
-            size="icon"
+            size="icon-lg"
             title="Toggle draw mode"
             type="button"
           >
@@ -146,7 +146,7 @@ export function SandboxWorld() {
           <Button
             aria-label="Toggle delete mode"
             aria-pressed={deleteEnabled}
-            className={`cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--coral)] ${deleteEnabled ? '!bg-[var(--coral)] !text-[var(--paper)]' : ''}`}
+            className={`cartoon-press text-[var(--coral)] ${deleteEnabled ? '!bg-[var(--coral)] !text-[var(--paper)]' : ''}`}
             onClick={() => {
               if (selectEnabled) {
                 canvasRef.current?.deleteSelectedCells()
@@ -157,7 +157,7 @@ export function SandboxWorld() {
               setSelectEnabled(false)
               setMoveEnabled(false)
             }}
-            size="icon"
+            size="icon-lg"
             title="Toggle delete mode"
             type="button"
           >
@@ -181,14 +181,14 @@ export function SandboxWorld() {
         {!loadingWorld && worldId && !loadedWorld && <p className="poster-kicker p-5 text-center text-[11px] text-[var(--paper)]">World not found</p>}
       </section>
       <div className="relative z-10 mx-auto flex w-full max-w-[550px] flex-nowrap justify-center gap-1 px-1 pt-4 sm:gap-2">
-        <Button asChild className="cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--canvas-foreground)]" size="icon" title="Exit sandbox">
+        <Button asChild className="cartoon-press text-[var(--canvas-foreground)]" size="icon-lg" title="Exit sandbox">
           <Link aria-label="Exit sandbox" to="/sandbox"><LogOut aria-hidden="true" /></Link>
         </Button>
         <Button
           aria-label="Save sandbox world"
-          className="cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--canvas-foreground)]"
+          className="cartoon-press text-[var(--canvas-foreground)]"
           onClick={openSaveDialog}
-          size="icon"
+          size="icon-lg"
           title="Save sandbox world"
           type="button"
         >
@@ -196,9 +196,9 @@ export function SandboxWorld() {
         </Button>
         <Button
           aria-label="Load sandbox world"
-          className="cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--canvas-foreground)]"
+          className="cartoon-press text-[var(--canvas-foreground)]"
           onClick={openImportDialog}
-          size="icon"
+          size="icon-lg"
           title="Load sandbox world"
           type="button"
         >
@@ -207,14 +207,14 @@ export function SandboxWorld() {
         <Button
           aria-label="Toggle select mode"
           aria-pressed={selectEnabled}
-          className={`cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--canvas-foreground)] ${selectEnabled ? '!bg-[#a8a8a8]' : ''}`}
+          className={`cartoon-press text-[var(--canvas-foreground)] ${selectEnabled ? '!bg-[#a8a8a8]' : ''}`}
           onClick={() => {
             setSelectEnabled((enabled) => !enabled)
             setDrawEnabled(false)
             setDeleteEnabled(false)
             setMoveEnabled(false)
           }}
-          size="icon"
+          size="icon-lg"
           title="Toggle select mode"
           type="button"
         >
@@ -223,7 +223,7 @@ export function SandboxWorld() {
         <Button
           aria-label={moveEnabled ? 'Confirm move' : 'Toggle move mode'}
           aria-pressed={moveEnabled}
-          className={`cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--canvas-foreground)] ${moveEnabled ? '!bg-[#a8a8a8]' : ''}`}
+          className={`cartoon-press text-[var(--canvas-foreground)] ${moveEnabled ? '!bg-[#a8a8a8]' : ''}`}
           disabled={!selectEnabled}
           onClick={() => {
             if (moveEnabled) {
@@ -233,7 +233,7 @@ export function SandboxWorld() {
               setMoveEnabled(true)
             }
           }}
-          size="icon"
+          size="icon-lg"
           title={moveEnabled ? 'Confirm move' : 'Toggle move mode'}
           type="button"
         >
@@ -241,13 +241,13 @@ export function SandboxWorld() {
         </Button>
         <Button
           aria-label="Copy moved selection"
-          className="cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--canvas-foreground)]"
+          className="cartoon-press text-[var(--canvas-foreground)]"
           disabled={!moveEnabled}
           onClick={() => {
             canvasRef.current?.commitMove(true)
             setMoveEnabled(false)
           }}
-          size="icon"
+          size="icon-lg"
           title="Copy moved selection"
           type="button"
         >

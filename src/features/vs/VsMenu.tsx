@@ -32,7 +32,7 @@ export function VsMenu() {
           <Link aria-label={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></Link>
         </Button>
       </header>
-      <section aria-label="VS game type" className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain px-1 pb-1">
+      <section aria-label={t('versus.gameType')} className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain px-1 pb-1">
         <Button className="cartoon-press h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase" onClick={() => setLocalSetupOpen(true)} size="lg" type="button">
           <Users aria-hidden="true" /> {t('versus.local')}
         </Button>

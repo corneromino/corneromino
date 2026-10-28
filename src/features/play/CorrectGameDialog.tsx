@@ -5,13 +5,14 @@ import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogT
 interface CorrectGameDialogProps {
   onNext: () => void
   onOpenChange: (open: boolean) => void
+  open: boolean
   screenshot: string | null
 }
 
 export function CorrectGameDialog(props: CorrectGameDialogProps) {
   const { t } = useTranslation()
   return (
-    <Dialog onOpenChange={props.onOpenChange} open={props.screenshot !== null}>
+    <Dialog onOpenChange={props.onOpenChange} open={props.open}>
       <DialogContent aria-describedby={undefined} className="max-w-[430px]">
         <DialogHeader>
           <DialogTitle>{t('classic.correct')}</DialogTitle>

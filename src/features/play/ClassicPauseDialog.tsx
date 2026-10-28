@@ -1,9 +1,10 @@
-import { LogOut, Play, RotateCcw, Save } from 'lucide-react'
+import { Copy, LogOut, Play, RotateCcw, Save } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface ClassicPauseDialogProps {
+  gameMode: string
   isSaving: boolean
   onOpenChange: (open: boolean) => void
   onQuitWithoutSaving: () => void
@@ -11,10 +12,11 @@ interface ClassicPauseDialogProps {
   onResume: () => void
   onSaveAndQuit: () => void
   open: boolean
+  seed: string
 }
 
 export function ClassicPauseDialog(props: ClassicPauseDialogProps) {
-  const { isSaving, onOpenChange, onQuitWithoutSaving, onRestart, onResume, onSaveAndQuit, open } = props
+  const { gameMode, isSaving, onOpenChange, onQuitWithoutSaving, onRestart, onResume, onSaveAndQuit, open, seed } = props
   const { t } = useTranslation()
 
   return (
@@ -29,6 +31,9 @@ export function ClassicPauseDialog(props: ClassicPauseDialogProps) {
           </Button>
           <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={isSaving} onClick={onRestart} size="lg" type="button">
             <RotateCcw aria-hidden="true" /> {t('common.restart')}
+          </Button>
+          <Button className="cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={isSaving} onClick={() => void navigator.clipboard.writeText(`${gameMode}:${seed}`)} size="lg" type="button">
+            <Copy aria-hidden="true" /> {t('classic.copySeed')}
           </Button>
           <div className="mt-3 grid gap-2">
             <DialogDescription className="text-center text-[15px]">{t('classic.savePrompt')}</DialogDescription>

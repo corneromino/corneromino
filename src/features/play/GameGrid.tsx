@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Eraser, Lock, Pencil, Unlock } from 'lucide-react'
+import { Eraser, Lock, Pencil, RotateCcw, Unlock } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { LOCKED_CELL_COLOR_HEX } from '@/rendering/colors'
 import { CorrectGameDialog } from './CorrectGameDialog'
 import { ClassicPauseDialog } from './ClassicPauseDialog'
+import { ClassicMistakesDialog } from './ClassicMistakesDialog'
 import { GameGridCanvas, type GameGridCanvasHandle } from './GameGridCanvas'
 
 const DOUBLE_TAP_UNLOCK_MS = 200
@@ -67,11 +68,13 @@ export function GameGrid(props: GameGridProps) {
   const [markerMode, setMarkerMode] = useState(false)
   const [selectedLockedGroupId, setSelectedLockedGroupId] = useState<string | null>(null)
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
+  const [mistakeDialogOpen, setMistakeDialogOpen] = useState(false)
   const [selectionLoaded, setSelectionLoaded] = useState(false)
   const [isExiting, setIsExiting] = useState(false)
   const [gameGridScreenshot, setGameGridScreenshot] = useState<Blob | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [isCompleted, setIsCompleted] = useState(false)
+  const [completionDialogOpen, setCompletionDialogOpen] = useState(false)
   const [completionScreenshot, setCompletionScreenshot] = useState<string | null>(null)
   const [moveCount, setMoveCount] = useState(0)
   const [savedAt, setSavedAt] = useState<number | null>(null)
@@ -84,6 +87,7 @@ export function GameGrid(props: GameGridProps) {
   const lastLockedTapRef = useRef<{ groupId: string; time: number } | null>(null)
   const handleGridNavigation = useCallback(() => { lastLockedTapRef.current = null }, [])
   const autoLock = props.config.lockingMode === 'auto'
+  const autoFinalVerification = props.config.finalVerificationMode === 'auto'
   const cellMap = createCellMap(props.pieces)
   const lockedCellMap = createLockedCellMap(lockedCellGroups)
   const canLockSelectedCells = canLockCells(selectedCellKeys)
@@ -91,9 +95,7 @@ export function GameGrid(props: GameGridProps) {
   const verificationErrorCount = validationResult && !validationResult.isCorrect
     ? lockedCellGroups.length - validationResult.validLockCount
     : 0
-  const verificationLabel = verificationErrorCount > 0
-    ? t('classic.errors', { count: verificationErrorCount })
-    : t('classic.verify')
+  const verificationLabel = t('classic.verify')
   const boardStyle = {
     aspectRatio: `${props.config.columns} / ${props.config.rows}`,
     width: `min(100%, calc(100cqh * ${props.config.columns} / ${props.config.rows}))`,
@@ -105,9 +107,9 @@ export function GameGrid(props: GameGridProps) {
   }, [canLockSelectedCells, props.onLockAvailable])
 
   useEffect(() => {
-    if (canValidate && !verifyWasAvailableRef.current) props.onVerifyAvailable?.()
+    if (!autoFinalVerification && canValidate && !verifyWasAvailableRef.current) props.onVerifyAvailable?.()
     verifyWasAvailableRef.current = canValidate
-  }, [canValidate, props.onVerifyAvailable])
+  }, [autoFinalVerification, canValidate, props.onVerifyAvailable])
 
   useEffect(() => {
     lastLockedTapRef.current = null
@@ -124,6 +126,7 @@ export function GameGrid(props: GameGridProps) {
     setSelectedCellKeys(new Set())
     setSelectedLockedGroupId(null)
     setValidationResult(null)
+    setMistakeDialogOpen(false)
   }
 
   function resetGame() {
@@ -134,8 +137,10 @@ export function GameGrid(props: GameGridProps) {
     setMarkers(new Map())
     setSelectedLockedGroupId(null)
     setValidationResult(null)
+    setMistakeDialogOpen(false)
     setGameGridScreenshot(null)
     setIsCompleted(false)
+    setCompletionDialogOpen(false)
     setCompletionScreenshot(null)
     setSavedAt(null)
     savedSelectionRef.current = null
@@ -212,11 +217,11 @@ export function GameGrid(props: GameGridProps) {
   }
 
   function handleCompletionOpenChange(open: boolean) {
-    if (!open) setCompletionScreenshot(null)
+    setCompletionDialogOpen(open)
   }
 
   function toggleCellSelection(cellKey: string, time: number) {
-    if (!selectionLoaded || props.paused || isExiting || completionScreenshot) return
+    if (!selectionLoaded || props.paused || isExiting || isCompleted) return
     if (!cellMap.has(cellKey)) {
       lastLockedTapRef.current = null
       return
@@ -255,6 +260,7 @@ export function GameGrid(props: GameGridProps) {
     lastLockedTapRef.current = null
     setSelectedLockedGroupId(null)
     setValidationResult(null)
+    setMistakeDialogOpen(false)
     const nextSelectedCells = new Set(selectedCellKeys)
     if (nextSelectedCells.has(cellKey)) nextSelectedCells.delete(cellKey)
     else nextSelectedCells.add(cellKey)
@@ -301,10 +307,12 @@ export function GameGrid(props: GameGridProps) {
     const nextMoveCount = moveCount + 1
     setLockedCellGroups((groups) => [...groups, { cellKeys, color, id: crypto.randomUUID() }])
     setIsCompleted(false)
+    setCompletionDialogOpen(false)
     setCompletionScreenshot(null)
     setSelectedCellKeys(new Set())
     setSelectedLockedGroupId(null)
     setValidationResult(null)
+    setMistakeDialogOpen(false)
     setMoveCount(nextMoveCount)
     props.onMoveCountChange(nextMoveCount)
     props.onLocked?.()
@@ -322,10 +330,12 @@ export function GameGrid(props: GameGridProps) {
 
     setLockedCellGroups((groups) => groups.filter((lockedGroup) => lockedGroup.id !== group.id))
     setIsCompleted(false)
+    setCompletionDialogOpen(false)
     setCompletionScreenshot(null)
     setSelectedCellKeys(new Set())
     setSelectedLockedGroupId(null)
     setValidationResult(null)
+    setMistakeDialogOpen(false)
   }
 
   function validateLockedCells() {
@@ -346,6 +356,7 @@ export function GameGrid(props: GameGridProps) {
       isCorrect,
       validLockCount,
     })
+    setMistakeDialogOpen(!isCorrect)
     if (isCorrect && props.onCorrectSolution) {
       props.onCorrectSolution()
       return
@@ -354,7 +365,12 @@ export function GameGrid(props: GameGridProps) {
     // Capture the rendered board before opening the dialog over it.
     const canvas = isCorrect ? gameCanvasRef.current?.captureBoard() : null
     setCompletionScreenshot(canvas ? canvas.toDataURL('image/png') : null)
+    setCompletionDialogOpen(isCorrect)
   }
+
+  useEffect(() => {
+    if (autoFinalVerification && canValidate && validationResult === null) validateLockedCells()
+  }, [autoFinalVerification, canValidate, lockedCellGroups, validationResult])
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -388,6 +404,7 @@ export function GameGrid(props: GameGridProps) {
     setElapsedSeconds(0)
     props.onElapsedSecondsChange(0)
     setIsCompleted(false)
+    setCompletionDialogOpen(false)
     setCompletionScreenshot(null)
     setMoveCount(0)
     props.onMoveCountChange(0)
@@ -412,6 +429,7 @@ export function GameGrid(props: GameGridProps) {
           setElapsedSeconds(storedSelection.elapsedSeconds)
           props.onElapsedSecondsChange(storedSelection.elapsedSeconds)
           setIsCompleted(storedSelection.isCompleted)
+          setCompletionDialogOpen(false)
           setCompletionScreenshot(null)
           setMoveCount(storedSelection.moveCount)
           props.onMoveCountChange(storedSelection.moveCount)
@@ -499,11 +517,22 @@ export function GameGrid(props: GameGridProps) {
       </div>
       <div className="mx-auto flex w-full max-w-[550px] shrink-0 flex-nowrap justify-center gap-1 sm:gap-2">
         <Button
+          aria-label={t('common.restart')}
+          className="cartoon-press text-[var(--canvas-foreground)]"
+          disabled={!selectionLoaded || isExiting}
+          onClick={restartFromPause}
+          size="icon-lg"
+          title={t('common.restart')}
+          type="button"
+        >
+          <RotateCcw aria-hidden="true" />
+        </Button>
+        <Button
           aria-label="Deselect all cells"
-          className="cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--canvas-foreground)]"
+          className="cartoon-press text-[var(--canvas-foreground)]"
           disabled={selectedCellKeys.size === 0 && !selectedLockedGroupId}
           onClick={clearSelectedCells}
-          size="icon"
+          size="icon-lg"
           title="Deselect all cells"
           type="button"
         >
@@ -513,11 +542,11 @@ export function GameGrid(props: GameGridProps) {
           aria-label="Take notes"
           aria-pressed={markerMode}
           className={cn(
-            'cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--canvas-foreground)]',
+            'cartoon-press text-[var(--canvas-foreground)]',
             markerMode && '!bg-[var(--yellow)]',
           )}
           onClick={() => setMarkerMode((active) => !active)}
-          size="icon"
+          size="icon-lg"
           title="Take notes"
           type="button"
         >
@@ -525,11 +554,11 @@ export function GameGrid(props: GameGridProps) {
         </Button>
         {!autoLock && <Button
           aria-label="Lock four selected cells"
-          className="cartoon-press size-[clamp(36px,11vw,44px)] text-[var(--mint)]"
+          className="cartoon-press text-[var(--mint)]"
           disabled={!canLockSelectedCells}
           id={props.lockButtonId}
           onClick={lockSelectedCells}
-          size="icon"
+          size="icon-lg"
           title="Lock four selected cells"
           type="button"
         >
@@ -537,36 +566,49 @@ export function GameGrid(props: GameGridProps) {
         </Button>}
         {!autoLock && <Button
           aria-label="Unlock selected cells"
-          className="cartoon-press size-[clamp(36px,11vw,44px)] [--element-color:var(--paper-muted)] text-[var(--canvas-foreground)]"
+          className="cartoon-press [--element-color:var(--paper-muted)] text-[var(--canvas-foreground)]"
           disabled={!selectedLockedGroupId}
           onClick={unlockSelectedCells}
-          size="icon"
+          size="icon-lg"
           title="Unlock selected cells"
           type="button"
         >
           <Unlock aria-hidden="true" />
         </Button>}
-        <Button
+        {!autoFinalVerification && <Button
           aria-label={verificationLabel}
           className={cn(
-            'cartoon-press relative h-[clamp(36px,11vw,44px)] px-2 text-[15px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase',
+            'cartoon-press relative text-[15px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase',
             validationResult?.isCorrect ? 'cartoon-press--green' : validationResult ? 'cartoon-press--red' : 'cartoon-press--blue',
           )}
           disabled={!canValidate}
           id={props.verifyButtonId}
           onClick={validateLockedCells}
+          size="lg"
           title={verificationLabel}
           type="button"
         >
-          <span className="-translate-y-1">{verificationLabel}</span>
-        </Button>
+          {verificationLabel}
+        </Button>}
+        {isCompleted && !completionDialogOpen && completionScreenshot && <Button
+          aria-label={t('classic.result')}
+          className="cartoon-press cartoon-press--green text-[15px] font-light tracking-[0.08em] text-[var(--canvas-foreground)] uppercase"
+          onClick={() => setCompletionDialogOpen(true)}
+          size="lg"
+          title={t('classic.result')}
+          type="button"
+        >
+          {t('classic.result')}
+        </Button>}
       </div>
       <CorrectGameDialog
         onNext={props.onNextGame}
         onOpenChange={handleCompletionOpenChange}
+        open={completionDialogOpen}
         screenshot={completionScreenshot}
       />
-      <ClassicPauseDialog isSaving={isExiting} onOpenChange={props.onPauseOpenChange} onQuitWithoutSaving={quitWithoutSavingFromPause} onRestart={restartFromPause} onResume={() => props.onPauseOpenChange(false)} onSaveAndQuit={saveAndQuitFromPause} open={props.paused} />
+      <ClassicMistakesDialog mistakeCount={verificationErrorCount} onOpenChange={setMistakeDialogOpen} open={mistakeDialogOpen} />
+      <ClassicPauseDialog gameMode={props.gameMode} isSaving={isExiting} onOpenChange={props.onPauseOpenChange} onQuitWithoutSaving={quitWithoutSavingFromPause} onRestart={restartFromPause} onResume={() => props.onPauseOpenChange(false)} onSaveAndQuit={saveAndQuitFromPause} open={props.paused} seed={props.gameId} />
     </div>
   )
 }

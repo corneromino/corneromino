@@ -9,7 +9,11 @@ import type { GameGridCanvas } from './GameGridCanvas'
 import { GameGrid } from './GameGrid'
 
 vi.mock('@/lib/db', () => ({ loadGameSelection: vi.fn(), saveGameSelection: vi.fn().mockResolvedValue(undefined), clearGameSelection: vi.fn() }))
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: { count?: number }) => key === 'classic.errors' ? `${values?.count} errors` : key }) }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: { count?: number }) => {
+  if (key === 'classic.errors') return `${values?.count} errors`
+  if (key === 'classic.mistakes') return `${values?.count} mistakes`
+  return key
+} }) }))
 vi.mock('./ClassicPauseDialog', () => ({ ClassicPauseDialog: () => null }))
 vi.mock('./CorrectGameDialog', () => ({ CorrectGameDialog: () => null }))
 // Exercise the real React interaction state; only replace the Pixi drawing surface.
@@ -61,7 +65,7 @@ function gridElement(props: GridProps) {
 
 function setup(lockingMode: 'auto' | 'manual' = 'auto', overrides: Partial<GridProps> = {}) {
   const props: GridProps = {
-    config: { ...GAME_CONFIGS.easy, lockingMode },
+    config: { ...GAME_CONFIGS.easy, lockingMode, finalVerificationMode: 'manual' },
     gameMode: 'easy', gameId: 'locking-test', pieces, persistSelection: false, paused: false,
     onElapsedSecondsChange: vi.fn(), onMoveCountChange: vi.fn(), onNextGame: vi.fn(),
     onPauseOpenChange: vi.fn(), onLocked: vi.fn(), onLockAvailable: vi.fn(), onVerifyAvailable: vi.fn(), onCorrectSolution: vi.fn(),
@@ -92,6 +96,16 @@ describe('Classic locking modes', () => {
     expect(board().locked).toHaveLength(1)
     tap('1,0')
     expect(board().locked).toHaveLength(0)
+  })
+
+  it('restarts from the control panel with the same reset flow as the pause menu', () => {
+    const { props } = setup()
+    tap(...firstSquare)
+    expect(board().locked).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'common.restart' }))
+    expect(board().locked).toEqual([])
+    expect(board().selected).toEqual([])
+    expect(props.onPauseOpenChange).toHaveBeenCalledWith(false)
   })
 
   it('locks once on the fourth selection and counts one move, including in Strict Mode', () => {
@@ -127,9 +141,9 @@ describe('Classic locking modes', () => {
     expect(board().locked).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
     expect(props.onCorrectSolution).not.toHaveBeenCalled()
-    const verify = screen.getByRole('button', { name: '1 errors' })
-    expect(verify.className).toContain('cartoon-press--red')
-    expect(verify.querySelector('[class*="rounded-full"]')).toBeNull()
+    expect(screen.getByRole('dialog').textContent).toContain('1 mistakes')
+    fireEvent.click(screen.getByRole('button', { name: 'common.ok' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('requires the explicit Verify action even when all automatically locked groups are correct', () => {
@@ -140,6 +154,22 @@ describe('Classic locking modes', () => {
     expect(props.onCorrectSolution).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
     expect(props.onCorrectSolution).toHaveBeenCalledOnce()
+  })
+
+  it('automatically verifies a fully locked board when configured', async () => {
+    const { props } = setup('auto', { config: { ...GAME_CONFIGS.easy, lockingMode: 'auto', finalVerificationMode: 'auto' } })
+    tap(...firstSquare, ...secondSquare)
+    await waitFor(() => expect(props.onCorrectSolution).toHaveBeenCalledOnce())
+    expect(screen.queryByRole('button', { name: 'classic.verify' })).toBeNull()
+  })
+
+  it('shows automatic verification mistakes in a dialog instead of the controls', async () => {
+    const repeatedCorners: PlacedTetromino[] = [{ ...pieces[0], cells: pieces[0].cells.map((cell) => ({ ...cell, corner: 'top-left' })) }]
+    setup('auto', { pieces: repeatedCorners, config: { ...GAME_CONFIGS.easy, lockingMode: 'auto', finalVerificationMode: 'auto' } })
+    tap(...firstSquare)
+    await waitFor(() => expect(screen.getByRole('dialog').textContent).toContain('1 mistakes'))
+    expect(screen.getByRole('button', { name: 'common.ok' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'classic.verify' })).toBeNull()
   })
 
   it('unlocks the entire group on two quick taps on cells within that group', () => {

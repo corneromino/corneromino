@@ -10,6 +10,7 @@ import { GameGrid } from './GameGrid'
 const TUTORIAL_CONFIG: GameConfig = {
   navigationEnabled: false,
   lockingMode: 'manual',
+  finalVerificationMode: 'manual',
   columns: 5,
   rows: 5,
   spread: 0,
@@ -19,6 +20,7 @@ const TUTORIAL_CONFIG: GameConfig = {
 const TUTORIAL_ALL_CORNEROMINOS_CONFIG: GameConfig = {
   navigationEnabled: false,
   lockingMode: 'manual',
+  finalVerificationMode: 'manual',
   columns: 10,
   rows: 10,
   spread: 0,
@@ -28,6 +30,7 @@ const TUTORIAL_ALL_CORNEROMINOS_CONFIG: GameConfig = {
 const TUTORIAL_T_ROTATIONS_CONFIG: GameConfig = {
   navigationEnabled: false,
   lockingMode: 'manual',
+  finalVerificationMode: 'manual',
   columns: 6,
   rows: 6,
   spread: 0,

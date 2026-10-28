@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, type MouseEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { VS_PLAYERS, type VsMoveHistory } from './vsLocalGame'
 import { getVsMoveNotations } from './vsMoveNotation'
@@ -11,6 +12,7 @@ interface VsMoveListProps {
 const MOVE_CHIP_CLASS = 'shrink-0 rounded-sm border-2 font-bold border-transparent px-2 py-1 text-[11px] whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--canvas-foreground)]'
 
 export function VsMoveList({ history, onSelect }: VsMoveListProps) {
+  const { t } = useTranslation()
   const scrollRef = useRef<HTMLElement>(null)
   const moves = useMemo(() => getVsMoveNotations(history.positions), [history.positions])
 
@@ -38,11 +40,11 @@ export function VsMoveList({ history, onSelect }: VsMoveListProps) {
   }
 
   return (
-    <nav aria-label="Move history" className="relative tracking-widest flex w-full min-w-0 basis-full items-center gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" ref={scrollRef}>
+    <nav aria-label={t('versusGame.moveHistory')} className="relative tracking-widest flex w-full min-w-0 basis-full items-center gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" ref={scrollRef}>
       {moves.map((move) => (
         <button
           aria-current={move.historyIndex === history.index ? 'step' : undefined}
-          aria-label={`Move ${move.moveNumber}, ${VS_PLAYERS[move.player].label}: ${move.notation}`}
+          aria-label={t('versusGame.moveNotation', { number: move.moveNumber, notation: move.notation, player: t('versusGame.player', { number: VS_PLAYERS[move.player].id + 1 }) })}
           className={cn(
             MOVE_CHIP_CLASS,
             move.historyIndex === history.index

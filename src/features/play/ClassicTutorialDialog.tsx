@@ -15,11 +15,12 @@ const TUTORIAL_CORNERS: ReadonlyArray<{ corner: CellCorner, label: string }> = [
   { corner: 'bottom-left', label: 'Bottom-left' },
 ]
 
-const TUTORIAL_CORNER_GRID_CONFIG: GameConfig = { columns: 1, rows: 1, spread: 0, tetrominoCount: 1, lockingMode: 'manual', navigationEnabled: false }
+const TUTORIAL_CORNER_GRID_CONFIG: GameConfig = { columns: 1, rows: 1, spread: 0, tetrominoCount: 1, lockingMode: 'manual', finalVerificationMode: 'manual', navigationEnabled: false }
 
 const TUTORIAL_GRID_CONFIG: GameConfig = {
   navigationEnabled: false,
   lockingMode: 'manual',
+  finalVerificationMode: 'manual',
   columns: 5,
   rows: 5,
   spread: 0,

@@ -10,6 +10,7 @@ export default {
         "load": "Charger",
         "loading": "Chargement…",
         "new": "Nouveau",
+        "ok": "Ok",
         "next": "Suivant",
         "previous": "Precedent",
         "pause": "Pause",
@@ -26,11 +27,12 @@ export default {
         "superEasy": "Tres facile",
         "easy": "Facile",
         "medium": "Moyen",
-        "hard": "Difficile"
+        "hard": "Difficile",
+        "superHard": "Impossible"
     },
     "tutorial": {
         "title": "Tutoriel",
-        "open": "Ouvrir le tutoriel Classique",
+        "open": "Ouvrir le tutoriel Classic",
         "classicSteps": {
             "corners": "Il existe quatre coins possible...",
             "topRight": "En haut à droite...",
@@ -51,13 +53,16 @@ export default {
         "french": "Français"
     },
     "classic": {
-        "title": "Classique",
+        "title": "Classic",
         "saved": "Sauvegardes",
         "generating": "Génération de la partie…",
         "paused": "En pause",
+        "copySeed": "Copier le seed",
         "verify": "Vérifier",
         "errors": "{{count}} erreurs",
+        "mistakes": "{{count}} erreurs",
         "correct": "Bien joué !",
+        "result": "Résultat",
         "completedBoard": "Plateau terminé",
         "saveGame": "Sauvegarder la partie",
         "savePrompt": "Sauvegarder cette partie pour la reprendre plus tard ?"
@@ -77,7 +82,9 @@ export default {
     "versus": {
         "title": "VS",
         "local": "Local",
-        "online": "En ligne"
+        "online": "En ligne",
+        "gameType": "Type de partie VS",
+        "localVs": "VS local"
     },
     "sandbox": {
         "title": "$t(en:sandbox.title)",
@@ -104,9 +111,13 @@ export default {
     },
     "versusGame": {
         "paused": "En pause",
+        "mode": "Mode",
+        "boardSize": "Plateau {{size}} par {{size}}",
+        "start": "Démarrer",
         "resume": "Reprendre",
         "restart": "Recommencer",
         "finishTurn": "Terminer le tour",
+        "cancelCurrentTurn": "Annuler le tour en cours",
         "previousMove": "Coup précédent",
         "nextMove": "Coup suivant",
         "viewOnly": "Lecture seule",
@@ -115,7 +126,14 @@ export default {
         "copyFailed": "Copie automatique impossible. Copiez le rapport ci-dessous.",
         "debugReport": "Rapport de débogage",
         "winner": "Gagnant",
+        "playerWins": "{{player}} gagne !",
         "draw": "Égalité",
+        "playing": "En cours",
+        "waiting": "En attente",
+        "matchFinished": "Partie terminée",
+        "toggleMoveDirection": "Alterner les déplacements orthogonaux ou diagonaux",
+        "localBoard": "Plateau VS local",
+        "pauseLocalVs": "Mettre en pause le VS local",
         "newMatch": "Nouvelle partie",
         "viewBoard": "Voir le plateau",
         "combination": "Victoire par combinaison",
@@ -126,6 +144,7 @@ export default {
         "player": "Joueur {{number}}",
         "points": "{{count}} points",
         "move": "Coup {{number}}",
+        "moveNotation": "Coup {{number}}, {{player}} : {{notation}}",
         "moveHistory": "Historique des coups",
         "yourTurn": "À vous"
     }

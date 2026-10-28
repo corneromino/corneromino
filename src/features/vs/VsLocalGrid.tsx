@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FocusEvent, type KeyboardEvent } from 'react'
 import { Check, ChevronLeft, ChevronRight, Pause } from 'lucide-react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { loadVsLocalGameState, saveVsLocalGameState } from '@/lib/db'
@@ -26,8 +27,13 @@ interface PlayerBandProps {
 }
 
 function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTurn, onToggleMoveDirection, player, pointDifference, points, result }: PlayerBandProps) {
+  const { t } = useTranslation()
   const playerStyle = VS_PLAYERS[player]
+  const playerLabel = t('versusGame.player', { number: player + 1 })
   const canToggleMoveDirection = active && canFinishTurn
+  const playerStatus = result
+    ? result.winner === player ? t('versusGame.winner') : result.winner === null ? t('versusGame.draw') : t('versusGame.matchFinished')
+    : active ? t('versusGame.playing') : t('versusGame.waiting')
 
   function handleCardKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (!canToggleMoveDirection || (event.key !== 'Enter' && event.key !== ' ')) return
@@ -36,7 +42,7 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTur
   }
   return (
     <section
-      aria-label={`${playerStyle.label}, ${result ? result.winner === player ? 'winner' : result.winner === null ? 'draw' : 'match finished' : active ? 'playing' : 'waiting'}`}
+      aria-label={`${playerLabel}, ${playerStatus}`}
       className={cn(
         'relative flex h-[66px] shrink-0 items-center rounded-md border-0 border-x-15 px-3 mx-1 transition-[box-shadow,opacity] duration-200',
         active ? 'ring-4 ring-offset-(--paper) ring-offset-2 ring-(--player-turn-color)' : 'opacity-65',
@@ -49,23 +55,23 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTur
         '--player-turn-color': playerStyle.bannerBorder
       } as CSSProperties}
     >
-      <div aria-label="Toggle orthogonal or diagonal move direction" className={cn('flex min-w-0 flex-1 items-center', canToggleMoveDirection && 'cursor-pointer')} onClick={canToggleMoveDirection ? onToggleMoveDirection : undefined} onKeyDown={handleCardKeyDown} role={canToggleMoveDirection ? 'button' : undefined} tabIndex={canToggleMoveDirection ? 0 : undefined} title={canToggleMoveDirection ? 'Toggle orthogonal or diagonal move direction' : undefined}>
+      <div aria-label={t('versusGame.toggleMoveDirection')} className={cn('flex min-w-0 flex-1 items-center', canToggleMoveDirection && 'cursor-pointer')} onClick={canToggleMoveDirection ? onToggleMoveDirection : undefined} onKeyDown={handleCardKeyDown} role={canToggleMoveDirection ? 'button' : undefined} tabIndex={canToggleMoveDirection ? 0 : undefined} title={canToggleMoveDirection ? t('versusGame.toggleMoveDirection') : undefined}>
         <div className="shrink-0 pr-3">
-          <p className="poster-kicker text-[18px] leading-none text-[var(--paper)]">{playerStyle.label}</p>
-          {result?.winner === null && <p className="poster-kicker mt-1 text-[10px] leading-none text-[var(--paper)]">Draw</p>}
+          <p className="poster-kicker text-[18px] leading-none text-[var(--paper)]">{playerLabel}</p>
+          {result?.winner === null && <p className="poster-kicker mt-1 text-[10px] leading-none text-[var(--paper)]">{t('versusGame.draw')}</p>}
         </div>
-        <p aria-label={`${points} points`} className="flex h-8 flex-1 items-center rounded-md justify-between px-3 text-[18px] leading-none text-[var(--paper)]" style={{ backgroundColor: playerStyle.bannerScoreBackground }}>
+        <p aria-label={t('versusGame.points', { count: points })} className="flex h-8 flex-1 items-center rounded-md justify-between px-3 text-[18px] leading-none text-[var(--paper)]" style={{ backgroundColor: playerStyle.bannerScoreBackground }}>
           <span>{points}</span>
           {pointDifference !== 0 && <span>{pointDifference > 0 ? `+${pointDifference}` : pointDifference}</span>}
         </p>
       </div>
       <Button
-        aria-label="Finish turn"
+        aria-label={t('versusGame.finishTurn')}
         className="cartoon-press cartoon-press--green ml-3 size-10 text-[var(--canvas-foreground)] disabled:opacity-50"
         disabled={!active || !canFinishTurn}
         onClick={onFinishTurn}
         size="icon"
-        title="Finish turn"
+        title={t('versusGame.finishTurn')}
         type="button"
       >
         <Check aria-hidden="true" />
@@ -80,6 +86,7 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTur
 }
 
 export function VsLocalGrid() {
+  const { t } = useTranslation()
   const [game, setGame] = useState<VsLocalGameState | null>(null)
   const [pauseOpen, setPauseOpen] = useState(false)
   const [victoryDialogDismissed, setVictoryDialogDismissed] = useState(false)
@@ -219,23 +226,23 @@ export function VsLocalGrid() {
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
           <div className="flex gap-2">
-            <Button aria-label={hasTurnDraft ? 'Cancel current turn' : 'Previous move'} className="cartoon-press size-10 text-[var(--canvas-foreground)] disabled:opacity-50" disabled={!game || (!hasTurnDraft && historyIndex === 0)} onClick={previousMove} size="icon" title={hasTurnDraft ? 'Cancel current turn' : 'Previous move'} type="button">
+            <Button aria-label={hasTurnDraft ? t('versusGame.cancelCurrentTurn') : t('versusGame.previousMove')} className="cartoon-press size-10 text-[var(--canvas-foreground)] disabled:opacity-50" disabled={!game || (!hasTurnDraft && historyIndex === 0)} onClick={previousMove} size="icon" title={hasTurnDraft ? t('versusGame.cancelCurrentTurn') : t('versusGame.previousMove')} type="button">
               <ChevronLeft aria-hidden="true" />
             </Button>
-            <Button aria-label="Next move" className="cartoon-press size-10 text-[var(--canvas-foreground)] disabled:opacity-50" disabled={!game || !viewingPast} onClick={nextMove} size="icon" title="Next move" type="button">
+            <Button aria-label={t('versusGame.nextMove')} className="cartoon-press size-10 text-[var(--canvas-foreground)] disabled:opacity-50" disabled={!game || !viewingPast} onClick={nextMove} size="icon" title={t('versusGame.nextMove')} type="button">
               <ChevronRight aria-hidden="true" />
             </Button>
-            <Button aria-label="Pause Local VS" className="cartoon-press size-10 text-[var(--canvas-foreground)]" disabled={!game} onClick={() => handlePauseOpenChange(true)} size="icon" title="Pause" type="button">
+            <Button aria-label={t('versusGame.pauseLocalVs')} className="cartoon-press size-10 text-[var(--canvas-foreground)]" disabled={!game} onClick={() => handlePauseOpenChange(true)} size="icon" title={t('common.pause')} type="button">
               <Pause aria-hidden="true" />
             </Button>
           </div>
-          {viewingPast && !allowHistoryRewrite && <p className="text-[10px] leading-none text-[var(--muted-text-color)]">View only</p>}
+          {viewingPast && !allowHistoryRewrite && <p className="text-[10px] leading-none text-[var(--muted-text-color)]">{t('versusGame.viewOnly')}</p>}
         </div>
         {game && <VsMoveList history={game.history} onSelect={selectHistoryMove} />}
       </header>
       <div className="flex min-h-0 flex-1 flex-col gap-2 px-1">
           <PlayerBand active={result === null && game?.activePlayer === 0} canFinishTurn={canFinishTurn} facingOpponent onFinishTurn={endTurn} onToggleMoveDirection={toggleMoveDirection} player={0} pointDifference={playerOnePoints - playerTwoPoints} points={playerOnePoints} result={result} />
-        <section aria-label="Local VS board" className="min-h-0 flex-1 border-4 border-[var(--grid-border-color)] bg-[var(--grid-border-color)]">
+        <section aria-label={t('versusGame.localBoard')} className="min-h-0 flex-1 border-4 border-[var(--grid-border-color)] bg-[var(--grid-border-color)]">
           {game && <VsLocalCanvas game={game} key={game.boardSize ?? VS_LOCAL_DEFAULT_BOARD_SIZE} onCellTap={selectCell} />}
         </section>
           <PlayerBand active={result === null && game?.activePlayer === 1} canFinishTurn={canFinishTurn} onFinishTurn={endTurn} onToggleMoveDirection={toggleMoveDirection} player={1} pointDifference={playerTwoPoints - playerOnePoints} points={playerTwoPoints} result={result} />

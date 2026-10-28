@@ -67,11 +67,13 @@ export class GridSurface {
     this.appearance = appearance
     this.metrics = getGridMetrics(this.bounds, viewport)
     const { cellWidth, cellHeight, offsetX, offsetY, width, height } = this.metrics
-    // A fixed logical tile avoids regeneration while panning, zooming or resizing.
     // Pixi generateTexture truncates frame dimensions to integer logical pixels.
-    // Bake the complete tile at an integer size, scaling its styling with it,
-    // so fractional fitted cells don't lose their right/bottom borders.
-    const size = Math.max(1, Math.ceil(viewport.cellSize))
+    // Bake at the active zoom level so empty tiles remain sharp instead of
+    // enlarging the fitted-view bitmap. Styling remains proportional to a cell.
+    const zoom = viewport.zoom ?? 1
+    const logicalTileSize = viewport.cellSize * zoom
+    // Quantizing avoids generating a texture for every fractional pinch update.
+    const size = Math.max(1, Math.ceil(logicalTileSize / 4) * 4)
     const styleScale = size / viewport.cellSize
     const resolution = Math.max(2, Math.ceil(this.app.renderer.resolution))
     const key = JSON.stringify([size, styleScale, resolution, appearance])
