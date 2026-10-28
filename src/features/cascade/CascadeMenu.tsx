@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, Play, Plus } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { AppNavigationButton } from '@/components/ui/app-navigation-button'
 import { Button } from '@/components/ui/button'
 import { loadCascadeBestScore, loadCascadeGameState } from '@/lib/db'
 import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
@@ -35,9 +36,7 @@ export function CascadeMenu() {
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
           <h1 className="poster-title mt-2 text-[40px] leading-none">{t('cascade.title')}</h1>
         </div>
-        <Button asChild className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')}>
-          <Link aria-label={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></Link>
-        </Button>
+        <AppNavigationButton aria-label={t('common.backToMainMenu')} className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
       </header>
       <section className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col gap-4 overflow-hidden px-1 pb-1">
         <Button

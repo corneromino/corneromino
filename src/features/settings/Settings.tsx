@@ -1,6 +1,6 @@
 import { ArrowLeft, ChevronDown } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { AppNavigationButton } from '@/components/ui/app-navigation-button'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
@@ -18,9 +18,7 @@ export function Settings() {
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
           <h1 className="poster-title mt-2 text-[40px] leading-none">{t('common.settings')}</h1>
         </div>
-        <Button asChild className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')}>
-          <Link aria-label={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></Link>
-        </Button>
+        <AppNavigationButton aria-label={t('common.backToMainMenu')} className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
       </header>
       <section aria-label={t('common.settings')} className="relative z-10 mx-auto flex w-full max-w-[550px] flex-1 items-start justify-center px-1 pb-1">
         <div className="w-full max-w-[430px]">

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Copy, FolderOpen, LogOut, MousePointer2, Move, PenLine, Save, Trash2 } from 'lucide-react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { AppNavigationButton } from '@/components/ui/app-navigation-button'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { loadSandboxWorld, loadSandboxWorlds, saveSandboxWorld, type SavedSandboxWorld } from '@/lib/db'
@@ -181,9 +182,7 @@ export function SandboxWorld() {
         {!loadingWorld && worldId && !loadedWorld && <p className="poster-kicker p-5 text-center text-[11px] text-[var(--paper)]">World not found</p>}
       </section>
       <div className="relative z-10 mx-auto flex w-full max-w-[550px] flex-nowrap justify-center gap-1 px-1 pt-4 sm:gap-2">
-        <Button asChild className="cartoon-press text-[var(--canvas-foreground)]" size="icon-lg" title="Exit sandbox">
-          <Link aria-label="Exit sandbox" to="/sandbox"><LogOut aria-hidden="true" /></Link>
-        </Button>
+        <AppNavigationButton aria-label="Exit sandbox" className="cartoon-press text-[var(--canvas-foreground)]" size="icon-lg" title="Exit sandbox" to="/sandbox"><LogOut aria-hidden="true" /></AppNavigationButton>
         <Button
           aria-label="Save sandbox world"
           className="cartoon-press text-[var(--canvas-foreground)]"

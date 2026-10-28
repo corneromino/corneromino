@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, Copy, Trash2 } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { AppNavigationButton } from '@/components/ui/app-navigation-button'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { GAME_CONFIGS, isGameMode } from '@/game/gameConfig'
@@ -46,47 +47,43 @@ function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => 
 
   return (
     <article className="saved-game-card flex gap-3 p-2 text-[var(--canvas-foreground)]">
-      <Link
+      <AppNavigationButton
         aria-label={t('savedGames.continueSavedGame', { date: savedAt, mode: gameMode })}
-        className="shrink-0 self-start"
+        className="h-auto min-w-0 flex-1 items-start justify-start gap-3 p-0 text-left whitespace-normal"
         to={gamePath}
       >
         {screenshotUrl && <img alt={t('savedGames.savedBoard')} className="h-auto w-28 shrink-0 self-start" src={screenshotUrl} />}
-      </Link>
-      <div className="flex min-w-0 flex-1 flex-col justify-between py-1">
-        <Link className="block" to={gamePath}>
+        <div className="flex min-w-0 flex-1 flex-col justify-between py-1">
           <div>
             <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{savedAt}</p>
             <h2 className="mt-1 text-[22px] font-black uppercase">{gameMode}</h2>
           </div>
-        </Link>
-        <div className="flex min-w-0 items-center gap-2">
-          <Link className="min-w-0 flex-1" title={props.game.gameId} to={gamePath}>
-            <p className="poster-kicker truncate text-[11px] text-[var(--muted-text-color)]">
+          <p className="poster-kicker truncate text-[11px] text-[var(--muted-text-color)]" title={props.game.gameId}>
             {formatSeed(props.game.gameId)}
-            </p>
-          </Link>
-           <Button
-              aria-label={t('savedGames.copySeedForGame', { mode: gameMode })}
-              className="cartoon-press size-9 shrink-0 text-[var(--canvas-foreground)]"
-              onClick={copySeed}
-              size="icon"
-              title={t('savedGames.copySeed')}
-              type="button"
-            >
-              <Copy aria-hidden="true" />
-            </Button>
-            <Button
-              aria-label={t('savedGames.deleteSavedGame', { mode: gameMode })}
-              className="cartoon-press size-9 shrink-0 text-[var(--coral)]"
-              onClick={() => setDeleteDialogOpen(true)}
-            size="icon"
-            title={t('savedGames.deleteSavedGame', { mode: gameMode })}
-            type="button"
-          >
-            <Trash2 aria-hidden="true" />
-          </Button>
+          </p>
         </div>
+      </AppNavigationButton>
+      <div className="flex shrink-0 flex-col justify-end gap-2">
+        <Button
+          aria-label={t('savedGames.copySeedForGame', { mode: gameMode })}
+          className="cartoon-press size-9 text-[var(--canvas-foreground)]"
+          onClick={copySeed}
+          size="icon"
+          title={t('savedGames.copySeed')}
+          type="button"
+        >
+          <Copy aria-hidden="true" />
+        </Button>
+        <Button
+          aria-label={t('savedGames.deleteSavedGame', { mode: gameMode })}
+          className="cartoon-press size-9 text-[var(--coral)]"
+          onClick={() => setDeleteDialogOpen(true)}
+          size="icon"
+          title={t('savedGames.deleteSavedGame', { mode: gameMode })}
+          type="button"
+        >
+          <Trash2 aria-hidden="true" />
+        </Button>
       </div>
       <Dialog onOpenChange={setDeleteDialogOpen} open={deleteDialogOpen}>
         <DialogContent>
@@ -160,9 +157,7 @@ export function SavedGames() {
             <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
             <h1 className="poster-title mt-2 whitespace-nowrap text-[33px] leading-none">{t('savedGames.title')}</h1>
           </div>
-          <Button asChild className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('savedGames.backToClassic')}>
-            <Link aria-label={t('savedGames.backToClassic')} to="/play"><ArrowLeft aria-hidden="true" /></Link>
-          </Button>
+          <AppNavigationButton aria-label={t('savedGames.backToClassic')} className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('savedGames.backToClassic')} to="/play"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
         </div>
 
         <Button className="cartoon-press mt-6 h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => setLoadDialogOpen(true)} size="sm" type="button">

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Pause } from 'lucide-react'
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { AppNavigationButton } from '@/components/ui/app-navigation-button'
 import { Button } from '@/components/ui/button'
 import { createRandomSeed, createSeededRandom } from '@/game/random'
 import { GAME_CONFIGS, isGameMode, type GameMode, type PlacedTetromino } from '@/game/gameConfig'
@@ -33,16 +34,10 @@ function GameModeMenu() {
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
           <h1 className="poster-title mode-menu-title leading-none">{t('classic.title')}</h1>
           {MODE_ENTRIES.map(([mode, config]) => (
-            <Button asChild className={MODE_BUTTON_CLASS} key={mode} size="lg">
-              <Link state={{ returnToClassicMenu: true }} to={`/play?mode=${mode}`}>{t(config.title)}</Link>
-            </Button>
+            <AppNavigationButton className={MODE_BUTTON_CLASS} key={mode} navigationOptions={{ state: { returnToClassicMenu: true } }} size="lg" to={`/play?mode=${mode}`}>{t(config.title)}</AppNavigationButton>
           ))}
-          <Button asChild className="cartoon-press mode-menu-button w-full !border-[var(--canvas-foreground)] !bg-[var(--coral)] text-[11px] font-black tracking-[0.2em] !text-[var(--paper)] uppercase hover:!bg-[#b73a2c]" size="lg">
-            <Link to="/saved">{t('classic.saved')}</Link>
-          </Button>
-          <Button asChild className="cartoon-press mt-3 h-[42px] w-full [--element-color:var(--paper-muted)] text-[11px] font-black tracking-[0.16em] text-[var(--canvas-foreground)] uppercase [@media(max-height:480px)]:mt-0" size="sm">
-            <Link to="/">{t('common.back')}</Link>
-          </Button>
+          <AppNavigationButton className="cartoon-press mode-menu-button w-full !border-[var(--canvas-foreground)] !bg-[var(--coral)] text-[11px] font-black tracking-[0.2em] !text-[var(--paper)] uppercase hover:!bg-[#b73a2c]" size="lg" to="/saved">{t('classic.saved')}</AppNavigationButton>
+          <AppNavigationButton className="cartoon-press mt-3 h-[42px] w-full [--element-color:var(--paper-muted)] text-[11px] font-black tracking-[0.16em] text-[var(--canvas-foreground)] uppercase [@media(max-height:480px)]:mt-0" size="sm" to="/">{t('common.back')}</AppNavigationButton>
         </section>
       </div>
     </main>
@@ -106,9 +101,7 @@ function GameSession(props: GameSessionProps) {
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <h1 className="poster-title text-[33px] leading-none">{t('classic.title')}</h1>
-            <Button asChild aria-label={t('tutorial.open')} className="h-auto min-w-0 border-0 bg-transparent p-0 text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40 shadow-none hover:opacity-70 focus-visible:opacity-100" title={t('tutorial.open')} variant="ghost">
-              <Link state={{ returnToClassicGame: true }} to="/play/tutorial">?</Link>
-            </Button>
+            <AppNavigationButton aria-label={t('tutorial.open')} className="h-auto min-w-0 border-0 bg-transparent p-0 text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40 shadow-none hover:opacity-70 focus-visible:opacity-100" navigationOptions={{ state: { returnToClassicGame: true } }} title={t('tutorial.open')} to="/play/tutorial" variant="ghost">?</AppNavigationButton>
           </div>
           <Button aria-label={`${t('common.pause')} ${t('classic.title')}`} className="cartoon-press size-10 shrink-0 text-[var(--canvas-foreground)]" onClick={() => setPauseOpen(true)} size="icon" title={t('common.pause')} type="button">
             <Pause aria-hidden="true" />
