@@ -39,6 +39,10 @@ describe('Local VS manual claims', () => {
     expect(game.pendingPlacement?.corner).toBe(2)
   })
 
+  it('creates a 9×9 match when requested', () => {
+    expect(createVsLocalGame(() => 0, { boardSize: 9 })).toMatchObject({ boardSize: 9, result: null })
+  })
+
   it('toggles direction when tapping outside the contained board in a canvas letterbox band', () => {
     let game = selectVsCell(createVsLocalGame(() => 0), 3, 4)
     game = selectVsCell(game, 3, -1)

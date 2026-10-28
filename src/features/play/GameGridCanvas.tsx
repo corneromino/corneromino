@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { Application, Container, Graphics, Rectangle, Sprite, Text, TextStyle } from 'pixi.js'
 import { GridSurface } from '@/rendering/grid/GridSurface'
 import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
+import { VhsCrtEffect, type VhsCrtEffectConfig } from '@/rendering/pixi/VhsCrtEffect'
 import { GAME_COLORS } from '@/rendering/colors'
 import { attachGridInput, type GridCellEvent } from '@/rendering/grid/gridInput'
 import { constrainGridView, createGridNavigation, type GridView } from '@/rendering/grid/gridNavigation'
@@ -33,6 +34,7 @@ interface GameGridCanvasProps {
   showCellIds: boolean
   scrolling?: ScrollingGridViewport
   onCellExit?: (event: ClassicInfiniteCellExit) => void
+  vhsCrt?: VhsCrtEffectConfig
 }
 
 export interface GameGridCanvasHandle {
@@ -86,7 +88,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
 
   useEffect(() => {
     drawRef.current()
-  }, [props.config, props.lockedCellGroups, props.markers, props.pieces, props.selectedCellKeys, props.selectedLockedGroupId, props.showCellIds, props.scrolling])
+  }, [props.config, props.lockedCellGroups, props.markers, props.pieces, props.selectedCellKeys, props.selectedLockedGroupId, props.showCellIds, props.scrolling, props.vhsCrt])
 
   useEffect(() => {
     const container = containerRef.current
@@ -106,6 +108,8 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     let emptyCellSprites = new Map<Container, Sprite>()
     const gridShakeMotion = { time: 0 }
     const lockWaves = new Set<ShockwaveFilter>()
+    let vhsCrtEffect: VhsCrtEffect | undefined
+    let previousVhsCrtConfig: VhsCrtEffectConfig | undefined
     const cellShakeMotions = new Set<{ time: number }>()
     const reportedExitedCellKeys = new Set<string>()
     let view: GridView = { zoom: 1, offsetX: 0, offsetY: 0 }
@@ -116,6 +120,8 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       const { columns, rows } = propsRef.current.config
       const { width, height } = app.screen
       const scrolling = propsRef.current.scrolling
+      // Keep post-processing tied to the screen, not the long recycled world.
+      app.stage.filterArea = scrolling || vhsCrtEffect ? app.screen : undefined
       const cellSize = scrolling ? width / columns : Math.min(width / columns, height / rows)
       view = scrolling
         ? { zoom: 1, offsetX: 0, offsetY: scrolling.getOffsetRows() * cellSize }
@@ -132,6 +138,25 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       board.scale.set(view.zoom)
     }
 
+    function updateStageFilters() {
+      app.stage.filters = [...lockWaves, ...(vhsCrtEffect?.filters ?? [])]
+    }
+
+    function syncVhsCrtEffect() {
+      const config = propsRef.current.vhsCrt
+      if (config === previousVhsCrtConfig) return
+      previousVhsCrtConfig = config
+      if (config?.enabled) {
+        if (vhsCrtEffect) vhsCrtEffect.configure(config)
+        else vhsCrtEffect = new VhsCrtEffect(config)
+      } else {
+        app.stage.filters = [...lockWaves]
+        vhsCrtEffect?.destroy()
+        vhsCrtEffect = undefined
+      }
+      updateStageFilters()
+    }
+
     function stopViewportEffects() {
       gsap.killTweensOf(gridShakeMotion)
       app.stage.position.set(0, 0)
@@ -144,6 +169,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         wave.destroy()
       }
       lockWaves.clear()
+      updateStageFilters()
     }
 
     function resize() {
@@ -173,6 +199,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     function draw() {
       if (disposed || !appRef.current || !boardRef.current) return
       const current = propsRef.current
+      syncVhsCrtEffect()
       if (current.scrolling) pruneReportedInfiniteCells(reportedExitedCellKeys, current.pieces)
       updateViewport()
       // Draw in fitted-board coordinates; navigation only transforms the container.
@@ -408,7 +435,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         wavelength: cellSize * view.zoom * config.wavelengthCells,
       })
       lockWaves.add(wave)
-      app.stage.filters = [...lockWaves]
+      updateStageFilters()
       gsap.to(wave, {
         amplitude: 0,
         brightness: 1,
@@ -417,13 +444,14 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         time: config.durationSeconds,
         onComplete: () => {
           lockWaves.delete(wave)
-          app.stage.filters = [...lockWaves]
+          updateStageFilters()
           wave.destroy()
         },
       })
     }
 
     function update() {
+      vhsCrtEffect?.advance(app.ticker.deltaMS, propsRef.current.interactive === false || document.hidden)
       const scrolling = propsRef.current.scrolling
       if (scrolling && surface) {
         if (propsRef.current.interactive !== false && !document.hidden) scrolling.advance(app.ticker.deltaMS)
@@ -521,6 +549,8 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         stopCellAnimations()
         gsap.killTweensOf(gridShakeMotion)
         stopViewportEffects()
+        app.stage.filters = []
+        vhsCrtEffect?.destroy()
         surface?.destroy()
       }
       host?.destroy()

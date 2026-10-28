@@ -104,7 +104,14 @@ afterEach(() => {
 })
 
 describe('Classic locking modes', () => {
-  it('deselects an unlocked selected cell when that cell exits Infinite', () => {
+  it('hides the shared game controls when configured for a tutorial board', () => {
+    setup('auto', { config: { ...GAME_CONFIGS.easy, hideGameControls: true } })
+    expect(screen.queryByRole('button', { name: 'common.restart' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Deselect all cells' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Take notes' })).toBeNull()
+  })
+
+  it('keeps an unlocked selected cell selected when that cell exits Infinite', () => {
     const onCellExit = vi.fn()
     const scrolling = { firstRow: 0, visibleRows: 6, getOffsetRows: () => 0, advance: vi.fn() }
     setup('auto', { onCellExit, scrolling })
@@ -112,7 +119,7 @@ describe('Classic locking modes', () => {
     expect(board().selected).toEqual(firstSquare.slice(0, 2))
 
     fireEvent.click(screen.getByRole('button', { name: 'Exit first cell' }))
-    expect(board().selected).toEqual([firstSquare[1]])
+    expect(board().selected).toEqual(firstSquare.slice(0, 2))
     expect(onCellExit).toHaveBeenCalledWith(expect.objectContaining({
       cellKey: firstSquare[0], locked: false, selected: true, cornerominoId: pieces[0].id,
     }))
@@ -196,6 +203,31 @@ describe('Classic locking modes', () => {
     expect(board().locked).toHaveLength(0)
     tap('3,0')
     expect(board().locked[0].cellKeys).toEqual(firstSquare)
+  })
+
+  it('automatically locks the latest valid four while preserving older selections in order', () => {
+    setup()
+    tap('0,0', '1,0')
+    tap(...secondSquare)
+    expect(board().locked).toHaveLength(1)
+    expect(board().locked[0].cellKeys).toEqual(secondSquare)
+    expect(board().selected).toEqual(['0,0', '1,0'])
+
+    // Re-selecting moves a cell to the newest position, so it participates in
+    // the next four-cell window without disturbing the older remaining cell.
+    tap('0,0', '0,0', '0,1', '1,1')
+    expect(board().locked).toHaveLength(2)
+    expect(board().locked[1].cellKeys).toEqual(['1,0', '0,0', '0,1', '1,1'])
+    expect(board().selected).toEqual([])
+  })
+
+  it('does not auto-lock an older valid subset when the latest four are invalid', () => {
+    setup()
+    // The first square is present as a subset, but its cells were interleaved
+    // with distant cells and were never the four newest selections together.
+    tap('0,0', '3,0', '1,0', '4,0', '0,1', '3,1', '1,1')
+    expect(board().locked).toHaveLength(0)
+    expect(board().selected).toEqual(['0,0', '3,0', '1,0', '4,0', '0,1', '3,1', '1,1'])
   })
 
   it('uses the manual shape rule and leaves corner correctness to Verify', () => {

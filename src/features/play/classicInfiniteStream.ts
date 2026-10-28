@@ -12,7 +12,7 @@ export const CLASSIC_INFINITE_CONFIG: ClassicInfiniteConfig = {
   columns: 8,
   rows: 20,
   tetrominoCount: 10,
-  spread: 0,
+  spread: 0.2,
   lockingMode: 'auto',
   finalVerificationMode: 'auto',
   navigationEnabled: false,

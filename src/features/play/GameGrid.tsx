@@ -13,6 +13,7 @@ import { ClassicPauseDialog } from './ClassicPauseDialog'
 import { ClassicMistakesDialog } from './ClassicMistakesDialog'
 import { GameGridCanvas, type GameGridCanvasHandle, type ScrollingGridViewport } from './GameGridCanvas'
 import type { ClassicInfiniteCellExit } from './classicInfiniteCellExit'
+import type { VhsCrtEffectConfig } from '@/rendering/pixi/VhsCrtEffect'
 
 const DOUBLE_TAP_UNLOCK_MS = 200
 
@@ -40,6 +41,7 @@ interface GameGridProps {
   onRestart?: () => void
   pauseDialog?: ReactNode
   onCellExit?: (event: ClassicInfiniteCellExit) => void
+  vhsCrt?: VhsCrtEffectConfig
 }
 
 function createCellMap(pieces: readonly PlacedTetromino[]): Map<string, PlacedTetromino> {
@@ -141,24 +143,16 @@ export function GameGrid(props: GameGridProps) {
       && isTetrominoShape(parseCellKeys(selection))
   }
 
+  function latestFourCells(selection: ReadonlySet<string>): Set<string> {
+    return new Set([...selection].slice(-4))
+  }
+
   function clearSelectedCells() {
     lastLockedTapRef.current = null
     setSelectedCellKeys(new Set())
     setSelectedLockedGroupId(null)
     setValidationResult(null)
     setMistakeDialogOpen(false)
-  }
-
-  function handleCellExit(event: ClassicInfiniteCellExit) {
-    if (event.selected && !event.locked) {
-      setSelectedCellKeys((currentKeys) => {
-        if (!currentKeys.has(event.cellKey)) return currentKeys
-        const nextKeys = new Set(currentKeys)
-        nextKeys.delete(event.cellKey)
-        return nextKeys
-      })
-    }
-    props.onCellExit?.(event)
   }
 
   function resetGame() {
@@ -300,7 +294,8 @@ export function GameGrid(props: GameGridProps) {
     const nextSelectedCells = new Set(selectedCellKeys)
     if (nextSelectedCells.has(cellKey)) nextSelectedCells.delete(cellKey)
     else nextSelectedCells.add(cellKey)
-    if (autoLock && canLockCells(nextSelectedCells)) lockCells(nextSelectedCells)
+    const automaticLockSelection = latestFourCells(nextSelectedCells)
+    if (autoLock && canLockCells(automaticLockSelection)) lockCells(automaticLockSelection, nextSelectedCells)
     else setSelectedCellKeys(nextSelectedCells)
   }
 
@@ -319,7 +314,7 @@ export function GameGrid(props: GameGridProps) {
     lockCells(selectedCellKeys)
   }
 
-  function lockCells(selection: ReadonlySet<string>) {
+  function lockCells(selection: ReadonlySet<string>, fullSelection: ReadonlySet<string> = selection) {
     if (!canLockCells(selection)) return
     lastLockedTapRef.current = null
 
@@ -345,7 +340,7 @@ export function GameGrid(props: GameGridProps) {
     setIsCompleted(false)
     setCompletionDialogOpen(false)
     setCompletionScreenshot(null)
-    setSelectedCellKeys(new Set())
+    setSelectedCellKeys(new Set([...fullSelection].filter((key) => !selection.has(key))))
     setSelectedLockedGroupId(null)
     setValidationResult(null)
     setMistakeDialogOpen(false)
@@ -526,7 +521,8 @@ export function GameGrid(props: GameGridProps) {
               lockedCellGroups={lockedCellGroups}
               markers={markers}
               onNavigate={handleGridNavigation}
-              onCellExit={handleCellExit}
+              onCellExit={props.onCellExit}
+              vhsCrt={props.vhsCrt}
               onToggle={toggleCellSelection}
               pieces={props.pieces}
               ref={gameCanvasRef}
@@ -553,7 +549,7 @@ export function GameGrid(props: GameGridProps) {
           </div>
         </section>
       </div>
-      <div className="mx-auto flex w-full max-w-[550px] shrink-0 flex-nowrap justify-center gap-1 sm:gap-2">
+      {!props.config.hideGameControls && <div className="mx-auto flex w-full max-w-[550px] shrink-0 flex-nowrap justify-center gap-1 sm:gap-2">
         <Button
           aria-label={t('common.restart')}
           className="cartoon-press text-[var(--canvas-foreground)]"
@@ -638,7 +634,7 @@ export function GameGrid(props: GameGridProps) {
         >
           {t('classic.result')}
         </Button>}
-      </div>
+      </div>}
       <CorrectGameDialog
         onNext={props.onNextGame}
         onOpenChange={handleCompletionOpenChange}

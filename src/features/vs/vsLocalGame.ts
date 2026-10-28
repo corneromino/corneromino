@@ -108,7 +108,7 @@ export function createVsLocalGame(random = Math.random, config: Readonly<Partial
     throw new RangeError('Trap resolution must be points or draw.')
   }
   if (!isVsLocalBoardSize(boardSize)) {
-    throw new RangeError('Local VS board size must be 8 or 10.')
+    throw new RangeError('Local VS board size must be 8, 9, or 10.')
   }
   const position: VsLocalPosition = {
     activePlayer: random() < 0.5 ? 0 : 1,

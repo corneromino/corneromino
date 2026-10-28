@@ -44,14 +44,14 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTur
     <section
       aria-label={`${playerLabel}, ${playerStatus}`}
       className={cn(
-        'relative flex h-[66px] shrink-0 items-center rounded-md border-0 border-x-15 px-3 mx-1 transition-[box-shadow,opacity] duration-200',
+        'relative flex h-[66px] shrink-0 items-center rounded-md border-0 border-x-0 px-3 mx-1 transition-[box-shadow,opacity] duration-200',
         active ? 'ring-4 ring-offset-(--paper) ring-offset-2 ring-(--player-turn-color)' : 'opacity-65',
         facingOpponent && 'rotate-180',
       )}
       style={{
         backgroundColor: playerStyle.bannerBackground,
-        borderRightColor: playerStyle.bannerBackground,
-        borderLeftColor: active ? '#fff' : 'transparent',
+        // borderRightColor: playerStyle.bannerBackground,
+        // borderLeftColor: active ? 'var(--paper)' : 'transparent',
         '--player-turn-color': playerStyle.bannerBorder
       } as CSSProperties}
     >

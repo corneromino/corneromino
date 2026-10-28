@@ -6,6 +6,8 @@ export const CLASSIC_LOCKING_MODE: GameConfig['lockingMode'] = 'auto'
 export const CLASSIC_FINAL_VERIFICATION_MODE: NonNullable<GameConfig['finalVerificationMode']> = 'auto'
 
 export interface GameConfig {
+  /** Removes the shared game control bar; tutorials can then present only the board. */
+  hideGameControls?: boolean
   lockingMode: 'manual' | 'auto'
   /** Defaults to manual for older/custom game configurations. */
   finalVerificationMode?: 'manual' | 'auto'
