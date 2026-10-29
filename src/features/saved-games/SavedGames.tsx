@@ -49,41 +49,46 @@ function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => 
     <article className="saved-game-card flex gap-3 p-2 text-[var(--canvas-foreground)]">
       <AppNavigationButton
         aria-label={t('savedGames.continueSavedGame', { date: savedAt, mode: gameMode })}
-        className="h-auto min-w-0 flex-1 items-start justify-start gap-3 p-0 text-left whitespace-normal"
+        className="h-auto shrink-0 self-start p-0 hover:bg-transparent"
         to={gamePath}
+        variant="ghost"
       >
         {screenshotUrl && <img alt={t('savedGames.savedBoard')} className="h-auto w-28 shrink-0 self-start" src={screenshotUrl} />}
-        <div className="flex min-w-0 flex-1 flex-col justify-between py-1">
+      </AppNavigationButton>
+      <div className="flex min-w-0 flex-1 flex-col justify-between py-1">
+        <AppNavigationButton className="h-auto justify-start p-0 text-left whitespace-normal hover:bg-transparent" to={gamePath} variant="ghost">
           <div>
             <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{savedAt}</p>
             <h2 className="mt-1 text-[22px] font-black uppercase">{gameMode}</h2>
           </div>
-          <p className="poster-kicker truncate text-[11px] text-[var(--muted-text-color)]" title={props.game.gameId}>
-            {formatSeed(props.game.gameId)}
-          </p>
+        </AppNavigationButton>
+        <div className="flex min-w-0 items-center gap-2">
+          <AppNavigationButton className="h-auto min-w-0 flex-1 justify-start p-0 hover:bg-transparent" title={props.game.gameId} to={gamePath} variant="ghost">
+            <p className="poster-kicker truncate text-[11px] text-[var(--muted-text-color)]">
+              {formatSeed(props.game.gameId)}
+            </p>
+          </AppNavigationButton>
+          <Button
+            aria-label={t('savedGames.copySeedForGame', { mode: gameMode })}
+            className="cartoon-press size-9 shrink-0 text-[var(--canvas-foreground)]"
+            onClick={copySeed}
+            size="icon"
+            title={t('savedGames.copySeed')}
+            type="button"
+          >
+            <Copy aria-hidden="true" />
+          </Button>
+          <Button
+            aria-label={t('savedGames.deleteSavedGame', { mode: gameMode })}
+            className="cartoon-press size-9 shrink-0 text-[var(--coral)]"
+            onClick={() => setDeleteDialogOpen(true)}
+            size="icon"
+            title={t('savedGames.deleteSavedGame', { mode: gameMode })}
+            type="button"
+          >
+            <Trash2 aria-hidden="true" />
+          </Button>
         </div>
-      </AppNavigationButton>
-      <div className="flex shrink-0 flex-col justify-end gap-2">
-        <Button
-          aria-label={t('savedGames.copySeedForGame', { mode: gameMode })}
-          className="cartoon-press size-9 text-[var(--canvas-foreground)]"
-          onClick={copySeed}
-          size="icon"
-          title={t('savedGames.copySeed')}
-          type="button"
-        >
-          <Copy aria-hidden="true" />
-        </Button>
-        <Button
-          aria-label={t('savedGames.deleteSavedGame', { mode: gameMode })}
-          className="cartoon-press size-9 text-[var(--coral)]"
-          onClick={() => setDeleteDialogOpen(true)}
-          size="icon"
-          title={t('savedGames.deleteSavedGame', { mode: gameMode })}
-          type="button"
-        >
-          <Trash2 aria-hidden="true" />
-        </Button>
       </div>
       <Dialog onOpenChange={setDeleteDialogOpen} open={deleteDialogOpen}>
         <DialogContent>
