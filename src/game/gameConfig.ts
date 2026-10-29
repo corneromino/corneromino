@@ -5,8 +5,7 @@ export const CLASSIC_LOCKING_MODE: GameConfig['lockingMode'] = 'auto'
 /** Automatically check a completed Classic board, or require the Verify button. */
 export const CLASSIC_FINAL_VERIFICATION_MODE: NonNullable<GameConfig['finalVerificationMode']> = 'auto'
 
-const COMPLETION_SCREENSHOT_DELAY_MS = 450;
-const COMPLETION_DIALOG_DELAY_MS = 50;
+const COMPLETION_SCREENSHOT_DELAY_MS = 20;
 
 export interface GameConfig {
   /** Removes the shared game control bar; tutorials can then present only the board. */
@@ -14,8 +13,6 @@ export interface GameConfig {
   lockingMode: 'manual' | 'auto'
   /** Defaults to manual for older/custom game configurations. */
   finalVerificationMode?: 'manual' | 'auto'
-  /** Wait after a correct Classic board is detected before showing its completion dialog. */
-  completionDialogDelayMs?: number
   /** Wait for the final board animation to settle before capturing the completion screenshot. */
   completionScreenshotDelayMs?: number
   /** Tutorials disable navigation so their cell highlights stay aligned. Defaults to true. */
@@ -42,7 +39,6 @@ export const GAME_CONFIGS: Record<string, GameModeConfig> = {
         lockingMode: CLASSIC_LOCKING_MODE,
         finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
         completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
-        completionDialogDelayMs: COMPLETION_DIALOG_DELAY_MS
     },
     easy: {
         columns: 8,
@@ -53,7 +49,6 @@ export const GAME_CONFIGS: Record<string, GameModeConfig> = {
         lockingMode: CLASSIC_LOCKING_MODE,
         finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
         completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
-        completionDialogDelayMs: COMPLETION_DIALOG_DELAY_MS
     },
     medium: {
         columns: 10,
@@ -64,7 +59,6 @@ export const GAME_CONFIGS: Record<string, GameModeConfig> = {
         lockingMode: CLASSIC_LOCKING_MODE,
         finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
         completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
-        completionDialogDelayMs: COMPLETION_DIALOG_DELAY_MS
     },
     hard: {
         columns: 12,
@@ -75,7 +69,6 @@ export const GAME_CONFIGS: Record<string, GameModeConfig> = {
         lockingMode: CLASSIC_LOCKING_MODE,
         finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
         completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
-        completionDialogDelayMs: COMPLETION_DIALOG_DELAY_MS
     },
     'super-hard': {
         columns: 20,
@@ -86,7 +79,6 @@ export const GAME_CONFIGS: Record<string, GameModeConfig> = {
         lockingMode: CLASSIC_LOCKING_MODE,
         finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
         completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
-        completionDialogDelayMs: COMPLETION_DIALOG_DELAY_MS
     },
 }
 

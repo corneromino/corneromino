@@ -14,6 +14,7 @@ import { ClassicMistakesDialog } from './ClassicMistakesDialog'
 import { GameGridCanvas, type GameGridCanvasHandle, type ScrollingGridViewport } from './GameGridCanvas'
 import type { ClassicInfiniteCellExit } from './classicInfiniteCellExit'
 import type { VhsCrtEffectConfig } from '@/rendering/pixi/VhsCrtEffect'
+import type { VerificationWaveRequest } from '@/rendering/grid/GridVerificationWave'
 
 const DOUBLE_TAP_UNLOCK_MS = 200
 
@@ -64,6 +65,10 @@ interface ValidationResult {
   validLockCount: number
 }
 
+interface VerificationRun extends VerificationWaveRequest {
+  phase: 'screenshot' | 'wave'
+}
+
 export function GameGrid(props: GameGridProps) {
   const { t } = useTranslation()
   const location = useLocation()
@@ -82,8 +87,7 @@ export function GameGrid(props: GameGridProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [isCompleted, setIsCompleted] = useState(false)
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false)
-  const [completionDialogPending, setCompletionDialogPending] = useState(false)
-  const [completionScreenshotPending, setCompletionScreenshotPending] = useState(false)
+  const [verification, setVerification] = useState<VerificationRun | null>(null)
   const [completionScreenshot, setCompletionScreenshot] = useState<string | null>(null)
   const [moveCount, setMoveCount] = useState(0)
   const [savedAt, setSavedAt] = useState<number | null>(null)
@@ -95,6 +99,7 @@ export function GameGrid(props: GameGridProps) {
   const lockWasAvailableRef = useRef(false)
   const verifyWasAvailableRef = useRef(false)
   const lastLockedTapRef = useRef<{ groupId: string; time: number } | null>(null)
+  const verificationIdRef = useRef(0)
   const handleGridNavigation = useCallback(() => { lastLockedTapRef.current = null }, [])
   const autoLock = props.config.lockingMode === 'auto'
   const autoFinalVerification = props.config.finalVerificationMode === 'auto'
@@ -150,6 +155,7 @@ export function GameGrid(props: GameGridProps) {
   }
 
   function clearSelectedCells() {
+    if (verification) return
     lastLockedTapRef.current = null
     setSelectedCellKeys(new Set())
     setSelectedLockedGroupId(null)
@@ -169,8 +175,7 @@ export function GameGrid(props: GameGridProps) {
     setGameGridScreenshot(null)
     setIsCompleted(false)
     setCompletionDialogOpen(false)
-    setCompletionDialogPending(false)
-    setCompletionScreenshotPending(false)
+    cancelVerification()
     setCompletionScreenshot(null)
     setSavedAt(null)
     savedSelectionRef.current = null
@@ -183,6 +188,7 @@ export function GameGrid(props: GameGridProps) {
   }
 
   function restartFromPause() {
+    cancelVerification()
     if (props.onRestart) {
       props.onRestart()
       return
@@ -208,6 +214,7 @@ export function GameGrid(props: GameGridProps) {
   }
 
   async function exitGame(saveGame: boolean) {
+    cancelVerification()
     setIsExiting(true)
 
     try {
@@ -251,13 +258,28 @@ export function GameGrid(props: GameGridProps) {
   }
 
   function handleCompletionOpenChange(open: boolean) {
-    setCompletionDialogPending(false)
-    setCompletionScreenshotPending(false)
     setCompletionDialogOpen(open)
   }
 
+  function cancelVerification() {
+    verificationIdRef.current += 1
+    setVerification(null)
+  }
+
+  function handleVerificationComplete(id: number) {
+    if (!verification || verification.id !== id || verificationIdRef.current !== id) return
+    // Consume the run before invoking tutorial callbacks, which may reset the board.
+    cancelVerification()
+    if (verification.isCorrect) {
+      if (props.onCorrectSolution) props.onCorrectSolution()
+      else setCompletionDialogOpen(true)
+    } else {
+      setMistakeDialogOpen(true)
+    }
+  }
+
   function toggleCellSelection(cellKey: string, time: number) {
-    if (!selectionLoaded || props.paused || isExiting || isCompleted) return
+    if (!selectionLoaded || props.paused || isExiting || isCompleted || verification) return
     if (!cellMap.has(cellKey)) {
       lastLockedTapRef.current = null
       return
@@ -321,7 +343,7 @@ export function GameGrid(props: GameGridProps) {
   }
 
   function lockCells(selection: ReadonlySet<string>, fullSelection: ReadonlySet<string> = selection) {
-    if (!canLockCells(selection)) return
+    if (verification || !canLockCells(selection)) return
     lastLockedTapRef.current = null
 
     const cellKeys = [...selection]
@@ -345,8 +367,7 @@ export function GameGrid(props: GameGridProps) {
     setLockedCellGroups((groups) => [...groups, { cellKeys, color, id: crypto.randomUUID() }])
     setIsCompleted(false)
     setCompletionDialogOpen(false)
-    setCompletionDialogPending(false)
-    setCompletionScreenshotPending(false)
+    cancelVerification()
     setCompletionScreenshot(null)
     setSelectedCellKeys(new Set([...fullSelection].filter((key) => !selection.has(key))))
     setSelectedLockedGroupId(null)
@@ -363,6 +384,7 @@ export function GameGrid(props: GameGridProps) {
   }
 
   function unlockGroup(groupId: string) {
+    if (verification) return
     lastLockedTapRef.current = null
     const group = lockedCellGroups.find((lockedGroup) => lockedGroup.id === groupId)
     if (!group) return
@@ -370,8 +392,7 @@ export function GameGrid(props: GameGridProps) {
     setLockedCellGroups((groups) => groups.filter((lockedGroup) => lockedGroup.id !== group.id))
     setIsCompleted(false)
     setCompletionDialogOpen(false)
-    setCompletionDialogPending(false)
-    setCompletionScreenshotPending(false)
+    cancelVerification()
     setCompletionScreenshot(null)
     setSelectedCellKeys(new Set())
     setSelectedLockedGroupId(null)
@@ -381,7 +402,7 @@ export function GameGrid(props: GameGridProps) {
 
   function validateLockedCells() {
     lastLockedTapRef.current = null
-    if (!canValidate) return
+    if (!canValidate || verification || props.paused || isExiting || !selectionLoaded) return
 
     const validLockCount = lockedCellGroups.filter((group) => {
       const corners = group.cellKeys.map((cellKey) => {
@@ -397,42 +418,39 @@ export function GameGrid(props: GameGridProps) {
       isCorrect,
       validLockCount,
     })
-    setMistakeDialogOpen(!isCorrect)
-    if (isCorrect && props.onCorrectSolution) {
-      props.onCorrectSolution()
-      return
-    }
-    setIsCompleted(isCorrect)
+    setMistakeDialogOpen(false)
+    setCompletionDialogOpen(false)
+    setIsCompleted(isCorrect && !props.onCorrectSolution)
     setCompletionScreenshot(null)
-    setCompletionScreenshotPending(isCorrect)
+    setVerification({
+      id: ++verificationIdRef.current,
+      isCorrect,
+      phase: isCorrect && !props.onCorrectSolution ? 'screenshot' : 'wave',
+    })
   }
 
   useEffect(() => {
-    if (!completionScreenshotPending) return
-    const delay = Math.max(0, props.config.completionScreenshotDelayMs ?? 0)
-    const timer = window.setTimeout(() => {
-      // Capture after the final lock animation has settled and before the dialog delay begins.
+    if (verification?.phase !== 'screenshot' || props.paused || isExiting) return
+    function capture() {
+      if (verificationIdRef.current !== verification!.id) return
+      // Keep the completion image free of the verification overlay.
       const canvas = gameCanvasRef.current?.captureBoard()
       setCompletionScreenshot(canvas ? canvas.toDataURL('image/png') : null)
-      setCompletionScreenshotPending(false)
-      setCompletionDialogPending(true)
-    }, delay)
+      setVerification({ ...verification!, phase: 'wave' })
+    }
+    const configuredDelay = props.config.completionScreenshotDelayMs ?? 0
+    const delay = Number.isFinite(configuredDelay) ? Math.max(0, configuredDelay) : 0
+    if (delay === 0) {
+      capture()
+      return
+    }
+    const timer = window.setTimeout(capture, delay)
     return () => window.clearTimeout(timer)
-  }, [completionScreenshotPending, props.config.completionScreenshotDelayMs])
-
-  useEffect(() => {
-    if (!completionDialogPending) return
-    const delay = Math.max(0, props.config.completionDialogDelayMs ?? 0)
-    const timer = window.setTimeout(() => {
-      setCompletionDialogOpen(true)
-      setCompletionDialogPending(false)
-    }, delay)
-    return () => window.clearTimeout(timer)
-  }, [completionDialogPending, props.config.completionDialogDelayMs])
+  }, [verification, props.config.completionScreenshotDelayMs, props.paused, isExiting])
 
   useEffect(() => {
     if (autoFinalVerification && canValidate && validationResult === null) validateLockedCells()
-  }, [autoFinalVerification, canValidate, lockedCellGroups, validationResult])
+  }, [autoFinalVerification, canValidate, lockedCellGroups, validationResult, props.paused, isExiting, selectionLoaded])
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -467,8 +485,7 @@ export function GameGrid(props: GameGridProps) {
     props.onElapsedSecondsChange(0)
     setIsCompleted(false)
     setCompletionDialogOpen(false)
-    setCompletionDialogPending(false)
-    setCompletionScreenshotPending(false)
+    cancelVerification()
     setCompletionScreenshot(null)
     setMoveCount(0)
     props.onMoveCountChange(0)
@@ -494,8 +511,7 @@ export function GameGrid(props: GameGridProps) {
           props.onElapsedSecondsChange(storedSelection.elapsedSeconds)
           setIsCompleted(storedSelection.isCompleted)
           setCompletionDialogOpen(false)
-          setCompletionDialogPending(false)
-          setCompletionScreenshotPending(false)
+          cancelVerification()
           setCompletionScreenshot(null)
           setMoveCount(storedSelection.moveCount)
           props.onMoveCountChange(storedSelection.moveCount)
@@ -552,7 +568,7 @@ export function GameGrid(props: GameGridProps) {
           <div className="relative size-full border-2 border-[#773526] bg-[#773526]">
             <GameGridCanvas
               config={props.config}
-              interactive={selectionLoaded && !props.paused && !isExiting && !completionScreenshot}
+              interactive={selectionLoaded && !props.paused && !isExiting && !isCompleted && !verification}
               lockedCellGroups={lockedCellGroups}
               markers={markers}
               onNavigate={handleGridNavigation}
@@ -565,6 +581,9 @@ export function GameGrid(props: GameGridProps) {
               selectedLockedGroupId={selectedLockedGroupId}
               showCellIds={showCellIds}
               scrolling={props.scrolling}
+              verificationWave={verification?.phase === 'wave' ? verification : undefined}
+              verificationPaused={props.paused || isExiting}
+              onVerificationComplete={handleVerificationComplete}
             />
             {props.highlightAreas?.map((area) => (
               <div
@@ -599,7 +618,7 @@ export function GameGrid(props: GameGridProps) {
         <Button
           aria-label="Deselect all cells"
           className="cartoon-press text-[var(--canvas-foreground)]"
-          disabled={selectedCellKeys.size === 0 && !selectedLockedGroupId}
+          disabled={!!verification || (selectedCellKeys.size === 0 && !selectedLockedGroupId)}
           onClick={clearSelectedCells}
           size="icon-lg"
           title="Deselect all cells"
@@ -609,6 +628,7 @@ export function GameGrid(props: GameGridProps) {
         </Button>
         <Button
           aria-label="Take notes"
+          disabled={!!verification}
           aria-pressed={markerMode}
           className={cn(
             'cartoon-press text-[var(--canvas-foreground)]',
@@ -624,7 +644,7 @@ export function GameGrid(props: GameGridProps) {
         {!autoLock && <Button
           aria-label="Lock four selected cells"
           className="cartoon-press text-[var(--mint)]"
-          disabled={!canLockSelectedCells}
+          disabled={!!verification || !canLockSelectedCells}
           id={props.lockButtonId}
           onClick={lockSelectedCells}
           size="icon-lg"
@@ -636,7 +656,7 @@ export function GameGrid(props: GameGridProps) {
         {!autoLock && <Button
           aria-label="Unlock selected cells"
           className="cartoon-press [--element-color:var(--paper-muted)] text-[var(--canvas-foreground)]"
-          disabled={!selectedLockedGroupId}
+          disabled={!!verification || !selectedLockedGroupId}
           onClick={unlockSelectedCells}
           size="icon-lg"
           title="Unlock selected cells"
@@ -650,7 +670,7 @@ export function GameGrid(props: GameGridProps) {
             'cartoon-press relative text-[var(--canvas-foreground)]',
             validationResult?.isCorrect ? 'cartoon-press--green' : validationResult ? 'cartoon-press--red' : 'cartoon-press--blue',
           )}
-          disabled={!canValidate}
+          disabled={!canValidate || !!verification || props.paused || isExiting}
           id={props.verifyButtonId}
           onClick={validateLockedCells}
           size="icon-lg"

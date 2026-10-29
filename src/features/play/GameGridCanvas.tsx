@@ -1,6 +1,8 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { Application, Container, Graphics, Rectangle, Sprite, Text, TextStyle } from 'pixi.js'
 import { GridSurface } from '@/rendering/grid/GridSurface'
+import { GridVerificationWave, type VerificationWaveRequest } from '@/rendering/grid/GridVerificationWave'
+import { getCellShakeOffset } from '@/rendering/grid/cellShake'
 import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
 import { VhsCrtEffect, type VhsCrtEffectConfig } from '@/rendering/pixi/VhsCrtEffect'
 import { GAME_COLORS } from '@/rendering/colors'
@@ -35,6 +37,9 @@ interface GameGridCanvasProps {
   scrolling?: ScrollingGridViewport
   onCellExit?: (event: ClassicInfiniteCellExit) => void
   vhsCrt?: VhsCrtEffectConfig
+  verificationWave?: VerificationWaveRequest
+  verificationPaused?: boolean
+  onVerificationComplete?: (id: number) => void
 }
 
 export interface GameGridCanvasHandle {
@@ -88,7 +93,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
 
   useEffect(() => {
     drawRef.current()
-  }, [props.config, props.lockedCellGroups, props.markers, props.pieces, props.selectedCellKeys, props.selectedLockedGroupId, props.showCellIds, props.scrolling, props.vhsCrt])
+  }, [props.config, props.lockedCellGroups, props.markers, props.pieces, props.selectedCellKeys, props.selectedLockedGroupId, props.showCellIds, props.scrolling, props.vhsCrt, props.verificationWave])
 
   useEffect(() => {
     const container = containerRef.current
@@ -114,6 +119,8 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     const reportedExitedCellKeys = new Set<string>()
     let view: GridView = { zoom: 1, offsetX: 0, offsetY: 0 }
     let previousSize = { width: 0, height: 0, cellSize: 0 }
+    let verificationWave: GridVerificationWave | undefined
+    let verificationId: number | undefined
 
     function updateViewport() {
       if (!surface) return
@@ -212,6 +219,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       const nextSelectedKeys = new Set<string>()
       const newlyLockedCellKeys: string[] = []
 
+      verificationWave?.clearCells()
       stopCellAnimations()
       for (const child of board.removeChildren()) {
         child.destroy({ children: true })
@@ -355,11 +363,21 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       }
       previousLockedCellKeysRef.current = nextLockedCellKeys
       previousSelectedKeysRef.current = nextSelectedKeys
-      if (newlyLockedCellKeys.length > 0) {
+      if (newlyLockedCellKeys.length > 0 && !current.verificationWave) {
         playLockShake(newlyLockedCellKeys, cellSize)
         playGridShake(cellSize)
         playLockRipple(newlyLockedCellKeys, cellWidth, cellHeight, cellSize)
       }
+      if (current.verificationWave?.id !== verificationId) {
+        verificationWave?.destroy()
+        verificationWave = undefined
+        verificationId = current.verificationWave?.id
+        if (current.verificationWave) {
+          stopViewportEffects()
+          verificationWave = new GridVerificationWave(current.verificationWave, current.config.columns, CASCADE_LOCK_EFFECTS.completionShake)
+        }
+      }
+      verificationWave?.setCells(cellShakeLayers, cellWidth, cellHeight, CELL_BORDER_RATIO)
     }
 
     function playGridShake(cellSize: number) {
@@ -405,9 +423,8 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           ease: 'none',
           time: config.durationSeconds,
           onUpdate: () => {
-            const fade = (1 - motion.time / config.durationSeconds) ** 2
-            const phase = motion.time * config.frequencyHz * Math.PI * 2
-            layer.position.set(Math.sin(phase) * amplitude * fade, Math.sin(phase * 1.3) * amplitude * fade * 0.6)
+            const offset = getCellShakeOffset(motion.time, config.durationSeconds, amplitude, config.frequencyHz)
+            layer.position.set(offset.x, offset.y)
           },
           onComplete: () => {
             layer.position.set(0, 0)
@@ -451,6 +468,12 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     }
 
     function update() {
+      if (verificationWave && !propsRef.current.verificationPaused && !document.hidden && verificationWave.advance(app.ticker.deltaMS)) {
+        const completedId = verificationId!
+        verificationWave.destroy()
+        verificationWave = undefined
+        propsRef.current.onVerificationComplete?.(completedId)
+      }
       vhsCrtEffect?.advance(app.ticker.deltaMS, propsRef.current.interactive === false || document.hidden)
       const scrolling = propsRef.current.scrolling
       if (scrolling && surface) {
@@ -504,6 +527,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           }
           captureRef.current = () => {
             const savedView = view
+            verificationWave?.hide()
             try {
               view = { zoom: 1, offsetX: 0, offsetY: 0 }
               updateViewport()
@@ -511,6 +535,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
             } finally {
               view = savedView
               updateViewport()
+              verificationWave?.render()
             }
           }
           const navigation = propsRef.current.scrolling || propsRef.current.config.navigationEnabled === false ? null : createGridNavigation(app.canvas, {
@@ -546,6 +571,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       if (canvasReady) {
         detachInput?.()
         app.ticker.remove(update)
+        verificationWave?.destroy()
         stopCellAnimations()
         gsap.killTweensOf(gridShakeMotion)
         stopViewportEffects()

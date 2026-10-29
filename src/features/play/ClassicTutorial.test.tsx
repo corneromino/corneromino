@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import { StrictMode, type ComponentProps } from 'react'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GameGridCanvas } from './GameGridCanvas'
 import { ClassicTutorial } from './ClassicTutorial'
+
+const canvasMock = vi.hoisted(() => ({ props: undefined as ComponentProps<typeof GameGridCanvas> | undefined }))
 
 vi.mock('@/lib/db', () => ({ loadGameSelection: vi.fn(), saveGameSelection: vi.fn(), clearGameSelection: vi.fn() }))
 vi.mock('react-i18next', () => {
@@ -17,8 +19,9 @@ vi.mock('driver.js', async (importOriginal) => {
 })
 // Keep the real tutorial, driver, and GameGrid logic; replace only Pixi rendering.
 vi.mock('./GameGridCanvas', () => ({
-  GameGridCanvas: (props: ComponentProps<typeof GameGridCanvas>) => (
-    <div>
+  GameGridCanvas: (props: ComponentProps<typeof GameGridCanvas>) => {
+    canvasMock.props = props
+    return <div>
       {props.pieces.map((piece) => (
         <div data-testid={`piece-${piece.id}`} key={piece.id}>
           {piece.cells.map(({ x, y }) => (
@@ -28,7 +31,7 @@ vi.mock('./GameGridCanvas', () => ({
       ))}
       <output data-testid="lock-count">{props.lockedCellGroups.length}</output>
     </div>
-  ),
+  },
 }))
 
 afterEach(cleanup)
@@ -59,6 +62,8 @@ async function openShapeExample() {
 
 function solvePiece(id: number) {
   for (const button of within(screen.getByTestId(`piece-${id}`)).getAllByRole('button', { hidden: true })) fireEvent.click(button)
+  const { verificationWave, onVerificationComplete } = canvasMock.props!
+  if (verificationWave) act(() => onVerificationComplete?.(verificationWave.id))
 }
 
 describe('Automatic Classic tutorial', () => {

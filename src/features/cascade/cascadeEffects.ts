@@ -29,6 +29,14 @@ export const CASCADE_LOCK_EFFECTS = {
     frequencyHz: 30,
     propagationCellsPerSecond: 10,
   },
+  completionShake: {
+    enabled: true,
+    radiusCells: 5,
+    amplitudeCells: 2,
+    durationSeconds: 0.5,
+    frequencyHz: 3,
+    propagationCellsPerSecond: 50,
+  },
   shakeDrop: {
     enabled: true,
     amplitudeCells: 0.14,

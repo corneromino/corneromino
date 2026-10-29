@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { StrictMode, type ComponentProps } from 'react'
+import { StrictMode, useImperativeHandle, type ComponentProps } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -8,6 +8,8 @@ import { loadGameSelection, saveGameSelection } from '@/lib/db'
 import type { GameGridCanvas } from './GameGridCanvas'
 import { GameGrid } from './GameGrid'
 
+const canvasMock = vi.hoisted(() => ({ captureBoard: vi.fn(), props: undefined as ComponentProps<typeof GameGridCanvas> | undefined }))
+
 vi.mock('@/lib/db', () => ({ loadGameSelection: vi.fn(), saveGameSelection: vi.fn().mockResolvedValue(undefined), clearGameSelection: vi.fn() }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: { count?: number }) => {
   if (key === 'classic.errors') return `${values?.count} errors`
@@ -15,10 +17,12 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, valu
   return key
 } }) }))
 vi.mock('./ClassicPauseDialog', () => ({ ClassicPauseDialog: () => null }))
-vi.mock('./CorrectGameDialog', () => ({ CorrectGameDialog: ({ open }: { open: boolean }) => open ? <output data-testid="completion-dialog">Open</output> : null }))
+vi.mock('./CorrectGameDialog', () => ({ CorrectGameDialog: ({ open, screenshot }: { open: boolean; screenshot: string | null }) => open ? <output data-testid="completion-dialog" data-screenshot={screenshot}>Open</output> : null }))
 // Exercise the real React interaction state; only replace the Pixi drawing surface.
 vi.mock('./GameGridCanvas', () => ({
   GameGridCanvas: (props: ComponentProps<typeof GameGridCanvas>) => {
+    canvasMock.props = props
+    useImperativeHandle(props.ref, () => ({ captureBoard: canvasMock.captureBoard, resetView: () => undefined }), [])
     const corneromino = props.pieces[0]
     const cell = corneromino?.cells[0]
     const key = cell ? `${cell.x},${cell.y}` : ''
@@ -74,6 +78,12 @@ function tap(...keys: string[]) {
   for (const key of keys) fireEvent.click(screen.getByRole('button', { name: `Cell ${key}` }))
 }
 
+function finishVerificationWave() {
+  const { verificationWave, onVerificationComplete } = canvasMock.props!
+  expect(verificationWave).toBeDefined()
+  act(() => onVerificationComplete?.(verificationWave!.id))
+}
+
 type GridProps = ComponentProps<typeof GameGrid>
 function gridElement(props: GridProps) {
   return <StrictMode><MemoryRouter><GameGrid {...props} /></MemoryRouter></StrictMode>
@@ -81,7 +91,7 @@ function gridElement(props: GridProps) {
 
 function setup(lockingMode: 'auto' | 'manual' = 'auto', overrides: Partial<GridProps> = {}) {
   const props: GridProps = {
-    config: { ...GAME_CONFIGS.easy, lockingMode, finalVerificationMode: 'manual' },
+    config: { ...GAME_CONFIGS.easy, lockingMode, finalVerificationMode: 'manual', completionScreenshotDelayMs: 0 },
     gameMode: 'easy', gameId: 'locking-test', pieces, persistSelection: false, paused: false,
     onElapsedSecondsChange: vi.fn(), onMoveCountChange: vi.fn(), onNextGame: vi.fn(),
     onPauseOpenChange: vi.fn(), onLocked: vi.fn(), onLockAvailable: vi.fn(), onVerifyAvailable: vi.fn(), onCorrectSolution: vi.fn(),
@@ -94,36 +104,82 @@ function setup(lockingMode: 'auto' | 'manual' = 'auto', overrides: Partial<GridP
 let time: number
 beforeEach(() => {
   vi.clearAllMocks()
+  canvasMock.captureBoard.mockReturnValue({ toDataURL: () => 'data:image/png;base64,clean-board' })
   time = 1000
   vi.spyOn(performance, 'now').mockImplementation(() => time)
   vi.mocked(loadGameSelection).mockResolvedValue(emptySave())
 })
 afterEach(() => {
   cleanup()
+  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
 describe('Classic locking modes', () => {
-  it('waits for the configured delay before opening the completion dialog', async () => {
+  it.each(['auto', 'manual'] as const)('captures before the wave and waits for renderer completion with %s verification', async (finalVerificationMode) => {
     vi.useFakeTimers()
     try {
       setup('auto', {
-        config: { ...GAME_CONFIGS.easy, completionScreenshotDelayMs: 200, completionDialogDelayMs: 400, finalVerificationMode: 'auto' },
+        config: { ...GAME_CONFIGS.easy, completionScreenshotDelayMs: 200, finalVerificationMode },
         onCorrectSolution: undefined,
       })
       tap(...firstSquare, ...secondSquare)
-      await act(async () => {})
+      if (finalVerificationMode === 'manual') fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
       expect(screen.queryByTestId('completion-dialog')).toBeNull()
+      expect(canvasMock.captureBoard).not.toHaveBeenCalled()
+      expect(canvasMock.props!.verificationWave).toBeUndefined()
 
-      await act(async () => { await vi.advanceTimersByTimeAsync(200) })
-      await act(async () => {})
-      await act(async () => { await vi.advanceTimersByTimeAsync(399) })
-      expect(screen.queryByTestId('completion-dialog')).toBeNull()
+      await act(async () => { await vi.advanceTimersByTimeAsync(199) })
+      expect(canvasMock.captureBoard).not.toHaveBeenCalled()
       await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+      expect(canvasMock.captureBoard).toHaveBeenCalledOnce()
+      expect(canvasMock.props!.verificationWave).toMatchObject({ isCorrect: true })
+      const waveId = canvasMock.props!.verificationWave!.id
+      fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
+      tap(firstSquare[0], firstSquare[0])
+      expect(board().locked).toHaveLength(2)
+      expect(canvasMock.props!.verificationWave!.id).toBe(waveId)
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+      expect(screen.queryByTestId('completion-dialog')).toBeNull()
+      finishVerificationWave()
       expect(screen.getByTestId('completion-dialog').textContent).toBe('Open')
+      expect(screen.getByTestId('completion-dialog').getAttribute('data-screenshot')).toBe('data:image/png;base64,clean-board')
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it.each(['auto', 'manual'] as const)('waits for the red wave before reporting %s verification mistakes', (finalVerificationMode) => {
+    const repeatedCorners: PlacedTetromino[] = [{ ...pieces[0], cells: pieces[0].cells.map((cell) => ({ ...cell, corner: 'top-left' })) }]
+    setup('auto', { pieces: repeatedCorners, config: { ...GAME_CONFIGS.easy, finalVerificationMode } })
+    tap(...firstSquare)
+    if (finalVerificationMode === 'manual') fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
+    expect(canvasMock.props!.verificationWave).toMatchObject({ isCorrect: false })
+    expect(canvasMock.captureBoard).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    tap(firstSquare[0], firstSquare[0])
+    expect(board().locked).toHaveLength(1)
+    finishVerificationWave()
+    expect(screen.getByRole('dialog').textContent).toContain('1 mistakes')
+  })
+
+  it('cancels pending capture and ignores stale animation callbacks after a restart', async () => {
+    vi.useFakeTimers()
+    setup('auto', { config: { ...GAME_CONFIGS.easy, finalVerificationMode: 'auto', completionScreenshotDelayMs: 200 }, onCorrectSolution: undefined })
+    tap(...firstSquare, ...secondSquare)
+    fireEvent.click(screen.getByRole('button', { name: 'common.restart' }))
+    await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+    expect(canvasMock.captureBoard).not.toHaveBeenCalled()
+    expect(canvasMock.props!.verificationWave).toBeUndefined()
+
+    tap(...firstSquare, ...secondSquare)
+    await act(async () => { await vi.advanceTimersByTimeAsync(200) })
+    const { verificationWave, onVerificationComplete } = canvasMock.props!
+    fireEvent.click(screen.getByRole('button', { name: 'common.restart' }))
+    act(() => onVerificationComplete?.(verificationWave!.id))
+    expect(board().locked).toEqual([])
+    expect(canvasMock.props!.verificationWave).toBeUndefined()
+    expect(screen.queryByTestId('completion-dialog')).toBeNull()
   })
 
   it('hides the shared game controls when configured for a tutorial board', () => {
@@ -259,6 +315,7 @@ describe('Classic locking modes', () => {
     expect(board().locked).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
     expect(props.onCorrectSolution).not.toHaveBeenCalled()
+    finishVerificationWave()
     expect(screen.getByRole('dialog').textContent).toContain('1 mistakes')
     fireEvent.click(screen.getByRole('button', { name: 'common.ok' }))
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -271,17 +328,21 @@ describe('Classic locking modes', () => {
     expect(props.onMoveCountChange).toHaveBeenLastCalledWith(2)
     expect(props.onCorrectSolution).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
+    finishVerificationWave()
     expect(props.onCorrectSolution).toHaveBeenCalledOnce()
   })
 
   it('automatically verifies a fully locked board when configured', async () => {
     const { props } = setup('auto', { config: { ...GAME_CONFIGS.easy, lockingMode: 'auto', finalVerificationMode: 'auto' } })
     tap(...firstSquare, ...secondSquare)
+    expect(props.onCorrectSolution).not.toHaveBeenCalled()
+    finishVerificationWave()
     await waitFor(() => expect(props.onCorrectSolution).toHaveBeenCalledOnce())
     const verifyButton = screen.getByRole('button', { name: 'classic.verify' })
     expect(verifyButton).toBeTruthy()
     expect(verifyButton.hasAttribute('disabled')).toBe(false)
     fireEvent.click(verifyButton)
+    finishVerificationWave()
     expect(props.onCorrectSolution).toHaveBeenCalledTimes(2)
   })
 
@@ -289,6 +350,7 @@ describe('Classic locking modes', () => {
     const repeatedCorners: PlacedTetromino[] = [{ ...pieces[0], cells: pieces[0].cells.map((cell) => ({ ...cell, corner: 'top-left' })) }]
     setup('auto', { pieces: repeatedCorners, config: { ...GAME_CONFIGS.easy, lockingMode: 'auto', finalVerificationMode: 'auto' } })
     tap(...firstSquare)
+    finishVerificationWave()
     await waitFor(() => expect(screen.getByRole('dialog').textContent).toContain('1 mistakes'))
     expect(screen.getByRole('button', { name: 'common.ok' })).toBeTruthy()
     expect(document.querySelector<HTMLButtonElement>('button[aria-label="classic.verify"]')?.disabled).toBe(false)
@@ -398,6 +460,7 @@ describe('Classic locking modes', () => {
     expect(props.onLocked).toHaveBeenCalledOnce()
     expect(props.onVerifyAvailable).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
+    finishVerificationWave()
     expect(props.onCorrectSolution).toHaveBeenCalledOnce()
     rerender({ pieces: [pieces[1]], boardResetKey: 'second-lesson' })
     expect(board().locked).toHaveLength(0)
