@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Pause } from 'lucide-react'
+import { ArrowLeft, Pause } from 'lucide-react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppNavigationButton } from '@/components/ui/app-navigation-button'
@@ -10,6 +10,7 @@ import { clearGameSelection } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
 import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
 import { GameGrid } from './GameGrid'
+import { ClassicCornerominosDialog } from './ClassicCornerominosDialog'
 
 const MODE_BUTTON_CLASS = 'cartoon-press mode-menu-button w-full text-[11px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase'
 const MODE_ENTRIES = Object.entries(GAME_CONFIGS)
@@ -26,25 +27,39 @@ interface GameSessionProps {
 
 function GameModeMenu() {
   const { t } = useTranslation()
+  const [cornerominosOpen, setCornerominosOpen] = useState(false)
   return (
-    <main className="poster-page app-page relative flex flex-col overflow-hidden px-5 text-[var(--canvas-foreground)]">
+    <main className="poster-page app-page relative flex flex-col overflow-hidden px-5 py-5 text-[var(--canvas-foreground)]">
       <TetrominoBackground />
-      <section className="relative z-10 mx-auto flex min-h-0 w-full max-w-[430px] flex-1 flex-col items-center pt-[clamp(12px,calc(var(--app-content-height)*0.04),32px)] text-center">
-        <div className="shrink-0">
+      <header className="relative z-10 mx-auto flex w-full max-w-[550px] shrink-0 items-start justify-between gap-3 pb-10">
+        <div>
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
-          <h1 className="poster-title mode-menu-title leading-none">{t('classic.title')}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="poster-title mt-2 text-[40px] leading-none">{t('classic.title')}</h1>
+            <Button
+              aria-label="8 Cornerominos"
+              className="bg-transparent text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40 font-black shadow-none hover:opacity-70 focus-visible:opacity-100"
+              onClick={() => setCornerominosOpen(true)}
+              size="icon"
+              title="8 Cornerominos"
+              type="button"
+            >?</Button>
+          </div>
         </div>
-        <div aria-label={t('classic.title')} className="mt-4 flex min-h-0 w-full flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain px-1 pb-1">
+        <AppNavigationButton aria-label={t('common.backToMainMenu')} className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
+      </header>
+      <section className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col px-1 pb-1">
+        <div aria-label={t('classic.title')} className="flex min-h-0 w-full flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain">
           {MODE_ENTRIES.map(([mode, config]) => (
             <AppNavigationButton className={MODE_BUTTON_CLASS} key={mode} navigationOptions={{ state: { returnToClassicMenu: true } }} size="lg" to={`/play?mode=${mode}`}>{t(config.title)}</AppNavigationButton>
           ))}
           <AppNavigationButton className={MODE_BUTTON_CLASS} navigationOptions={{ state: { returnToClassicMenu: true } }} size="lg" to="/play/infinite">{t('classic.infinite')}</AppNavigationButton>
         </div>
-        <div className="flex w-full shrink-0 flex-col gap-3 pt-3 pb-[clamp(12px,calc(var(--app-content-height)*0.04),32px)]">
+        <div className="flex w-full shrink-0 flex-col pt-3">
           <AppNavigationButton className="cartoon-press mode-menu-button w-full !border-[var(--canvas-foreground)] !bg-[var(--coral)] text-[11px] font-black tracking-[0.2em] !text-[var(--paper)] uppercase hover:!bg-[#b73a2c]" size="lg" to="/saved">{t('classic.saved')}</AppNavigationButton>
-          <AppNavigationButton className="cartoon-press h-[42px] w-full [--element-color:var(--paper-muted)] text-[11px] font-black tracking-[0.16em] text-[var(--canvas-foreground)] uppercase" size="sm" to="/">{t('common.back')}</AppNavigationButton>
         </div>
       </section>
+      <ClassicCornerominosDialog onOpenChange={setCornerominosOpen} open={cornerominosOpen} />
     </main>
   )
 }
@@ -59,6 +74,7 @@ function GameSession(props: GameSessionProps) {
   const [moveCount, setMoveCount] = useState(0)
   const [pieces, setPieces] = useState<PlacedTetromino[] | null>(null)
   const [pauseOpen, setPauseOpen] = useState(false)
+  const [cornerominosOpen, setCornerominosOpen] = useState(false)
   const seed = props.requestedSeed || generatedSeed
   const config = GAME_CONFIGS[props.gameMode]
 
@@ -106,9 +122,22 @@ function GameSession(props: GameSessionProps) {
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <h1 className="poster-title text-[33px] leading-none">{t('classic.title')}</h1>
-            <AppNavigationButton aria-label={t('tutorial.open')} className="h-auto min-w-0 border-0 bg-transparent p-0 text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40 shadow-none hover:opacity-70 focus-visible:opacity-100" navigationOptions={{ state: { returnToClassicGame: true } }} title={t('tutorial.open')} to="/play/tutorial" variant="ghost">?</AppNavigationButton>
+            <Button
+              aria-label="8 Cornerominos"
+              className="h-auto min-w-0 border-0 bg-transparent p-0 text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40 font-black shadow-none hover:opacity-70 focus-visible:opacity-100"
+              onClick={() => setCornerominosOpen(true)}
+              size="icon"
+              title="8 Cornerominos"
+              type="button"
+            >?</Button>
           </div>
-          <Button aria-label={`${t('common.pause')} ${t('classic.title')}`} className="cartoon-press size-10 shrink-0 text-[var(--canvas-foreground)]" onClick={() => setPauseOpen(true)} size="icon" title={t('common.pause')} type="button">
+          <Button
+            aria-label={`${t('common.pause')} ${t('classic.title')}`}
+            className="cartoon-press size-10 shrink-0 text-[var(--canvas-foreground)]"
+            onClick={() => setPauseOpen(true)}
+            size="icon"
+            title={t('common.pause')}
+            type="button">
             <Pause aria-hidden="true" />
           </Button>
         </div>
@@ -123,10 +152,11 @@ function GameSession(props: GameSessionProps) {
       </header>
 
       <div className="relative z-10 min-h-0 flex-1">
-        {pieces && <GameGrid config={config} gameId={seed} gameMode={props.gameMode} key={`${props.gameMode}:${seed}`} onElapsedSecondsChange={setElapsedSeconds} onMoveCountChange={setMoveCount} onNextGame={nextGame} onPauseOpenChange={setPauseOpen} paused={pauseOpen} pieces={pieces} />}
+        {pieces && <GameGrid config={config} gameId={seed} gameMode={props.gameMode} key={`${props.gameMode}:${seed}`} onElapsedSecondsChange={setElapsedSeconds} onMoveCountChange={setMoveCount} onNextGame={nextGame} onPauseOpenChange={setPauseOpen} paused={pauseOpen} pieces={pieces} suspended={cornerominosOpen} />}
         {!pieces && !generationError && <p className="px-5 text-center text-[11px] font-bold uppercase">{t('classic.generating')}</p>}
         {generationError && <p className="px-5 text-center text-[11px] font-bold text-[var(--coral)]" role="alert">{generationError}</p>}
       </div>
+      <ClassicCornerominosDialog onOpenChange={setCornerominosOpen} open={cornerominosOpen} />
     </main>
   )
 }

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { createRandomSeed } from '@/game/random'
 import { GameGrid } from './GameGrid'
+import { ClassicCornerominosDialog } from './ClassicCornerominosDialog'
 import { CLASSIC_INFINITE_CONFIG, ClassicInfiniteStream, createInfiniteSectionGenerator, type ClassicInfiniteSection } from './classicInfiniteStream'
 import type { ClassicInfiniteCellExit } from './classicInfiniteCellExit'
 // import { CLASSIC_INFINITE_VHS_CRT } from './classicInfiniteEffects'
@@ -19,6 +20,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
   const navigate = useNavigate()
   const [seed] = useState(createRandomSeed)
   const [paused, setPaused] = useState(false)
+  const [cornerominosOpen, setCornerominosOpen] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [moveCount, setMoveCount] = useState(0)
   const [generationFailed, setGenerationFailed] = useState(false)
@@ -75,7 +77,10 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
       <header className="mx-auto flex w-full max-w-[550px] shrink-0 flex-col gap-3 px-5 pb-6">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="poster-title text-[33px] leading-none">{t('classic.title')}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="poster-title text-[33px] leading-none">{t('classic.title')}</h1>
+            <Button aria-label="8 Cornerominos" className="h-auto min-w-0 border-0 bg-transparent p-0 text-[24px] leading-none text-[var(--canvas-foreground)] opacity-80 font-black shadow-none hover:opacity-70 focus-visible:opacity-100" onClick={() => setCornerominosOpen(true)} size="icon" title="8 Cornerominos" type="button">?</Button>
+          </div>
           <Button aria-label={t('common.pause')} className="cartoon-press size-10 shrink-0 text-[var(--canvas-foreground)]" onClick={pause} size="icon" title={t('common.pause')} type="button"><Pause aria-hidden="true" /></Button>
         </div>
         <div className="poster-kicker flex items-center justify-between gap-4 text-[11px] text-[var(--muted-text-color)]">
@@ -105,12 +110,14 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
           persistSelection={false}
           pieces={pieces}
           scrolling={scrolling}
+          suspended={cornerominosOpen}
           // vhsCrt={CLASSIC_INFINITE_VHS_CRT}
         /> : <>
           {!generationFailed && <p className="px-5 text-center text-[11px] font-bold uppercase">{t('classic.generating')}</p>}
           {pauseDialog}
         </>}
       </div>
+      <ClassicCornerominosDialog onOpenChange={setCornerominosOpen} open={cornerominosOpen} />
     </main>
   )
 }

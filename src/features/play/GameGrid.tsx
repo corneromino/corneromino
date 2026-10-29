@@ -36,6 +36,8 @@ interface GameGridProps {
   onNextGame: () => void
   onPauseOpenChange: (open: boolean) => void
   paused: boolean
+  /** Temporarily freezes the board without presenting the pause menu. */
+  suspended?: boolean
   persistSelection?: boolean
   pieces: readonly PlacedTetromino[]
   scrolling?: ScrollingGridViewport
@@ -103,6 +105,7 @@ export function GameGrid(props: GameGridProps) {
   const handleGridNavigation = useCallback(() => { lastLockedTapRef.current = null }, [])
   const autoLock = props.config.lockingMode === 'auto'
   const autoFinalVerification = props.config.finalVerificationMode === 'auto'
+  const isGameplayPaused = props.paused || props.suspended === true
   const cellMap = createCellMap(props.pieces)
   const lockedCellMap = createLockedCellMap(lockedCellGroups)
   const canLockSelectedCells = canLockCells(selectedCellKeys)
@@ -142,7 +145,7 @@ export function GameGrid(props: GameGridProps) {
 
   useEffect(() => {
     lastLockedTapRef.current = null
-  }, [props.paused, props.config.lockingMode, props.gameId, props.gameMode, props.boardResetKey, markerMode])
+  }, [isGameplayPaused, props.config.lockingMode, props.gameId, props.gameMode, props.boardResetKey, markerMode])
 
   function canLockCells(selection: ReadonlySet<string>) {
     return selection.size === 4
@@ -259,6 +262,9 @@ export function GameGrid(props: GameGridProps) {
 
   function handleCompletionOpenChange(open: boolean) {
     setCompletionDialogOpen(open)
+    // A correct verification is feedback, not a terminal board state. Closing
+    // the dialog must let the player keep changing their solution.
+    if (!open) setIsCompleted(false)
   }
 
   function cancelVerification() {
@@ -279,7 +285,7 @@ export function GameGrid(props: GameGridProps) {
   }
 
   function toggleCellSelection(cellKey: string, time: number) {
-    if (!selectionLoaded || props.paused || isExiting || isCompleted || verification) return
+    if (!selectionLoaded || isGameplayPaused || isExiting || isCompleted || verification) return
     if (!cellMap.has(cellKey)) {
       lastLockedTapRef.current = null
       return
@@ -402,7 +408,7 @@ export function GameGrid(props: GameGridProps) {
 
   function validateLockedCells() {
     lastLockedTapRef.current = null
-    if (!canValidate || verification || props.paused || isExiting || !selectionLoaded) return
+    if (!canValidate || verification || isGameplayPaused || isExiting || !selectionLoaded) return
 
     const validLockCount = lockedCellGroups.filter((group) => {
       const corners = group.cellKeys.map((cellKey) => {
@@ -430,7 +436,7 @@ export function GameGrid(props: GameGridProps) {
   }
 
   useEffect(() => {
-    if (verification?.phase !== 'screenshot' || props.paused || isExiting) return
+    if (verification?.phase !== 'screenshot' || isGameplayPaused || isExiting) return
     function capture() {
       if (verificationIdRef.current !== verification!.id) return
       // Keep the completion image free of the verification overlay.
@@ -446,11 +452,11 @@ export function GameGrid(props: GameGridProps) {
     }
     const timer = window.setTimeout(capture, delay)
     return () => window.clearTimeout(timer)
-  }, [verification, props.config.completionScreenshotDelayMs, props.paused, isExiting])
+  }, [verification, props.config.completionScreenshotDelayMs, isGameplayPaused, isExiting])
 
   useEffect(() => {
     if (autoFinalVerification && canValidate && validationResult === null) validateLockedCells()
-  }, [autoFinalVerification, canValidate, lockedCellGroups, validationResult, props.paused, isExiting, selectionLoaded])
+  }, [autoFinalVerification, canValidate, lockedCellGroups, validationResult, isGameplayPaused, isExiting, selectionLoaded])
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -534,7 +540,7 @@ export function GameGrid(props: GameGridProps) {
   }, [props.gameId, props.gameMode, props.persistSelection])
 
   useEffect(() => {
-    if (!selectionLoaded || isCompleted || isExiting || props.paused) return
+    if (!selectionLoaded || isCompleted || isExiting || isGameplayPaused) return
 
     const timer = window.setTimeout(() => {
       const nextSeconds = elapsedSeconds + 1
@@ -543,7 +549,7 @@ export function GameGrid(props: GameGridProps) {
     }, 1000)
 
     return () => window.clearTimeout(timer)
-  }, [elapsedSeconds, isCompleted, isExiting, props.onElapsedSecondsChange, props.paused, selectionLoaded])
+  }, [elapsedSeconds, isCompleted, isExiting, props.onElapsedSecondsChange, isGameplayPaused, selectionLoaded])
 
   useEffect(() => {
     if (!selectionLoaded || isExiting || props.persistSelection === false) return
@@ -568,7 +574,7 @@ export function GameGrid(props: GameGridProps) {
           <div className="relative size-full border-2 border-[#773526] bg-[#773526]">
             <GameGridCanvas
               config={props.config}
-              interactive={selectionLoaded && !props.paused && !isExiting && !isCompleted && !verification}
+              interactive={selectionLoaded && !isGameplayPaused && !isExiting && !isCompleted && !verification}
               lockedCellGroups={lockedCellGroups}
               markers={markers}
               onNavigate={handleGridNavigation}
@@ -582,7 +588,7 @@ export function GameGrid(props: GameGridProps) {
               showCellIds={showCellIds}
               scrolling={props.scrolling}
               verificationWave={verification?.phase === 'wave' ? verification : undefined}
-              verificationPaused={props.paused || isExiting}
+              verificationPaused={isGameplayPaused || isExiting}
               onVerificationComplete={handleVerificationComplete}
             />
             {props.highlightAreas?.map((area) => (
@@ -670,7 +676,7 @@ export function GameGrid(props: GameGridProps) {
             'cartoon-press relative text-[var(--canvas-foreground)]',
             validationResult?.isCorrect ? 'cartoon-press--green' : validationResult ? 'cartoon-press--red' : 'cartoon-press--blue',
           )}
-          disabled={!canValidate || !!verification || props.paused || isExiting}
+          disabled={!canValidate || !!verification || isGameplayPaused || isExiting}
           id={props.verifyButtonId}
           onClick={validateLockedCells}
           size="icon-lg"

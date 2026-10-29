@@ -1,5 +1,9 @@
 import { Application, type ApplicationOptions } from 'pixi.js'
 
+// `destroy(true)` also clears Pixi's global pools, which can invalidate batches
+// still in use by another canvas (e.g. the game behind a dialog).
+const DESTROY_OPTIONS = { removeView: true, releaseGlobalResources: false }
+
 export interface PixiCanvasHostOptions {
   app?: Application
   canvasClassName: string
@@ -34,7 +38,7 @@ export class PixiCanvasHost {
     })
     this.initialized = true
     if (this.disposed) {
-      this.app.destroy(true)
+      this.app.destroy(DESTROY_OPTIONS)
       return false
     }
 
@@ -61,6 +65,6 @@ export class PixiCanvasHost {
     this.disposed = true
     this.resizeObserver?.disconnect()
     this.resizeObserver = undefined
-    if (this.initialized) this.app.destroy(true)
+    if (this.initialized) this.app.destroy(DESTROY_OPTIONS)
   }
 }

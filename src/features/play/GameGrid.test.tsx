@@ -17,7 +17,7 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, valu
   return key
 } }) }))
 vi.mock('./ClassicPauseDialog', () => ({ ClassicPauseDialog: () => null }))
-vi.mock('./CorrectGameDialog', () => ({ CorrectGameDialog: ({ open, screenshot }: { open: boolean; screenshot: string | null }) => open ? <output data-testid="completion-dialog" data-screenshot={screenshot}>Open</output> : null }))
+vi.mock('./CorrectGameDialog', () => ({ CorrectGameDialog: ({ onOpenChange, open, screenshot }: { onOpenChange: (open: boolean) => void; open: boolean; screenshot: string | null }) => open ? <output data-testid="completion-dialog" data-screenshot={screenshot}>Open<button onClick={() => onOpenChange(false)}>Cancel completion</button></output> : null }))
 // Exercise the real React interaction state; only replace the Pixi drawing surface.
 vi.mock('./GameGridCanvas', () => ({
   GameGridCanvas: (props: ComponentProps<typeof GameGridCanvas>) => {
@@ -142,7 +142,7 @@ describe('Classic locking modes', () => {
       await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
       expect(screen.queryByTestId('completion-dialog')).toBeNull()
       finishVerificationWave()
-      expect(screen.getByTestId('completion-dialog').textContent).toBe('Open')
+      expect(screen.getByTestId('completion-dialog').textContent).toContain('Open')
       expect(screen.getByTestId('completion-dialog').getAttribute('data-screenshot')).toBe('data:image/png;base64,clean-board')
     } finally {
       vi.useRealTimers()
@@ -161,6 +161,17 @@ describe('Classic locking modes', () => {
     expect(board().locked).toHaveLength(1)
     finishVerificationWave()
     expect(screen.getByRole('dialog').textContent).toContain('1 mistakes')
+  })
+
+  it('keeps a correctly verified board editable after dismissing its completion dialog', () => {
+    setup('auto', { config: { ...GAME_CONFIGS.easy, completionScreenshotDelayMs: 0, finalVerificationMode: 'manual' }, onCorrectSolution: undefined })
+    tap(...firstSquare, ...secondSquare)
+    fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
+    finishVerificationWave()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel completion' }))
+
+    tap(firstSquare[0], firstSquare[0])
+    expect(board().locked).toHaveLength(1)
   })
 
   it('cancels pending capture and ignores stale animation callbacks after a restart', async () => {

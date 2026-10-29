@@ -68,6 +68,7 @@ export default {
         "errors": "{{count}} erreurs",
         "mistakes": "{{count}} erreurs",
         "correct": "Bien joué !",
+        "cornerominosDescription": "Voici la liste des 8 Cornerominos possibles.",
         "result": "Résultat",
         "completedBoard": "Plateau terminé",
         "saveGame": "Sauvegarder la partie",

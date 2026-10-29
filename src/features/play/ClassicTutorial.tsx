@@ -214,6 +214,7 @@ export function ClassicTutorial() {
   const location = useLocation()
   const navigate = useNavigate()
   const returnToClassicGame = location.state !== null && typeof location.state === 'object' && 'returnToClassicGame' in location.state && location.state.returnToClassicGame === true
+  const returnToMainMenu = location.state !== null && typeof location.state === 'object' && 'returnToMainMenu' in location.state && location.state.returnToMainMenu === true
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [moveCount, setMoveCount] = useState(0)
   const [pauseOpen, setPauseOpen] = useState(false)
@@ -297,6 +298,7 @@ export function ClassicTutorial() {
       },
       onClose: () => {
         if (returnToClassicGame) navigate(-1)
+        else if (returnToMainMenu) navigate('/', { replace: true })
         else navigate('/play', { replace: true })
       },
     })
@@ -306,7 +308,7 @@ export function ClassicTutorial() {
       if (tutorialRef.current === tutorial) tutorialRef.current = null
       tutorial.destroy()
     }
-  }, [navigate, returnToClassicGame, t])
+  }, [navigate, returnToClassicGame, returnToMainMenu, t])
 
   return (
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">

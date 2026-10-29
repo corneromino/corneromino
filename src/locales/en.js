@@ -75,6 +75,7 @@ export default {
         "errors": "{{count}} errors",
         "mistakes": "{{count}} mistakes",
         "correct": "Well Done !",
+        "cornerominosDescription": "Here is the list of all possible 8 cornerominos.",
         "result": "Result",
         "completedBoard": "Completed game board",
         "saveGame": "Save game",

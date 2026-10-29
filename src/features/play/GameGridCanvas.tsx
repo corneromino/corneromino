@@ -216,6 +216,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       const pieceMap = createPieceMap(current.pieces)
       const lockedCellMap = createLockedCellMap(current.lockedCellGroups)
       const nextLockedCellKeys = new Set(lockedCellMap.keys())
+      const isBoardFullyLocked = !current.scrolling && pieceMap.size > 0 && [...pieceMap.keys()].every((key) => lockedCellMap.has(key))
       const nextSelectedKeys = new Set<string>()
       const newlyLockedCellKeys: string[] = []
 
@@ -363,7 +364,9 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       }
       previousLockedCellKeysRef.current = nextLockedCellKeys
       previousSelectedKeysRef.current = nextSelectedKeys
-      if (newlyLockedCellKeys.length > 0 && !current.verificationWave) {
+      // The final lock immediately leads into verification, so avoid playing
+      // a competing lock ripple/shake just before the verification wave.
+      if (newlyLockedCellKeys.length > 0 && !isBoardFullyLocked && !current.verificationWave) {
         playLockShake(newlyLockedCellKeys, cellSize)
         playGridShake(cellSize)
         playLockRipple(newlyLockedCellKeys, cellWidth, cellHeight, cellSize)
@@ -508,9 +511,12 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
 
     async function start() {
       host = new PixiCanvasHost({
-        app, container: stableContainer, canvasClassName: 'size-full touch-none',
+        // Input styling belongs to the React host so it follows interactive
+        // changes, including when a saved board finishes loading.
+        app, container: stableContainer, canvasClassName: 'size-full',
         init: { background: BOARD_COLOR, preserveDrawingBuffer: true },
         onReady: () => {
+          app.canvas.style.touchAction = 'inherit'
           appRef.current = app
           boardRef.current = board
           surface = new GridSurface(app, propsRef.current.scrolling ? { infinite: true } : { infinite: false, columns: propsRef.current.config.columns, rows: propsRef.current.config.rows }, {
@@ -586,5 +592,5 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     }
   }, [props.config.columns, props.config.rows, props.config.navigationEnabled])
 
-  return <div className="size-full overflow-hidden touch-none" ref={containerRef} />
+  return <div className={props.interactive === false ? 'pointer-events-none size-full overflow-hidden' : 'size-full overflow-hidden touch-none'} ref={containerRef} />
 })

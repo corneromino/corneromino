@@ -17,7 +17,19 @@ export function MainMenu() {
   return (
     <main className="poster-page app-page relative overflow-hidden px-5 text-[var(--canvas-foreground)]" ref={menuRef}>
       <TetrominoBackground />
-      <AppNavigationButton aria-label={t('common.settings')} className="cartoon-press !absolute top-5 right-5 z-20 size-10 text-[var(--canvas-foreground)]" size="icon" title={t('common.settings')} to="/settings"><Settings aria-hidden="true" /></AppNavigationButton>
+      <div className="absolute top-5 right-5 left-5 z-20 flex items-start justify-between">
+        <AppNavigationButton
+          aria-label={t('tutorial.open')}
+          className="h-auto min-w-0 border-0 bg-transparent p-0 text-[24px] leading-none text-[var(--canvas-foreground)] opacity-80 font-black shadow-none hover:opacity-70 focus-visible:opacity-100"
+          navigationOptions={{ state: { returnToMainMenu: true } }}
+          size="icon"
+          title={t('tutorial.open')}
+          to="/play/tutorial"
+        >
+          ?
+        </AppNavigationButton>
+        <AppNavigationButton aria-label={t('common.settings')} className="cartoon-press size-10 text-[var(--canvas-foreground)]" size="icon" title={t('common.settings')} to="/settings"><Settings aria-hidden="true" /></AppNavigationButton>
+      </div>
       <div className="menu-scroll">
         <section className={cn("menu-content mx-auto flex w-full max-w-[430px] flex-col items-center")}>
           <TitleTetromino pointerAreaRef={menuRef} />

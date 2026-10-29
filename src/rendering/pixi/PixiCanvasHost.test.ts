@@ -78,6 +78,24 @@ describe('PixiCanvasHost', () => {
     observer.trigger()
     expect(onResize).toHaveBeenCalledTimes(2)
     expect(observer.disconnect).toHaveBeenCalledOnce()
-    expect(applications[0]!.destroy).toHaveBeenCalledWith(true)
+    expect(applications[0]!.destroy).toHaveBeenCalledWith({ removeView: true, releaseGlobalResources: false })
+  })
+
+  it('preserves shared renderer resources when disposed during asynchronous initialization', async () => {
+    const { host, container, onReady, onResize } = setup()
+    const app = applications[0]!
+    let finishInit!: () => void
+    app.init.mockImplementation(() => new Promise<void>((resolve) => { finishInit = resolve }))
+    const started = host.start()
+    host.destroy()
+    expect(app.destroy).not.toHaveBeenCalled()
+
+    finishInit()
+    await expect(started).resolves.toBe(false)
+    expect(app.destroy).toHaveBeenCalledExactlyOnceWith({ removeView: true, releaseGlobalResources: false })
+    expect(container.contains(app.canvas as unknown as Node)).toBe(false)
+    expect(onReady).not.toHaveBeenCalled()
+    expect(onResize).not.toHaveBeenCalled()
+    expect(ResizeObserverStub.instances).toHaveLength(0)
   })
 })
