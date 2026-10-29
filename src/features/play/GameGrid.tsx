@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { Eraser, Lock, Pencil, RotateCcw, Unlock } from 'lucide-react'
+import { Check, Eraser, Lock, Pencil, RotateCcw, Unlock } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
@@ -82,6 +82,8 @@ export function GameGrid(props: GameGridProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [isCompleted, setIsCompleted] = useState(false)
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false)
+  const [completionDialogPending, setCompletionDialogPending] = useState(false)
+  const [completionScreenshotPending, setCompletionScreenshotPending] = useState(false)
   const [completionScreenshot, setCompletionScreenshot] = useState<string | null>(null)
   const [moveCount, setMoveCount] = useState(0)
   const [savedAt, setSavedAt] = useState<number | null>(null)
@@ -167,6 +169,8 @@ export function GameGrid(props: GameGridProps) {
     setGameGridScreenshot(null)
     setIsCompleted(false)
     setCompletionDialogOpen(false)
+    setCompletionDialogPending(false)
+    setCompletionScreenshotPending(false)
     setCompletionScreenshot(null)
     setSavedAt(null)
     savedSelectionRef.current = null
@@ -247,6 +251,8 @@ export function GameGrid(props: GameGridProps) {
   }
 
   function handleCompletionOpenChange(open: boolean) {
+    setCompletionDialogPending(false)
+    setCompletionScreenshotPending(false)
     setCompletionDialogOpen(open)
   }
 
@@ -339,6 +345,8 @@ export function GameGrid(props: GameGridProps) {
     setLockedCellGroups((groups) => [...groups, { cellKeys, color, id: crypto.randomUUID() }])
     setIsCompleted(false)
     setCompletionDialogOpen(false)
+    setCompletionDialogPending(false)
+    setCompletionScreenshotPending(false)
     setCompletionScreenshot(null)
     setSelectedCellKeys(new Set([...fullSelection].filter((key) => !selection.has(key))))
     setSelectedLockedGroupId(null)
@@ -362,6 +370,8 @@ export function GameGrid(props: GameGridProps) {
     setLockedCellGroups((groups) => groups.filter((lockedGroup) => lockedGroup.id !== group.id))
     setIsCompleted(false)
     setCompletionDialogOpen(false)
+    setCompletionDialogPending(false)
+    setCompletionScreenshotPending(false)
     setCompletionScreenshot(null)
     setSelectedCellKeys(new Set())
     setSelectedLockedGroupId(null)
@@ -393,11 +403,32 @@ export function GameGrid(props: GameGridProps) {
       return
     }
     setIsCompleted(isCorrect)
-    // Capture the rendered board before opening the dialog over it.
-    const canvas = isCorrect ? gameCanvasRef.current?.captureBoard() : null
-    setCompletionScreenshot(canvas ? canvas.toDataURL('image/png') : null)
-    setCompletionDialogOpen(isCorrect)
+    setCompletionScreenshot(null)
+    setCompletionScreenshotPending(isCorrect)
   }
+
+  useEffect(() => {
+    if (!completionScreenshotPending) return
+    const delay = Math.max(0, props.config.completionScreenshotDelayMs ?? 0)
+    const timer = window.setTimeout(() => {
+      // Capture after the final lock animation has settled and before the dialog delay begins.
+      const canvas = gameCanvasRef.current?.captureBoard()
+      setCompletionScreenshot(canvas ? canvas.toDataURL('image/png') : null)
+      setCompletionScreenshotPending(false)
+      setCompletionDialogPending(true)
+    }, delay)
+    return () => window.clearTimeout(timer)
+  }, [completionScreenshotPending, props.config.completionScreenshotDelayMs])
+
+  useEffect(() => {
+    if (!completionDialogPending) return
+    const delay = Math.max(0, props.config.completionDialogDelayMs ?? 0)
+    const timer = window.setTimeout(() => {
+      setCompletionDialogOpen(true)
+      setCompletionDialogPending(false)
+    }, delay)
+    return () => window.clearTimeout(timer)
+  }, [completionDialogPending, props.config.completionDialogDelayMs])
 
   useEffect(() => {
     if (autoFinalVerification && canValidate && validationResult === null) validateLockedCells()
@@ -436,6 +467,8 @@ export function GameGrid(props: GameGridProps) {
     props.onElapsedSecondsChange(0)
     setIsCompleted(false)
     setCompletionDialogOpen(false)
+    setCompletionDialogPending(false)
+    setCompletionScreenshotPending(false)
     setCompletionScreenshot(null)
     setMoveCount(0)
     props.onMoveCountChange(0)
@@ -461,6 +494,8 @@ export function GameGrid(props: GameGridProps) {
           props.onElapsedSecondsChange(storedSelection.elapsedSeconds)
           setIsCompleted(storedSelection.isCompleted)
           setCompletionDialogOpen(false)
+          setCompletionDialogPending(false)
+          setCompletionScreenshotPending(false)
           setCompletionScreenshot(null)
           setMoveCount(storedSelection.moveCount)
           props.onMoveCountChange(storedSelection.moveCount)
@@ -609,30 +644,20 @@ export function GameGrid(props: GameGridProps) {
         >
           <Unlock aria-hidden="true" />
         </Button>}
-        {!props.scrolling && !autoFinalVerification && <Button
+        {!props.scrolling && <Button
           aria-label={verificationLabel}
           className={cn(
-            'cartoon-press relative text-[15px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase',
+            'cartoon-press relative text-[var(--canvas-foreground)]',
             validationResult?.isCorrect ? 'cartoon-press--green' : validationResult ? 'cartoon-press--red' : 'cartoon-press--blue',
           )}
           disabled={!canValidate}
           id={props.verifyButtonId}
           onClick={validateLockedCells}
-          size="lg"
+          size="icon-lg"
           title={verificationLabel}
           type="button"
         >
-          {verificationLabel}
-        </Button>}
-        {isCompleted && !completionDialogOpen && completionScreenshot && <Button
-          aria-label={t('classic.result')}
-          className="cartoon-press cartoon-press--green text-[15px] font-light tracking-[0.08em] text-[var(--canvas-foreground)] uppercase"
-          onClick={() => setCompletionDialogOpen(true)}
-          size="lg"
-          title={t('classic.result')}
-          type="button"
-        >
-          {t('classic.result')}
+          <Check aria-hidden="true" />
         </Button>}
       </div>}
       <CorrectGameDialog

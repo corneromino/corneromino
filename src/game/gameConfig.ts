@@ -5,12 +5,19 @@ export const CLASSIC_LOCKING_MODE: GameConfig['lockingMode'] = 'auto'
 /** Automatically check a completed Classic board, or require the Verify button. */
 export const CLASSIC_FINAL_VERIFICATION_MODE: NonNullable<GameConfig['finalVerificationMode']> = 'auto'
 
+const COMPLETION_SCREENSHOT_DELAY_MS = 450;
+const COMPLETION_DIALOG_DELAY_MS = 50;
+
 export interface GameConfig {
   /** Removes the shared game control bar; tutorials can then present only the board. */
   hideGameControls?: boolean
   lockingMode: 'manual' | 'auto'
   /** Defaults to manual for older/custom game configurations. */
   finalVerificationMode?: 'manual' | 'auto'
+  /** Wait after a correct Classic board is detected before showing its completion dialog. */
+  completionDialogDelayMs?: number
+  /** Wait for the final board animation to settle before capturing the completion screenshot. */
+  completionScreenshotDelayMs?: number
   /** Tutorials disable navigation so their cell highlights stay aligned. Defaults to true. */
   navigationEnabled?: boolean
   columns: number
@@ -26,11 +33,61 @@ export interface GameModeConfig extends GameConfig {
 }
 
 export const GAME_CONFIGS: Record<string, GameModeConfig> = {
-  'super-easy': { columns: 8, rows: 8, spread: 1, tetrominoCount: 5, title: 'difficulty.superEasy', lockingMode: CLASSIC_LOCKING_MODE, finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE },
-  easy: { columns: 8, rows: 8, spread: 0, tetrominoCount: 10, title: 'difficulty.easy', lockingMode: CLASSIC_LOCKING_MODE, finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE },
-  medium: { columns: 10, rows: 15, spread: 0.5, tetrominoCount: 20, title: 'difficulty.medium', lockingMode: CLASSIC_LOCKING_MODE, finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE },
-  hard: { columns: 12, rows: 18, spread: 0.8, tetrominoCount: 35, title: 'difficulty.hard', lockingMode: CLASSIC_LOCKING_MODE, finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE },
-  'super-hard': { columns: 20, rows: 30, spread: 0.8, tetrominoCount: 100, title: 'difficulty.superHard', lockingMode: CLASSIC_LOCKING_MODE, finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE },
+    'super-easy': {
+        columns: 8,
+        rows: 8,
+        spread: 1,
+        tetrominoCount: 5,
+        title: 'difficulty.superEasy',
+        lockingMode: CLASSIC_LOCKING_MODE,
+        finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
+        completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
+        completionDialogDelayMs: COMPLETION_DIALOG_DELAY_MS
+    },
+    easy: {
+        columns: 8,
+        rows: 8,
+        spread: 0,
+        tetrominoCount: 10,
+        title: 'difficulty.easy',
+        lockingMode: CLASSIC_LOCKING_MODE,
+        finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
+        completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
+        completionDialogDelayMs: COMPLETION_DIALOG_DELAY_MS
+    },
+    medium: {
+        columns: 10,
+        rows: 15,
+        spread: 0.5,
+        tetrominoCount: 20,
+        title: 'difficulty.medium',
+        lockingMode: CLASSIC_LOCKING_MODE,
+        finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
+        completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
+        completionDialogDelayMs: COMPLETION_DIALOG_DELAY_MS
+    },
+    hard: {
+        columns: 12,
+        rows: 18,
+        spread: 0.8,
+        tetrominoCount: 35,
+        title: 'difficulty.hard',
+        lockingMode: CLASSIC_LOCKING_MODE,
+        finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
+        completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
+        completionDialogDelayMs: COMPLETION_DIALOG_DELAY_MS
+    },
+    'super-hard': {
+        columns: 20,
+        rows: 30,
+        spread: 0.8,
+        tetrominoCount: 100,
+        title: 'difficulty.superHard',
+        lockingMode: CLASSIC_LOCKING_MODE,
+        finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
+        completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
+        completionDialogDelayMs: COMPLETION_DIALOG_DELAY_MS
+    },
 }
 
 export type GameMode = keyof typeof GAME_CONFIGS

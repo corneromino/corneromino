@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { StrictMode, type ComponentProps } from 'react'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CELL_CORNERS, GAME_CONFIGS, type GameSelectionState, type PlacedTetromino } from '@/game/gameConfig'
@@ -15,7 +15,7 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, valu
   return key
 } }) }))
 vi.mock('./ClassicPauseDialog', () => ({ ClassicPauseDialog: () => null }))
-vi.mock('./CorrectGameDialog', () => ({ CorrectGameDialog: () => null }))
+vi.mock('./CorrectGameDialog', () => ({ CorrectGameDialog: ({ open }: { open: boolean }) => open ? <output data-testid="completion-dialog">Open</output> : null }))
 // Exercise the real React interaction state; only replace the Pixi drawing surface.
 vi.mock('./GameGridCanvas', () => ({
   GameGridCanvas: (props: ComponentProps<typeof GameGridCanvas>) => {
@@ -104,6 +104,28 @@ afterEach(() => {
 })
 
 describe('Classic locking modes', () => {
+  it('waits for the configured delay before opening the completion dialog', async () => {
+    vi.useFakeTimers()
+    try {
+      setup('auto', {
+        config: { ...GAME_CONFIGS.easy, completionScreenshotDelayMs: 200, completionDialogDelayMs: 400, finalVerificationMode: 'auto' },
+        onCorrectSolution: undefined,
+      })
+      tap(...firstSquare, ...secondSquare)
+      await act(async () => {})
+      expect(screen.queryByTestId('completion-dialog')).toBeNull()
+
+      await act(async () => { await vi.advanceTimersByTimeAsync(200) })
+      await act(async () => {})
+      await act(async () => { await vi.advanceTimersByTimeAsync(399) })
+      expect(screen.queryByTestId('completion-dialog')).toBeNull()
+      await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+      expect(screen.getByTestId('completion-dialog').textContent).toBe('Open')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('hides the shared game controls when configured for a tutorial board', () => {
     setup('auto', { config: { ...GAME_CONFIGS.easy, hideGameControls: true } })
     expect(screen.queryByRole('button', { name: 'common.restart' })).toBeNull()
@@ -256,7 +278,11 @@ describe('Classic locking modes', () => {
     const { props } = setup('auto', { config: { ...GAME_CONFIGS.easy, lockingMode: 'auto', finalVerificationMode: 'auto' } })
     tap(...firstSquare, ...secondSquare)
     await waitFor(() => expect(props.onCorrectSolution).toHaveBeenCalledOnce())
-    expect(screen.queryByRole('button', { name: 'classic.verify' })).toBeNull()
+    const verifyButton = screen.getByRole('button', { name: 'classic.verify' })
+    expect(verifyButton).toBeTruthy()
+    expect(verifyButton.hasAttribute('disabled')).toBe(false)
+    fireEvent.click(verifyButton)
+    expect(props.onCorrectSolution).toHaveBeenCalledTimes(2)
   })
 
   it('shows automatic verification mistakes in a dialog instead of the controls', async () => {
@@ -265,7 +291,7 @@ describe('Classic locking modes', () => {
     tap(...firstSquare)
     await waitFor(() => expect(screen.getByRole('dialog').textContent).toContain('1 mistakes'))
     expect(screen.getByRole('button', { name: 'common.ok' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'classic.verify' })).toBeNull()
+    expect(document.querySelector<HTMLButtonElement>('button[aria-label="classic.verify"]')?.disabled).toBe(false)
   })
 
   it('unlocks the entire group on two quick taps on cells within that group', () => {
