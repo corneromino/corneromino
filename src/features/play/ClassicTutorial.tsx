@@ -200,12 +200,12 @@ const TUTORIAL_SCENARIOS = {
 type TutorialScenarioKey = keyof typeof TUTORIAL_SCENARIOS
 
 const TUTORIAL_HIGHLIGHT_AREAS: readonly { height: number; id: string; left: number; top: number; width: number }[] = [
-  { id: 'classic-tutorial-corners', left: 1, top: 1, width: 3, height: 3 },
+  { id: 'classic-tutorial-corners', left: 0, top: 0, width: 5, height: 5 },
   { id: 'classic-tutorial-top-right', left: 3, top: 1, width: 1, height: 1 },
   { id: 'classic-tutorial-bottom-right', left: 3, top: 3, width: 1, height: 1},
   { id: 'classic-tutorial-bottom-left', left: 1, top: 3, width: 1, height: 1 },
   { id: 'classic-tutorial-top-left', left: 1, top: 1, width: 1, height: 1 },
-  { id: 'classic-tutorial-shape-example', left: 1, top: 1, width: 2, height: 3 },
+  { id: 'classic-tutorial-shape-example', left: 0, top: 0, width: 5, height: 5 },
   // { id: 'classic-tutorial-all-cornerominos', left: 0, top: 0, width: 5, height: 5 },
 ]
 
