@@ -122,7 +122,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <h1 className="poster-title text-[33px] leading-none">{t('classic.title')}</h1>
-            <Button aria-label="8 Cornerominos" className="h-auto min-w-0 border-0 bg-transparent p-0 text-[24px] leading-none text-[var(--canvas-foreground)] opacity-80 font-black shadow-none hover:opacity-70 focus-visible:opacity-100" onClick={() => setCornerominosOpen(true)} size="icon" title="8 Cornerominos" type="button">?</Button>
+            <Button aria-label="8 Cornerominos" className="h-auto min-w-0 border-0 bg-transparent p-0 text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40 font-black shadow-none hover:opacity-70 focus-visible:opacity-100" onClick={() => setCornerominosOpen(true)} size="icon" title="8 Cornerominos" type="button">?</Button>
           </div>
           <Button aria-label={t('common.pause')} className="cartoon-press size-10 shrink-0 text-[var(--canvas-foreground)]" onClick={pause} size="icon" title={t('common.pause')} type="button"><Pause aria-hidden="true" /></Button>
         </div>
