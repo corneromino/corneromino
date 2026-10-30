@@ -1,4 +1,13 @@
 import type { VhsCrtEffectConfig } from '@/rendering/pixi/VhsCrtEffect'
+import type { InfiniteExitDistortionConfig } from '@/rendering/pixi/InfiniteExitDistortionEffect'
+
+/** Distortion-only sink where Infinite cells leave the bottom of the board. */
+export const CLASSIC_INFINITE_EXIT_DISTORTION: InfiniteExitDistortionConfig = {
+  enabled: true,
+  heightCells: 1,
+  horizontalPull: 1,
+  verticalPull: 0,
+}
 
 /** Infinite's viewport-wide TV effect. Set enabled to false to bypass both GPU passes. */
 export const CLASSIC_INFINITE_VHS_CRT: VhsCrtEffectConfig = {

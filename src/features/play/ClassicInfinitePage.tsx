@@ -10,7 +10,7 @@ import { ClassicCornerominosDialog } from './ClassicCornerominosDialog'
 import { CLASSIC_INFINITE_HEALTH_SQUARE_COUNT, ClassicInfiniteHealthBar } from './ClassicInfiniteHealthBar'
 import { CLASSIC_INFINITE_CONFIG, ClassicInfiniteStream, createInfiniteSectionGenerator, type ClassicInfiniteSection } from './classicInfiniteStream'
 import type { ClassicInfiniteCellExit } from './classicInfiniteCellExit'
-// import { CLASSIC_INFINITE_VHS_CRT } from './classicInfiniteEffects'
+import { CLASSIC_INFINITE_EXIT_DISTORTION } from './classicInfiniteEffects'
 
 const BOARD_CONFIG = { ...CLASSIC_INFINITE_CONFIG, rows: CLASSIC_INFINITE_CONFIG.rows * 2 }
 const PAUSE_BUTTON_CLASS = 'cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase'
@@ -153,6 +153,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
           pieces={pieces}
           scrolling={scrolling}
           suspended={cornerominosOpen || gameOver}
+          exitDistortion={CLASSIC_INFINITE_EXIT_DISTORTION}
           // vhsCrt={CLASSIC_INFINITE_VHS_CRT}
         /> : <>
           {!generationFailed && <p className="px-5 text-center text-[11px] font-bold uppercase">{t('classic.generating')}</p>}

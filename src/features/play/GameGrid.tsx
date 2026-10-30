@@ -14,6 +14,7 @@ import { ClassicMistakesDialog } from './ClassicMistakesDialog'
 import { GameGridCanvas, type GameGridCanvasHandle, type ScrollingGridViewport } from './GameGridCanvas'
 import type { ClassicInfiniteCellExit } from './classicInfiniteCellExit'
 import type { VhsCrtEffectConfig } from '@/rendering/pixi/VhsCrtEffect'
+import type { InfiniteExitDistortionConfig } from '@/rendering/pixi/InfiniteExitDistortionEffect'
 import type { VerificationWaveRequest } from '@/rendering/grid/GridVerificationWave'
 
 const DOUBLE_TAP_UNLOCK_MS = 200
@@ -46,6 +47,7 @@ interface GameGridProps {
   pauseDialog?: ReactNode
   onCellExit?: (event: ClassicInfiniteCellExit) => void
   vhsCrt?: VhsCrtEffectConfig
+  exitDistortion?: InfiniteExitDistortionConfig
 }
 
 function createCellMap(pieces: readonly PlacedTetromino[]): Map<string, PlacedTetromino> {
@@ -606,6 +608,7 @@ export function GameGrid(props: GameGridProps) {
               onNavigate={handleGridNavigation}
               onCellExit={props.onCellExit}
               vhsCrt={props.vhsCrt}
+              exitDistortion={props.exitDistortion}
               onToggle={toggleCellSelection}
               pieces={props.pieces}
               ref={gameCanvasRef}

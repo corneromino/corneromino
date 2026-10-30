@@ -6,6 +6,7 @@ import { getCellShakeOffset } from '@/rendering/grid/cellShake'
 import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
 import { CanvasStartupError } from '@/rendering/pixi/CanvasStartupError'
 import { VhsCrtEffect, type VhsCrtEffectConfig } from '@/rendering/pixi/VhsCrtEffect'
+import { InfiniteExitDistortionEffect, type InfiniteExitDistortionConfig } from '@/rendering/pixi/InfiniteExitDistortionEffect'
 import { GAME_COLORS } from '@/rendering/colors'
 import { attachGridInput, type GridCellEvent } from '@/rendering/grid/gridInput'
 import { constrainGridView, createGridNavigation, type GridView } from '@/rendering/grid/gridNavigation'
@@ -38,6 +39,7 @@ interface GameGridCanvasProps {
   scrolling?: ScrollingGridViewport
   onCellExit?: (event: ClassicInfiniteCellExit) => void
   vhsCrt?: VhsCrtEffectConfig
+  exitDistortion?: InfiniteExitDistortionConfig
   verificationWave?: VerificationWaveRequest
   verificationPaused?: boolean
   onVerificationComplete?: (id: number) => void
@@ -95,7 +97,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
 
   useEffect(() => {
     drawRef.current()
-  }, [props.config, props.lockedCellGroups, props.markers, props.pieces, props.selectedCellKeys, props.selectedLockedGroupId, props.showCellIds, props.scrolling, props.vhsCrt, props.verificationWave])
+  }, [props.config, props.exitDistortion, props.lockedCellGroups, props.markers, props.pieces, props.selectedCellKeys, props.selectedLockedGroupId, props.showCellIds, props.scrolling, props.vhsCrt, props.verificationWave])
 
   useEffect(() => {
     const container = containerRef.current
@@ -117,6 +119,8 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     const lockWaves = new Set<ShockwaveFilter>()
     let vhsCrtEffect: VhsCrtEffect | undefined
     let previousVhsCrtConfig: VhsCrtEffectConfig | undefined
+    let exitDistortionEffect: InfiniteExitDistortionEffect | undefined
+    let previousExitDistortionConfig: InfiniteExitDistortionConfig | undefined
     const cellShakeMotions = new Set<{ time: number }>()
     const reportedExitedCellKeys = new Set<string>()
     let view: GridView = { zoom: 1, offsetX: 0, offsetY: 0 }
@@ -148,7 +152,26 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     }
 
     function updateStageFilters() {
-      app.stage.filters = [...lockWaves, ...(vhsCrtEffect?.filters ?? [])]
+      app.stage.filters = [...lockWaves, ...(exitDistortionEffect ? [exitDistortionEffect.filter] : []), ...(vhsCrtEffect?.filters ?? [])]
+    }
+
+    function syncExitDistortionEffect() {
+      const config = propsRef.current.exitDistortion
+      const visibleRows = propsRef.current.scrolling?.visibleRows
+      if (config !== undefined && config === previousExitDistortionConfig && exitDistortionEffect) {
+        if (visibleRows !== undefined) exitDistortionEffect.configure(config, visibleRows)
+        return
+      }
+      previousExitDistortionConfig = config
+      if (config?.enabled && visibleRows !== undefined) {
+        const activeConfig = config
+        if (exitDistortionEffect) exitDistortionEffect.configure(activeConfig, visibleRows)
+        else exitDistortionEffect = new InfiniteExitDistortionEffect(activeConfig, visibleRows)
+      } else {
+        exitDistortionEffect?.destroy()
+        exitDistortionEffect = undefined
+      }
+      updateStageFilters()
     }
 
     function syncVhsCrtEffect() {
@@ -208,6 +231,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     function draw() {
       if (disposed || !appRef.current || !boardRef.current) return
       const current = propsRef.current
+      syncExitDistortionEffect()
       syncVhsCrtEffect()
       if (current.scrolling) pruneReportedInfiniteCells(reportedExitedCellKeys, current.pieces)
       updateViewport()
@@ -589,6 +613,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       stopViewportEffects()
       app.stage.filters = []
       vhsCrtEffect?.destroy()
+      exitDistortionEffect?.destroy()
       surface?.destroy()
       if (!board.destroyed) board.destroy({ children: true })
     }
