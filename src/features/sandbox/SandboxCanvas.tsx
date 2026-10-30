@@ -1,7 +1,8 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Application, Graphics } from 'pixi.js'
 import { GridSurface } from '@/rendering/grid/GridSurface'
 import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
+import { CanvasStartupError } from '@/rendering/pixi/CanvasStartupError'
 import { GAME_COLORS } from '@/rendering/colors'
 import { attachGridInput } from '@/rendering/grid/gridInput'
 import { createGridNavigation } from '@/rendering/grid/gridNavigation'
@@ -78,6 +79,7 @@ function cropCanvasToBlob(canvas: HTMLCanvasElement, sourceX: number, sourceY: n
 }
 
 export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>(function SandboxCanvas(props, ref) {
+  const [startupFailed, setStartupFailed] = useState(false)
   const canvasContainerRef = useRef<HTMLDivElement>(null)
   const deleteEnabledRef = useRef(props.deleteEnabled)
   const drawEnabledRef = useRef(props.drawEnabled)
@@ -124,6 +126,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
     const canvasContainer = canvasContainerRef.current
     if (!canvasContainer) return
     const stableCanvasContainer: HTMLDivElement = canvasContainer
+    setStartupFailed(false)
 
     const app = new Application()
     let host: PixiCanvasHost | undefined
@@ -565,6 +568,8 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       host = new PixiCanvasHost({
         app, container: stableCanvasContainer, canvasClassName: 'size-full touch-none',
         init: { background: CELL_BORDER_COLOR, preserveDrawingBuffer: true },
+        onDestroy: destroy,
+        onError: () => setStartupFailed(true),
         onReady: () => {
           initialized = true
           surface = new GridSurface(app, { infinite: true }, {
@@ -629,9 +634,8 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       await host.start()
     }
 
-    void startCanvas()
-
-    return () => {
+    function destroy() {
+      initialized = false
       captureWorldRef.current = null
       captureSelectedWorldRef.current = null
       beginPasteRef.current = null
@@ -642,13 +646,15 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       redrawRef.current = null
       window.clearInterval(updateTimer)
       if (cornerAnimationFrame !== 0) window.cancelAnimationFrame(cornerAnimationFrame)
-      if (!host) return
       detachInput?.()
       navigation?.reset()
       surface?.destroy()
-      host.destroy()
+      if (!grid.destroyed) grid.destroy()
     }
+
+    void startCanvas()
+    return () => host?.destroy()
   }, [])
 
-  return <div className="size-full" ref={canvasContainerRef} />
+  return <div className="size-full" ref={canvasContainerRef}>{startupFailed && <CanvasStartupError />}</div>
 })

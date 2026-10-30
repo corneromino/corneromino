@@ -3,6 +3,7 @@ export default {
         "back": "Retour",
         "backToMainMenu": "Retour au menu principal",
         "cancel": "Annuler",
+        "canvasStartupFailed": "Impossible d'afficher la grille. Veuillez recharger la page.",
         "continue": "Continuer",
         "delete": "Supprimer",
         "doNotSave": "Ne pas enregistrer",

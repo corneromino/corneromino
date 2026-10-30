@@ -1,9 +1,10 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Application, Container, Graphics, Rectangle, Sprite, Text, TextStyle } from 'pixi.js'
 import { GridSurface } from '@/rendering/grid/GridSurface'
 import { GridVerificationWave, type VerificationWaveRequest } from '@/rendering/grid/GridVerificationWave'
 import { getCellShakeOffset } from '@/rendering/grid/cellShake'
 import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
+import { CanvasStartupError } from '@/rendering/pixi/CanvasStartupError'
 import { VhsCrtEffect, type VhsCrtEffectConfig } from '@/rendering/pixi/VhsCrtEffect'
 import { GAME_COLORS } from '@/rendering/colors'
 import { attachGridInput, type GridCellEvent } from '@/rendering/grid/gridInput'
@@ -73,6 +74,7 @@ function lockedColorToNumber(color: string): number {
 }
 
 export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasProps>(function GameGridCanvas(props, ref) {
+  const [startupFailed, setStartupFailed] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const appRef = useRef<Application | null>(null)
   const boardRef = useRef<Container | null>(null)
@@ -99,13 +101,13 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     const container = containerRef.current
     if (!container) return
     const stableContainer: HTMLDivElement = container
+    setStartupFailed(false)
 
     const app = new Application()
     const board = new Container()
     let surface: GridSurface | undefined
     let host: PixiCanvasHost | undefined
     let detachInput: (() => void) | undefined
-    let canvasReady = false
     board.sortableChildren = true
     let disposed = false
     let shineLayers: Array<{ layer: Container; size: number }> = []
@@ -518,6 +520,8 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         // changes, including when a saved board finishes loading.
         app, container: stableContainer, canvasClassName: 'size-full',
         init: { background: BOARD_COLOR, preserveDrawingBuffer: true },
+        onDestroy: destroy,
+        onError: () => setStartupFailed(true),
         onReady: () => {
           app.canvas.style.touchAction = 'inherit'
           appRef.current = app
@@ -563,37 +567,35 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
             callbacks: navigation?.callbacks ?? { onCellTap: handleCellTap },
           })
           app.ticker.add(update)
-          canvasReady = true
         },
         onResize: resize,
       })
       await host.start()
     }
 
-    void start()
-    return () => {
+    function destroy() {
       disposed = true
       captureRef.current = () => null
       resetViewRef.current = () => undefined
-      navigationRef.current?.reset()
-      navigationRef.current = null
-      if (canvasReady) {
-        detachInput?.()
-        app.ticker.remove(update)
-        verificationWave?.destroy()
-        stopCellAnimations()
-        gsap.killTweensOf(gridShakeMotion)
-        stopViewportEffects()
-        app.stage.filters = []
-        vhsCrtEffect?.destroy()
-        surface?.destroy()
-      }
-      host?.destroy()
       appRef.current = null
       boardRef.current = null
       drawRef.current = () => undefined
+      detachInput?.()
+      navigationRef.current?.reset()
+      navigationRef.current = null
+      app.ticker?.remove(update)
+      verificationWave?.destroy()
+      stopCellAnimations()
+      stopViewportEffects()
+      app.stage.filters = []
+      vhsCrtEffect?.destroy()
+      surface?.destroy()
+      if (!board.destroyed) board.destroy({ children: true })
     }
+
+    void start()
+    return () => host?.destroy()
   }, [props.config.columns, props.config.rows, props.config.navigationEnabled])
 
-  return <div className={props.interactive === false ? 'pointer-events-none size-full overflow-hidden' : 'size-full overflow-hidden touch-none'} ref={containerRef} />
+  return <div className={props.interactive === false ? 'pointer-events-none size-full overflow-hidden' : 'size-full overflow-hidden touch-none'} ref={containerRef}>{startupFailed && <CanvasStartupError />}</div>
 })

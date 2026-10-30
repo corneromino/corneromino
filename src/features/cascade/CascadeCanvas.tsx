@@ -1,7 +1,8 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Application, Container, Graphics, Sprite } from 'pixi.js'
 import { GridSurface } from '@/rendering/grid/GridSurface'
 import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
+import { CanvasStartupError } from '@/rendering/pixi/CanvasStartupError'
 import { GAME_COLORS, LOCKED_CELL_COLORS } from '@/rendering/colors'
 import { attachGridInput } from '@/rendering/grid/gridInput'
 import { drawCorneromino as drawSharedCorneromino } from '@/rendering/grid/drawCorneromino'
@@ -86,6 +87,7 @@ function drawCorneromino(graphics: Graphics, corner: CascadeCorner, cellSize: nu
 }
 
 export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>(function CascadeCanvas(props, ref) {
+  const [startupFailed, setStartupFailed] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const exportDebugStateRef = useRef<(() => string) | null>(null)
   const pauseRef = useRef<(() => void) | null>(null)
@@ -109,6 +111,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     const container = containerRef.current
     if (!container) return
     const stableContainer: HTMLDivElement = container
+    setStartupFailed(false)
 
     const app = new Application()
     let host: PixiCanvasHost | undefined
@@ -141,7 +144,6 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     let isKeyboardFocusMode = false
     let keyboardFocus: CascadeFocusPosition | null = null
     let detachInput: (() => void) | undefined
-    let canvasReady = false
 
     function getPieceKey(column: number, row: number): string {
       return `${column},${row}`
@@ -762,6 +764,8 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     async function start() {
       host = new PixiCanvasHost({
         app, container: stableContainer, canvasClassName: 'size-full touch-none', init: { background: CELL_BORDER_COLOR },
+        onDestroy: destroy,
+        onError: () => setStartupFailed(true),
         onReady: () => {
           surface = new GridSurface(app, { infinite: false, ...props.gridSize }, {
             width: app.screen.width, height: app.screen.height, cellSize: 56, fit: 'contain',
@@ -790,16 +794,14 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
               onSwipeDown: dropActivePiece,
             },
           })
-          canvasReady = true
+          notifyStats()
         },
         onResize: resize,
       })
-      if (await host.start()) notifyStats()
+      await host.start()
     }
 
-    void start()
-
-    return () => {
+    function destroy() {
       disposed = true
       exportDebugStateRef.current = null
       pauseRef.current = null
@@ -809,29 +811,32 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       window.removeEventListener('keyup', handleKeyUp)
       window.removeEventListener('blur', endKeyboardFocus)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
-      if (canvasReady) {
-        gsap.killTweensOf(gridShakeMotion)
-        for (const motion of shakes.values()) gsap.killTweensOf(motion)
-        shakes.clear()
-        for (const wave of lockWaves) {
-          gsap.killTweensOf(wave)
-          wave.destroy()
-        }
-        lockWaves.clear()
-        app.stage.filters = []
-        app.ticker.remove(update)
-        detachInput?.()
-        for (const renderedPiece of renderedPieces.values()) {
-          gsap.killTweensOf(renderedPiece.sprite)
-          gsap.killTweensOf(renderedPiece.graphic)
-          gsap.killTweensOf(renderedPiece.graphic.scale)
-          gsap.killTweensOf(renderedPiece.shine)
-        }
-        surface?.destroy()
+      detachInput?.()
+      app.ticker?.remove(update)
+      gsap.killTweensOf(gridShakeMotion)
+      for (const motion of shakes.values()) gsap.killTweensOf(motion)
+      shakes.clear()
+      app.stage.filters = []
+      for (const wave of lockWaves) {
+        gsap.killTweensOf(wave)
+        wave.destroy()
       }
-      host?.destroy()
+      lockWaves.clear()
+      for (const renderedPiece of renderedPieces.values()) {
+        gsap.killTweensOf(renderedPiece.sprite)
+        gsap.killTweensOf(renderedPiece.graphic)
+        gsap.killTweensOf(renderedPiece.graphic.scale)
+        gsap.killTweensOf(renderedPiece.shine)
+      }
+      surface?.destroy()
+      for (const layer of [boardGraphics, boardCells, piecesLayer, keyboardFocusGraphic]) {
+        if (!layer.destroyed) layer.destroy({ children: true })
+      }
     }
+
+    void start()
+    return () => host?.destroy()
   }, [props.cornerDifficulty, props.cornerSpawnMode, props.getFallIntervalMs, props.gridSize.columns, props.gridSize.rows, props.maxConsecutiveSameCorner, props.scorePointsPerLine, props.scorePointsPerLockedCorneromino])
 
-  return <div className="size-full" ref={containerRef} />
+  return <div className="size-full" ref={containerRef}>{startupFailed && <CanvasStartupError />}</div>
 })

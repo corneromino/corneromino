@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Application, Container, Graphics, Text } from 'pixi.js'
 import { gsap } from 'gsap'
 import { ShockwaveFilter } from 'pixi-filters'
@@ -7,6 +7,7 @@ import { drawCellBody, drawCornerMarker, getCornerMarkerPosition } from '@/rende
 import { GridSurface } from '@/rendering/grid/GridSurface'
 import { attachGridInput } from '@/rendering/grid/gridInput'
 import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
+import { CanvasStartupError } from '@/rendering/pixi/CanvasStartupError'
 import { getVsNextTurnPreviewCells, getVsTargetedCells, VS_PLAYERS, type VsLocalGameState, type VsPlayerId } from './vsLocalGame'
 import { getVsLockedShapeBridges } from './vsLockedShapeBridges'
 import { CASCADE_LOCK_EFFECTS } from '@/features/cascade/cascadeEffects'
@@ -57,6 +58,7 @@ function drawPlacement(graphics: Graphics, surface: GridSurface, column: number,
 }
 
 export function VsLocalCanvas(props: VsLocalCanvasProps) {
+  const [startupFailed, setStartupFailed] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const gameRef = useRef(props.game)
   const onCellTapRef = useRef(props.onCellTap)
@@ -74,6 +76,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
+    setStartupFailed(false)
 
     const app = new Application()
     const pieces = new Graphics()
@@ -293,6 +296,17 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
       container,
       canvasClassName: 'size-full touch-manipulation',
       init: { background: GAME_COLORS.cellBorder },
+      onError: () => setStartupFailed(true),
+      onDestroy: () => {
+        drawRef.current = null
+        detachInput?.()
+        clearLockEffects()
+        surface?.destroy()
+        surface = undefined
+        for (const layer of [pieces, checkerboard, lockImpactLayer]) {
+          if (!layer.destroyed) layer.destroy({ children: true })
+        }
+      },
       onReady: () => {
         const cellSize = Math.min(app.screen.width / boardSize, app.screen.height / boardSize)
         surface = new GridSurface(app, { infinite: false, columns: boardSize, rows: boardSize }, {
@@ -351,14 +365,8 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
     })
 
     void host.start()
-    return () => {
-      drawRef.current = null
-      detachInput?.()
-      clearLockEffects()
-      surface?.destroy()
-      host.destroy()
-    }
+    return () => host.destroy()
   }, [])
 
-  return <div className="size-full" ref={containerRef} />
+  return <div className="size-full" ref={containerRef}>{startupFailed && <CanvasStartupError />}</div>
 }

@@ -55,7 +55,13 @@ export class GridSurface {
     for (const name of ['underPieces', 'pieces', 'effects', 'overlay'] as const) {
       this.root.addChild(this.layers[name], this.worldLayers[name])
     }
-    this.update(viewport)
+    try {
+      this.update(viewport)
+    } catch (error) {
+      // A constructor failure never reaches the owner's surface reference.
+      this.destroy()
+      throw error
+    }
   }
 
   get texture(): Texture {
@@ -88,9 +94,12 @@ export class GridSurface {
         tile.roundRect(inset, inset, size - inset * 2, size - inset * 2, Math.max(0, radius - border)).fill(appearance.cellColor)
       }
       const previous = this.tileTexture
-      this.tileTexture = this.app.renderer.generateTexture({ target: tile, frame: new Rectangle(0, 0, size, size), resolution, antialias: true })
+      try {
+        this.tileTexture = this.app.renderer.generateTexture({ target: tile, frame: new Rectangle(0, 0, size, size), resolution, antialias: true })
+      } finally {
+        tile.destroy()
+      }
       this.background.texture = this.tileTexture
-      tile.destroy()
       previous?.destroy(true)
       this.textureKey = key
     }

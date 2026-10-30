@@ -3,6 +3,7 @@ export default {
         "back": "Back",
         "backToMainMenu": "Back to main menu",
         "cancel": "Cancel",
+        "canvasStartupFailed": "Could not display the board. Please reload the page.",
         "continue": "Continue",
         "delete": "Delete",
         "doNotSave": "Do not save",

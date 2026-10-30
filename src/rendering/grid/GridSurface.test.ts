@@ -96,4 +96,19 @@ describe('shared textured grid surface', () => {
     expect(content.destroyed).toBe(true)
     expect(texture.destroyed).toBe(true)
   })
+
+  it('releases the unfinished surface and temporary tile when initial texture generation fails', () => {
+    const { surface, app, viewport, appearance, generateTexture } = setup()
+    surface.destroy()
+    const dispose = vi.spyOn(GridSurface.prototype, 'destroy')
+    generateTexture.mockImplementation(() => { throw new Error('Texture allocation failed') })
+    try {
+      expect(() => new GridSurface(app as unknown as Application, { infinite: true }, viewport, appearance)).toThrow('Texture allocation failed')
+      expect(dispose).toHaveBeenCalledOnce()
+      expect((dispose.mock.instances[0] as GridSurface).root.destroyed).toBe(true)
+      expect(generateTexture.mock.calls.at(-1)![0].target.destroyed).toBe(true)
+    } finally {
+      dispose.mockRestore()
+    }
+  })
 })
