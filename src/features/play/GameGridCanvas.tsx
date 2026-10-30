@@ -105,6 +105,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     let surface: GridSurface | undefined
     let host: PixiCanvasHost | undefined
     let detachInput: (() => void) | undefined
+    let canvasReady = false
     board.sortableChildren = true
     let disposed = false
     let shineLayers: Array<{ layer: Container; size: number }> = []
@@ -509,97 +510,88 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       propsRef.current.onToggle(cellKey(x, y), originalEvent.timeStamp)
     }
 
-    function cleanupCanvas() {
-      captureRef.current = () => null
-      resetViewRef.current = () => undefined
-      navigationRef.current?.reset()
-      navigationRef.current = null
-      detachInput?.()
-      detachInput = undefined
-      app.ticker?.remove(update)
-      verificationWave?.destroy()
-      verificationWave = undefined
-      stopCellAnimations()
-      gsap.killTweensOf(gridShakeMotion)
-      stopViewportEffects()
-      app.stage.filters = []
-      vhsCrtEffect?.destroy()
-      vhsCrtEffect = undefined
-      surface?.destroy()
-      surface = undefined
-      appRef.current = null
-      boardRef.current = null
-      drawRef.current = () => undefined
-    }
-
     drawRef.current = draw
 
     async function start() {
-      try {
-        host = new PixiCanvasHost({
-          // Input styling belongs to the React host so it follows interactive
-          // changes, including when a saved board finishes loading.
-          app, container: stableContainer, canvasClassName: 'size-full',
-          init: { background: BOARD_COLOR, preserveDrawingBuffer: true },
-          onBeforeDestroy: cleanupCanvas,
-          onReady: () => {
-            app.canvas.style.touchAction = 'inherit'
-            appRef.current = app
-            boardRef.current = board
-            surface = new GridSurface(app, propsRef.current.scrolling ? { infinite: true } : { infinite: false, columns: propsRef.current.config.columns, rows: propsRef.current.config.rows }, {
-              width: app.screen.width, height: app.screen.height,
-              cellSize: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows), fit: 'stretch',
-            }, { cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR, borderSize: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows) * CELL_BORDER_RATIO, borderRadius: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows) * 0.02, gap: 0 })
-            surface.layers.pieces.addChild(board)
-            app.stage.addChild(surface.root)
-            resetViewRef.current = () => {
-              navigationRef.current?.reset()
-              stopViewportEffects()
+      host = new PixiCanvasHost({
+        // Input styling belongs to the React host so it follows interactive
+        // changes, including when a saved board finishes loading.
+        app, container: stableContainer, canvasClassName: 'size-full',
+        init: { background: BOARD_COLOR, preserveDrawingBuffer: true },
+        onReady: () => {
+          app.canvas.style.touchAction = 'inherit'
+          appRef.current = app
+          boardRef.current = board
+          surface = new GridSurface(app, propsRef.current.scrolling ? { infinite: true } : { infinite: false, columns: propsRef.current.config.columns, rows: propsRef.current.config.rows }, {
+            width: app.screen.width, height: app.screen.height,
+            cellSize: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows), fit: 'stretch',
+          }, { cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR, borderSize: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows) * CELL_BORDER_RATIO, borderRadius: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows) * 0.02, gap: 0 })
+          surface.layers.pieces.addChild(board)
+          app.stage.addChild(surface.root)
+          resetViewRef.current = () => {
+            navigationRef.current?.reset()
+            stopViewportEffects()
+            view = { zoom: 1, offsetX: 0, offsetY: 0 }
+            updateViewport()
+          }
+          captureRef.current = () => {
+            const savedView = view
+            verificationWave?.hide()
+            try {
               view = { zoom: 1, offsetX: 0, offsetY: 0 }
               updateViewport()
+              return app.renderer.extract.canvas({ target: surface!.root, frame: new Rectangle(0, 0, app.screen.width, app.screen.height) }) as HTMLCanvasElement
+            } finally {
+              view = savedView
+              updateViewport()
+              verificationWave?.render()
             }
-            captureRef.current = () => {
-              const savedView = view
-              verificationWave?.hide()
-              try {
-                view = { zoom: 1, offsetX: 0, offsetY: 0 }
-                updateViewport()
-                return app.renderer.extract.canvas({ target: surface!.root, frame: new Rectangle(0, 0, app.screen.width, app.screen.height) }) as HTMLCanvasElement
-              } finally {
-                view = savedView
-                updateViewport()
-                verificationWave?.render()
-              }
-            }
-            const navigation = propsRef.current.scrolling || propsRef.current.config.navigationEnabled === false ? null : createGridNavigation(app.canvas, {
-              minZoom: 1, maxZoom: 4,
-              getView: () => view,
-              getSize: () => app.screen,
-              setView: (next) => { view = next; updateViewport() },
-              onNavigate: () => { stopViewportEffects(); propsRef.current.onNavigate?.() },
-              onTap: (originalEvent) => handleCellTap({ ...surface!.pointerToCell(originalEvent), originalEvent }),
-            })
-            navigationRef.current = navigation
-            detachInput = attachGridInput(app.canvas, {
-              enabled: () => propsRef.current.interactive !== false,
-              gestures: navigation === null,
-              cellAt: (event) => surface!.pointerToCell(event),
-              callbacks: navigation?.callbacks ?? { onCellTap: handleCellTap },
-            })
-            app.ticker.add(update)
-          },
-          onResize: resize,
-        })
-        await host.start()
-      } catch (error) {
-        if (!disposed) console.error('Could not initialize the Classic game canvas.', error)
-      }
+          }
+          const navigation = propsRef.current.scrolling || propsRef.current.config.navigationEnabled === false ? null : createGridNavigation(app.canvas, {
+            minZoom: 1, maxZoom: 4,
+            getView: () => view,
+            getSize: () => app.screen,
+            setView: (next) => { view = next; updateViewport() },
+            onNavigate: () => { stopViewportEffects(); propsRef.current.onNavigate?.() },
+            onTap: (originalEvent) => handleCellTap({ ...surface!.pointerToCell(originalEvent), originalEvent }),
+          })
+          navigationRef.current = navigation
+          detachInput = attachGridInput(app.canvas, {
+            enabled: () => propsRef.current.interactive !== false,
+            gestures: navigation === null,
+            cellAt: (event) => surface!.pointerToCell(event),
+            callbacks: navigation?.callbacks ?? { onCellTap: handleCellTap },
+          })
+          app.ticker.add(update)
+          canvasReady = true
+        },
+        onResize: resize,
+      })
+      await host.start()
     }
 
     void start()
     return () => {
       disposed = true
+      captureRef.current = () => null
+      resetViewRef.current = () => undefined
+      navigationRef.current?.reset()
+      navigationRef.current = null
+      if (canvasReady) {
+        detachInput?.()
+        app.ticker.remove(update)
+        verificationWave?.destroy()
+        stopCellAnimations()
+        gsap.killTweensOf(gridShakeMotion)
+        stopViewportEffects()
+        app.stage.filters = []
+        vhsCrtEffect?.destroy()
+        surface?.destroy()
+      }
       host?.destroy()
+      appRef.current = null
+      boardRef.current = null
+      drawRef.current = () => undefined
     }
   }, [props.config.columns, props.config.rows, props.config.navigationEnabled])
 
