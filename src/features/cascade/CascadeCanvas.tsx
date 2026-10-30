@@ -450,6 +450,14 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       if (!renderedPiece) return
 
       renderedPieces.delete(pieceKey)
+      const shake = shakes.get(renderedPiece.shakeLayer)
+      if (shake) {
+        // Shake tweens animate a separate motion object whose callback writes
+        // to this layer. Stop it before destroying the layer, otherwise a
+        // later GSAP update tries to access the destroyed Pixi position.
+        gsap.killTweensOf(shake)
+        shakes.delete(renderedPiece.shakeLayer)
+      }
       gsap.killTweensOf(renderedPiece.sprite)
       gsap.killTweensOf(renderedPiece.graphic)
       gsap.killTweensOf(renderedPiece.graphic.scale)
