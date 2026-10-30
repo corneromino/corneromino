@@ -1,2 +1,2 @@
 /** Kept in sync with the PWA manifest by `npm run release`. */
-export const APP_VERSION = '0.6.6'
+export const APP_VERSION = '0.7.0'
