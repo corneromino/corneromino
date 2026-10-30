@@ -74,6 +74,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
+    let disposed = false
 
     const app = new Application()
     const pieces = new Graphics()
@@ -288,11 +289,21 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
     }
     drawRef.current = draw
 
+    function cleanupCanvas() {
+      drawRef.current = null
+      detachInput?.()
+      detachInput = undefined
+      clearLockEffects()
+      surface?.destroy()
+      surface = undefined
+    }
+
     const host = new PixiCanvasHost({
       app,
       container,
       canvasClassName: 'size-full touch-manipulation',
       init: { background: GAME_COLORS.cellBorder },
+      onBeforeDestroy: cleanupCanvas,
       onReady: () => {
         const cellSize = Math.min(app.screen.width / boardSize, app.screen.height / boardSize)
         surface = new GridSurface(app, { infinite: false, columns: boardSize, rows: boardSize }, {
@@ -350,12 +361,11 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
       },
     })
 
-    void host.start()
+    void host.start().catch((error: unknown) => {
+      if (!disposed) console.error('Could not initialize the local VS canvas.', error)
+    })
     return () => {
-      drawRef.current = null
-      detachInput?.()
-      clearLockEffects()
-      surface?.destroy()
+      disposed = true
       host.destroy()
     }
   }, [])

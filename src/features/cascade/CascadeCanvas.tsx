@@ -141,7 +141,6 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     let isKeyboardFocusMode = false
     let keyboardFocus: CascadeFocusPosition | null = null
     let detachInput: (() => void) | undefined
-    let canvasReady = false
 
     function getPieceKey(column: number, row: number): string {
       return `${column},${row}`
@@ -759,48 +758,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       })
     }
 
-    async function start() {
-      host = new PixiCanvasHost({
-        app, container: stableContainer, canvasClassName: 'size-full touch-none', init: { background: CELL_BORDER_COLOR },
-        onReady: () => {
-          surface = new GridSurface(app, { infinite: false, ...props.gridSize }, {
-            width: app.screen.width, height: app.screen.height, cellSize: 56, fit: 'contain',
-          }, { cellColor: CELL_FILL_COLOR, borderColor: CELL_BORDER_COLOR, backgroundColor: CELL_BORDER_COLOR, borderSize: 56 * 0.035, borderRadius: 0, gap: 0 })
-          surface.layers.underPieces.addChild(boardGraphics, boardCells)
-          surface.layers.pieces.addChild(piecesLayer)
-          surface.layers.overlay.addChild(keyboardFocusGraphic)
-          app.stage.addChild(surface.root)
-          app.canvas.tabIndex = 0
-          app.canvas.setAttribute('aria-label', 'Cascade board. Hold Shift and use arrow keys to focus unlocked pieces. Press Space while holding Shift to select. Release Shift to move and drop the falling piece.')
-          app.ticker.add(update)
-          window.addEventListener('keydown', handleKeyDown)
-          window.addEventListener('keyup', handleKeyUp)
-          window.addEventListener('blur', endKeyboardFocus)
-          document.addEventListener('visibilitychange', handleVisibilityChange)
-          detachInput = attachGridInput(app.canvas, {
-            enabled: () => !isPaused,
-            cellAt: (event) => surface!.pointerToCell(event),
-            threshold: SWIPE_THRESHOLD,
-            horizontalSteps: true,
-            callbacks: {
-              onPointerDown: () => app.canvas.focus({ preventScroll: true }),
-              onCellTap: ({ column, row }) => togglePieceSelectionAt(column, row),
-              onSwipeLeft: ({ steps }) => moveFromSwipe(-1, steps),
-              onSwipeRight: ({ steps }) => moveFromSwipe(1, steps),
-              onSwipeDown: dropActivePiece,
-            },
-          })
-          canvasReady = true
-        },
-        onResize: resize,
-      })
-      if (await host.start()) notifyStats()
-    }
-
-    void start()
-
-    return () => {
-      disposed = true
+    function cleanupCanvas() {
       exportDebugStateRef.current = null
       pauseRef.current = null
       resumeRef.current = null
@@ -809,26 +767,74 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       window.removeEventListener('keyup', handleKeyUp)
       window.removeEventListener('blur', endKeyboardFocus)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
-      if (canvasReady) {
-        gsap.killTweensOf(gridShakeMotion)
-        for (const motion of shakes.values()) gsap.killTweensOf(motion)
-        shakes.clear()
-        for (const wave of lockWaves) {
-          gsap.killTweensOf(wave)
-          wave.destroy()
-        }
-        lockWaves.clear()
-        app.stage.filters = []
-        app.ticker.remove(update)
-        detachInput?.()
-        for (const renderedPiece of renderedPieces.values()) {
-          gsap.killTweensOf(renderedPiece.sprite)
-          gsap.killTweensOf(renderedPiece.graphic)
-          gsap.killTweensOf(renderedPiece.graphic.scale)
-          gsap.killTweensOf(renderedPiece.shine)
-        }
-        surface?.destroy()
+      gsap.killTweensOf(gridShakeMotion)
+      for (const motion of shakes.values()) gsap.killTweensOf(motion)
+      shakes.clear()
+      for (const wave of lockWaves) {
+        gsap.killTweensOf(wave)
+        wave.destroy()
       }
+      lockWaves.clear()
+      app.stage.filters = []
+      app.ticker?.remove(update)
+      detachInput?.()
+      detachInput = undefined
+      for (const renderedPiece of renderedPieces.values()) {
+        gsap.killTweensOf(renderedPiece.sprite)
+        gsap.killTweensOf(renderedPiece.graphic)
+        gsap.killTweensOf(renderedPiece.graphic.scale)
+        gsap.killTweensOf(renderedPiece.shine)
+      }
+      surface?.destroy()
+      surface = undefined
+    }
+
+    async function start() {
+      try {
+        host = new PixiCanvasHost({
+          app, container: stableContainer, canvasClassName: 'size-full touch-none', init: { background: CELL_BORDER_COLOR },
+          onBeforeDestroy: cleanupCanvas,
+          onReady: () => {
+            surface = new GridSurface(app, { infinite: false, ...props.gridSize }, {
+              width: app.screen.width, height: app.screen.height, cellSize: 56, fit: 'contain',
+            }, { cellColor: CELL_FILL_COLOR, borderColor: CELL_BORDER_COLOR, backgroundColor: CELL_BORDER_COLOR, borderSize: 56 * 0.035, borderRadius: 0, gap: 0 })
+            surface.layers.underPieces.addChild(boardGraphics, boardCells)
+            surface.layers.pieces.addChild(piecesLayer)
+            surface.layers.overlay.addChild(keyboardFocusGraphic)
+            app.stage.addChild(surface.root)
+            app.canvas.tabIndex = 0
+            app.canvas.setAttribute('aria-label', 'Cascade board. Hold Shift and use arrow keys to focus unlocked pieces. Press Space while holding Shift to select. Release Shift to move and drop the falling piece.')
+            app.ticker.add(update)
+            window.addEventListener('keydown', handleKeyDown)
+            window.addEventListener('keyup', handleKeyUp)
+            window.addEventListener('blur', endKeyboardFocus)
+            document.addEventListener('visibilitychange', handleVisibilityChange)
+            detachInput = attachGridInput(app.canvas, {
+              enabled: () => !isPaused,
+              cellAt: (event) => surface!.pointerToCell(event),
+              threshold: SWIPE_THRESHOLD,
+              horizontalSteps: true,
+              callbacks: {
+                onPointerDown: () => app.canvas.focus({ preventScroll: true }),
+                onCellTap: ({ column, row }) => togglePieceSelectionAt(column, row),
+                onSwipeLeft: ({ steps }) => moveFromSwipe(-1, steps),
+                onSwipeRight: ({ steps }) => moveFromSwipe(1, steps),
+                onSwipeDown: dropActivePiece,
+              },
+            })
+          },
+          onResize: resize,
+        })
+        if (await host.start()) notifyStats()
+      } catch (error) {
+        if (!disposed) console.error('Could not initialize the Cascade canvas.', error)
+      }
+    }
+
+    void start()
+
+    return () => {
+      disposed = true
       host?.destroy()
     }
   }, [props.cornerDifficulty, props.cornerSpawnMode, props.getFallIntervalMs, props.gridSize.columns, props.gridSize.rows, props.maxConsecutiveSameCorner, props.scorePointsPerLine, props.scorePointsPerLockedCorneromino])

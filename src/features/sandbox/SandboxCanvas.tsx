@@ -130,6 +130,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
     const grid = new Graphics()
     let surface: GridSurface | undefined
     let detachInput: (() => void) | undefined
+    let disposed = false
     let initialized = false
     let gridOffsetX = props.initialState?.gridOffsetX ?? 0
     let gridOffsetY = props.initialState?.gridOffsetY ?? 0
@@ -561,77 +562,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       }
     }
 
-    async function startCanvas() {
-      host = new PixiCanvasHost({
-        app, container: stableCanvasContainer, canvasClassName: 'size-full touch-none',
-        init: { background: CELL_BORDER_COLOR, preserveDrawingBuffer: true },
-        onReady: () => {
-          initialized = true
-          surface = new GridSurface(app, { infinite: true }, {
-            width: app.screen.width, height: app.screen.height, cellSize: BASE_CELL_SIZE,
-            fit: 'manual', zoom, offsetX: gridOffsetX, offsetY: gridOffsetY,
-          }, { cellColor: CELL_FILL_COLOR, borderColor: CELL_BORDER_COLOR, backgroundColor: CELL_BORDER_COLOR, borderSize: 2, borderRadius: BASE_CELL_SIZE * 0.02, gap: 0 })
-          surface.layers.pieces.addChild(grid)
-          app.stage.addChild(surface.root)
-          redrawRef.current = drawGrid
-          deleteSelectedCellsRef.current = deleteSelectedCells
-          beginPasteRef.current = beginPaste
-          commitMoveRef.current = commitMove
-          cancelMoveRef.current = cancelMove
-          captureSelectedWorldRef.current = captureSelectedWorld
-          setSelectModeRef.current = (enabled) => {
-            if (enabled) {
-              // beginPaste establishes the imported world's full bounds before
-              // React enables Select; keep them instead of creating a 2x2 area.
-              if (pastedMarkers) {
-                drawGrid()
-                return
-              }
-              const cellSize = BASE_CELL_SIZE * zoom
-              const centerColumn = Math.floor((app.renderer.width / 2 - gridOffsetX) / cellSize)
-              const centerRow = Math.floor((app.renderer.height / 2 - gridOffsetY) / cellSize)
-              upperSelectionBound = { column: centerColumn - 1, row: centerRow - 1 }
-              lowerSelectionBound = { column: centerColumn, row: centerRow }
-            } else {
-              upperSelectionBound = null
-              lowerSelectionBound = null
-              draggedSelectionBound = null
-              cancelMove()
-            }
-            if (initialized) drawGrid()
-          }
-          captureWorldRef.current = async () => ({
-            screenshot: await canvasToBlob(app.canvas),
-            state: { cornerMarkers: cellSystem.getMarkers(), gridOffsetX, gridOffsetY, zoom },
-          })
-          navigation = createGridNavigation(app.canvas, {
-            minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM, threshold: PAN_THRESHOLD,
-            getView: () => ({ zoom, offsetX: gridOffsetX, offsetY: gridOffsetY }),
-            getSize: () => app.screen,
-            setView: (view) => {
-              zoom = view.zoom
-              gridOffsetX = view.offsetX
-              gridOffsetY = view.offsetY
-              drawGrid()
-            },
-            onTap: handleCellTap,
-            tool: { start: startTool, move: moveTool, end: endTool },
-          })
-          detachInput = attachGridInput(app.canvas, {
-            gestures: false,
-            cellAt: getCellPosition,
-            callbacks: navigation.callbacks,
-          })
-          updateTimer = window.setInterval(processUpdateTick, SANDBOX_TICK_INTERVAL_MS)
-        },
-        onResize: resizeCanvas,
-      })
-      await host.start()
-    }
-
-    void startCanvas()
-
-    return () => {
+    function cleanupCanvas() {
       captureWorldRef.current = null
       captureSelectedWorldRef.current = null
       beginPasteRef.current = null
@@ -641,12 +572,96 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       setSelectModeRef.current = null
       redrawRef.current = null
       window.clearInterval(updateTimer)
+      updateTimer = undefined
       if (cornerAnimationFrame !== 0) window.cancelAnimationFrame(cornerAnimationFrame)
-      if (!host) return
+      cornerAnimationFrame = 0
       detachInput?.()
+      detachInput = undefined
       navigation?.reset()
+      navigation = undefined
       surface?.destroy()
-      host.destroy()
+      surface = undefined
+      initialized = false
+    }
+
+    async function startCanvas() {
+      try {
+        host = new PixiCanvasHost({
+          app, container: stableCanvasContainer, canvasClassName: 'size-full touch-none',
+          init: { background: CELL_BORDER_COLOR, preserveDrawingBuffer: true },
+          onBeforeDestroy: cleanupCanvas,
+          onReady: () => {
+            initialized = true
+            surface = new GridSurface(app, { infinite: true }, {
+              width: app.screen.width, height: app.screen.height, cellSize: BASE_CELL_SIZE,
+              fit: 'manual', zoom, offsetX: gridOffsetX, offsetY: gridOffsetY,
+            }, { cellColor: CELL_FILL_COLOR, borderColor: CELL_BORDER_COLOR, backgroundColor: CELL_BORDER_COLOR, borderSize: 2, borderRadius: BASE_CELL_SIZE * 0.02, gap: 0 })
+            surface.layers.pieces.addChild(grid)
+            app.stage.addChild(surface.root)
+            redrawRef.current = drawGrid
+            deleteSelectedCellsRef.current = deleteSelectedCells
+            beginPasteRef.current = beginPaste
+            commitMoveRef.current = commitMove
+            cancelMoveRef.current = cancelMove
+            captureSelectedWorldRef.current = captureSelectedWorld
+            setSelectModeRef.current = (enabled) => {
+              if (enabled) {
+                // beginPaste establishes the imported world's full bounds before
+                // React enables Select; keep them instead of creating a 2x2 area.
+                if (pastedMarkers) {
+                  drawGrid()
+                  return
+                }
+                const cellSize = BASE_CELL_SIZE * zoom
+                const centerColumn = Math.floor((app.renderer.width / 2 - gridOffsetX) / cellSize)
+                const centerRow = Math.floor((app.renderer.height / 2 - gridOffsetY) / cellSize)
+                upperSelectionBound = { column: centerColumn - 1, row: centerRow - 1 }
+                lowerSelectionBound = { column: centerColumn, row: centerRow }
+              } else {
+                upperSelectionBound = null
+                lowerSelectionBound = null
+                draggedSelectionBound = null
+                cancelMove()
+              }
+              if (initialized) drawGrid()
+            }
+            captureWorldRef.current = async () => ({
+              screenshot: await canvasToBlob(app.canvas),
+              state: { cornerMarkers: cellSystem.getMarkers(), gridOffsetX, gridOffsetY, zoom },
+            })
+            navigation = createGridNavigation(app.canvas, {
+              minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM, threshold: PAN_THRESHOLD,
+              getView: () => ({ zoom, offsetX: gridOffsetX, offsetY: gridOffsetY }),
+              getSize: () => app.screen,
+              setView: (view) => {
+                zoom = view.zoom
+                gridOffsetX = view.offsetX
+                gridOffsetY = view.offsetY
+                drawGrid()
+              },
+              onTap: handleCellTap,
+              tool: { start: startTool, move: moveTool, end: endTool },
+            })
+            detachInput = attachGridInput(app.canvas, {
+              gestures: false,
+              cellAt: getCellPosition,
+              callbacks: navigation.callbacks,
+            })
+            updateTimer = window.setInterval(processUpdateTick, SANDBOX_TICK_INTERVAL_MS)
+          },
+          onResize: resizeCanvas,
+        })
+        await host.start()
+      } catch (error) {
+        if (!disposed) console.error('Could not initialize the Sandbox canvas.', error)
+      }
+    }
+
+    void startCanvas()
+
+    return () => {
+      disposed = true
+      host?.destroy()
     }
   }, [])
 
