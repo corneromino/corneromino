@@ -69,6 +69,7 @@ export default {
         "moves_other": "{{count}} moves",
         "saved": "Saved",
         "generating": "Generating game…",
+        "gameOver": "GAME OVER",
         "paused": "Paused",
         "copySeed": "Copy seed",
         "verify": "Verify",

@@ -641,6 +641,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         radius: cellSize * ripple.radiusCells,
         brightness: ripple.brightness,
       })
+      wave.resolution = 'inherit'
       lockWaves.add(wave)
       app.stage.filters = [...lockWaves]
       gsap.to(wave, {

@@ -9,6 +9,8 @@ import { GameGrid } from './GameGrid'
 import { cn } from '@/lib/utils'
 
 const TUTORIAL_CONFIG: GameConfig = {
+  completionAnimationEnabled: false,
+  finalLockAnimationEnabled: true,
   hideGameControls: true,
   navigationEnabled: false,
   lockingMode: 'auto',
@@ -20,6 +22,8 @@ const TUTORIAL_CONFIG: GameConfig = {
 }
 
 const TUTORIAL_ALL_CORNEROMINOS_CONFIG: GameConfig = {
+  completionAnimationEnabled: false,
+  finalLockAnimationEnabled: true,
   hideGameControls: true,
   navigationEnabled: false,
   lockingMode: 'auto',
@@ -31,6 +35,8 @@ const TUTORIAL_ALL_CORNEROMINOS_CONFIG: GameConfig = {
 }
 
 const TUTORIAL_T_ROTATIONS_CONFIG: GameConfig = {
+  completionAnimationEnabled: false,
+  finalLockAnimationEnabled: true,
   hideGameControls: true,
   navigationEnabled: false,
   lockingMode: 'auto',

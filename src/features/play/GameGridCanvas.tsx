@@ -364,9 +364,9 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       }
       previousLockedCellKeysRef.current = nextLockedCellKeys
       previousSelectedKeysRef.current = nextSelectedKeys
-      // The final lock immediately leads into verification, so avoid playing
-      // a competing lock ripple/shake just before the verification wave.
-      if (newlyLockedCellKeys.length > 0 && !isBoardFullyLocked && !current.verificationWave) {
+      // The final lock usually leads directly into verification, so its normal
+      // ripple/shake is opt-in (the tutorial deliberately keeps it).
+      if (newlyLockedCellKeys.length > 0 && (!isBoardFullyLocked || current.config.finalLockAnimationEnabled === true) && !current.verificationWave) {
         playLockShake(newlyLockedCellKeys, cellSize)
         playGridShake(cellSize)
         playLockRipple(newlyLockedCellKeys, cellWidth, cellHeight, cellSize)
@@ -454,6 +454,9 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         speed: cellSize * view.zoom * config.speedCellsPerSecond,
         wavelength: cellSize * view.zoom * config.wavelengthCells,
       })
+      // Filters default to a 1x render texture, which visibly downscales a
+      // high-density board until the ripple is removed.
+      wave.resolution = 'inherit'
       lockWaves.add(wave)
       updateStageFilters()
       gsap.to(wave, {

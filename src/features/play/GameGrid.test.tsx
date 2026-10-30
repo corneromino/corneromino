@@ -149,18 +149,33 @@ describe('Classic locking modes', () => {
     }
   })
 
-  it.each(['auto', 'manual'] as const)('waits for the red wave before reporting %s verification mistakes', (finalVerificationMode) => {
+  it.each(['auto', 'manual'] as const)('immediately leaves repeated-corner groups unlocked with %s locking', (lockingMode) => {
     const repeatedCorners: PlacedTetromino[] = [{ ...pieces[0], cells: pieces[0].cells.map((cell) => ({ ...cell, corner: 'top-left' })) }]
-    setup('auto', { pieces: repeatedCorners, config: { ...GAME_CONFIGS.easy, finalVerificationMode } })
+    const { props } = setup(lockingMode, { config: { ...GAME_CONFIGS.easy, lockingMode, unlockRepeatedCornerLocks: true }, pieces: repeatedCorners })
     tap(...firstSquare)
-    if (finalVerificationMode === 'manual') fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
-    expect(canvasMock.props!.verificationWave).toMatchObject({ isCorrect: false })
-    expect(canvasMock.captureBoard).not.toHaveBeenCalled()
+    if (lockingMode === 'manual') fireEvent.click(screen.getByRole('button', { name: 'Lock four selected cells' }))
+    expect(board().locked).toEqual([])
+    expect(board().selected).toEqual(firstSquare)
+    expect(props.onLocked).not.toHaveBeenCalled()
+    expect(canvasMock.props!.verificationWave).toBeUndefined()
     expect(screen.queryByRole('dialog')).toBeNull()
-    tap(firstSquare[0], firstSquare[0])
+  })
+
+  it('keeps repeated-corner groups lockable when immediate unlocking is disabled', () => {
+    const repeatedCorners: PlacedTetromino[] = [{ ...pieces[0], cells: pieces[0].cells.map((cell) => ({ ...cell, corner: 'top-left' })) }]
+    setup('auto', { pieces: repeatedCorners })
+    tap(...firstSquare)
     expect(board().locked).toHaveLength(1)
-    finishVerificationWave()
-    expect(screen.getByRole('dialog').textContent).toContain('1 mistakes')
+  })
+
+  it('can skip verification animation for immediate correct results', () => {
+    const config = { ...GAME_CONFIGS.easy, completionAnimationEnabled: false, completionScreenshotDelayMs: 0, finalVerificationMode: 'manual' as const }
+    const { props } = setup('auto', { config })
+    tap(...firstSquare, ...secondSquare)
+    fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
+    expect(canvasMock.props!.verificationWave).toBeUndefined()
+    expect(props.onCorrectSolution).toHaveBeenCalledOnce()
+
   })
 
   it('keeps a correctly verified board editable after dismissing its completion dialog', () => {
@@ -319,19 +334,6 @@ describe('Classic locking modes', () => {
     expect(board().selected).toEqual(['0,0', '3,0', '1,0', '4,0', '0,1', '3,1', '1,1'])
   })
 
-  it('uses the manual shape rule and leaves corner correctness to Verify', () => {
-    const repeatedCorners: PlacedTetromino[] = [{ ...pieces[0], cells: pieces[0].cells.map((cell) => ({ ...cell, corner: 'top-left' })) }]
-    const { props } = setup('auto', { pieces: repeatedCorners })
-    tap(...firstSquare)
-    expect(board().locked).toHaveLength(1)
-    fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
-    expect(props.onCorrectSolution).not.toHaveBeenCalled()
-    finishVerificationWave()
-    expect(screen.getByRole('dialog').textContent).toContain('1 mistakes')
-    fireEvent.click(screen.getByRole('button', { name: 'common.ok' }))
-    expect(screen.queryByRole('dialog')).toBeNull()
-  })
-
   it('requires the explicit Verify action even when all automatically locked groups are correct', () => {
     const { props } = setup()
     tap(...firstSquare, ...secondSquare)
@@ -357,18 +359,8 @@ describe('Classic locking modes', () => {
     expect(props.onCorrectSolution).toHaveBeenCalledTimes(2)
   })
 
-  it('shows automatic verification mistakes in a dialog instead of the controls', async () => {
-    const repeatedCorners: PlacedTetromino[] = [{ ...pieces[0], cells: pieces[0].cells.map((cell) => ({ ...cell, corner: 'top-left' })) }]
-    setup('auto', { pieces: repeatedCorners, config: { ...GAME_CONFIGS.easy, lockingMode: 'auto', finalVerificationMode: 'auto' } })
-    tap(...firstSquare)
-    finishVerificationWave()
-    await waitFor(() => expect(screen.getByRole('dialog').textContent).toContain('1 mistakes'))
-    expect(screen.getByRole('button', { name: 'common.ok' })).toBeTruthy()
-    expect(document.querySelector<HTMLButtonElement>('button[aria-label="classic.verify"]')?.disabled).toBe(false)
-  })
-
   it('unlocks the entire group on two quick taps on cells within that group', () => {
-    const { props } = setup()
+    const { props } = setup('auto', { onUnlocked: vi.fn() })
     tap(...firstSquare)
     tap('1,1') // The fourth selection must not have started a double-tap gesture.
     expect(board().locked).toHaveLength(1)
@@ -377,6 +369,7 @@ describe('Classic locking modes', () => {
     expect(board().locked).toHaveLength(0)
     expect(board().selected).toEqual([])
     expect(props.onMoveCountChange).toHaveBeenLastCalledWith(1)
+    expect(props.onUnlocked).toHaveBeenCalledOnce()
     tap('0,0') // No leftover gesture or automatic re-lock after unlocking.
     expect(board().selected).toEqual(['0,0'])
   })

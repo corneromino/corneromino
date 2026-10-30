@@ -193,6 +193,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
         speed: cellSize * config.speedCellsPerSecond,
         wavelength: cellSize * config.wavelengthCells,
       })
+      wave.resolution = 'inherit'
       lockWaves.add(wave)
       app.stage.filters = [...lockWaves]
       gsap.to(wave, {

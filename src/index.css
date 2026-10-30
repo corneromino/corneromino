@@ -184,6 +184,23 @@
   height: clamp(44px, calc(var(--app-content-height) * 0.09), 62px);
 }
 
+@keyframes infinite-health-heart-change {
+  0% { transform: scale(1) rotate(0deg); }
+  45% { transform: scale(1.35) rotate(-9deg); }
+  72% { transform: scale(0.94) rotate(5deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.infinite-health-heart {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: infinite-health-heart-change 240ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .infinite-health-heart { animation: none; }
+}
+
 @media (max-height: 480px) {
   .menu-scroll { padding-block: 12px; }
   .menu-content { gap: 8px; }

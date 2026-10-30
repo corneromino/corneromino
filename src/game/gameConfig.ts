@@ -13,6 +13,12 @@ export interface GameConfig {
   lockingMode: 'manual' | 'auto'
   /** Defaults to manual for older/custom game configurations. */
   finalVerificationMode?: 'manual' | 'auto'
+  /** Enables the correct/incorrect verification wave. Defaults to true. */
+  completionAnimationEnabled?: boolean
+  /** Enables the ordinary lock ripple/shake for the board's final Corneromino. Defaults to false. */
+  finalLockAnimationEnabled?: boolean
+  /** Immediately rejects a lock whose four cells repeat a corner marker. Defaults to false. */
+  unlockRepeatedCornerLocks?: boolean
   /** Wait for the final board animation to settle before capturing the completion screenshot. */
   completionScreenshotDelayMs?: number
   /** Tutorials disable navigation so their cell highlights stay aligned. Defaults to true. */

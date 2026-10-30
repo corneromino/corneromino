@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { LogOut, Pause, Play, RotateCcw } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -7,12 +7,17 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { createRandomSeed } from '@/game/random'
 import { GameGrid } from './GameGrid'
 import { ClassicCornerominosDialog } from './ClassicCornerominosDialog'
+import { CLASSIC_INFINITE_HEALTH_SQUARE_COUNT, ClassicInfiniteHealthBar } from './ClassicInfiniteHealthBar'
 import { CLASSIC_INFINITE_CONFIG, ClassicInfiniteStream, createInfiniteSectionGenerator, type ClassicInfiniteSection } from './classicInfiniteStream'
 import type { ClassicInfiniteCellExit } from './classicInfiniteCellExit'
 // import { CLASSIC_INFINITE_VHS_CRT } from './classicInfiniteEffects'
 
 const BOARD_CONFIG = { ...CLASSIC_INFINITE_CONFIG, rows: CLASSIC_INFINITE_CONFIG.rows * 2 }
 const PAUSE_BUTTON_CLASS = 'cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase'
+const ignoreElapsedSecondsChange = (_elapsedSeconds: number) => undefined
+const ignoreMoveCountChange = (_moveCount: number) => undefined
+const INITIAL_HEALTH = 1
+const HEALTH_PER_LOCKED_CORNEROMINO = 4
 
 function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: ClassicInfiniteCellExit) => void; onRestart: () => void }) {
   const { t } = useTranslation()
@@ -21,8 +26,10 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
   const [seed] = useState(createRandomSeed)
   const [paused, setPaused] = useState(false)
   const [cornerominosOpen, setCornerominosOpen] = useState(false)
-  const [elapsedSeconds, setElapsedSeconds] = useState(0)
-  const [moveCount, setMoveCount] = useState(0)
+  const [health, setHealth] = useState(INITIAL_HEALTH)
+  const [healthAnimationKey, setHealthAnimationKey] = useState(0)
+  const [gameOver, setGameOver] = useState(false)
+  const healthRef = useRef(INITIAL_HEALTH)
   const [generationFailed, setGenerationFailed] = useState(false)
   const [session, setSession] = useState<{ stream: ClassicInfiniteStream; sections: readonly ClassicInfiniteSection[] } | null>(null)
 
@@ -55,6 +62,30 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
 
   function resume() { setPaused(false) }
   function pause() { setPaused(true) }
+  function handleLockedCorneromino() {
+    const nextHealth = Math.min(CLASSIC_INFINITE_HEALTH_SQUARE_COUNT, healthRef.current + HEALTH_PER_LOCKED_CORNEROMINO)
+    healthRef.current = nextHealth
+    setHealth(nextHealth)
+    setHealthAnimationKey((key) => key + 1)
+  }
+  function decreaseHealth(amount: number) {
+    if (healthRef.current === 0) {
+      setGameOver(true)
+      return
+    }
+    const nextHealth = Math.max(0, healthRef.current - amount)
+    healthRef.current = nextHealth
+    setHealth(nextHealth)
+  }
+  function handleCellExit(event: ClassicInfiniteCellExit) {
+    if (!event.locked) {
+      decreaseHealth(1)
+    }
+    onCellExit?.(event)
+  }
+  function handleUnlockedCorneromino() {
+    decreaseHealth(HEALTH_PER_LOCKED_CORNEROMINO)
+  }
   function quit() {
     if (location.state?.returnToClassicMenu === true) navigate(-1)
     else navigate('/play', { replace: true })
@@ -73,6 +104,18 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
     </Dialog>
   )
 
+  const gameOverDialog = (
+    <Dialog open={gameOver}>
+      <DialogContent aria-describedby={undefined}>
+        <DialogHeader><DialogTitle className="text-[var(--coral)]">{t('classic.gameOver')}</DialogTitle></DialogHeader>
+        <DialogFooter className="grid-cols-1">
+          <Button className={PAUSE_BUTTON_CLASS} onClick={onRestart} size="lg" type="button"><RotateCcw aria-hidden="true" /> {t('common.restart')}</Button>
+          <Button className={PAUSE_BUTTON_CLASS} onClick={quit} size="lg" type="button"><LogOut aria-hidden="true" /> {t('common.quit')}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+
   return (
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
       <header className="mx-auto flex w-full max-w-[550px] shrink-0 flex-col gap-3 px-5 pb-6">
@@ -83,10 +126,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
           </div>
           <Button aria-label={t('common.pause')} className="cartoon-press size-10 shrink-0 text-[var(--canvas-foreground)]" onClick={pause} size="icon" title={t('common.pause')} type="button"><Pause aria-hidden="true" /></Button>
         </div>
-        <div className="poster-kicker flex items-center justify-between gap-4 text-[11px] text-[var(--muted-text-color)]">
-          <p>{t('classic.infinite')} / {t('classic.moves', { count: moveCount })}</p>
-          <p>{Math.floor(elapsedSeconds / 60).toString().padStart(2, '0')}:{(elapsedSeconds % 60).toString().padStart(2, '0')}</p>
-        </div>
+        <ClassicInfiniteHealthBar fullBarAnimationKey={healthAnimationKey} redSquareCount={health} totalSquareCount={CLASSIC_INFINITE_HEALTH_SQUARE_COUNT} />
       </header>
       {generationFailed && (
         <div className="mx-auto mb-3 flex max-w-[550px] items-center gap-3 px-5">
@@ -99,18 +139,20 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
           config={BOARD_CONFIG}
           gameId={seed}
           gameMode="infinite"
-          onElapsedSecondsChange={setElapsedSeconds}
-          onCellExit={onCellExit}
-          onMoveCountChange={setMoveCount}
+          onElapsedSecondsChange={ignoreElapsedSecondsChange}
+          onCellExit={handleCellExit}
+          onLocked={handleLockedCorneromino}
+          onMoveCountChange={ignoreMoveCountChange}
           onNextGame={onRestart}
           onPauseOpenChange={setPaused}
           onRestart={onRestart}
+          onUnlocked={handleUnlockedCorneromino}
           paused={paused || generationFailed}
           pauseDialog={pauseDialog}
           persistSelection={false}
           pieces={pieces}
           scrolling={scrolling}
-          suspended={cornerominosOpen}
+          suspended={cornerominosOpen || gameOver}
           // vhsCrt={CLASSIC_INFINITE_VHS_CRT}
         /> : <>
           {!generationFailed && <p className="px-5 text-center text-[11px] font-bold uppercase">{t('classic.generating')}</p>}
@@ -118,6 +160,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
         </>}
       </div>
       <ClassicCornerominosDialog onOpenChange={setCornerominosOpen} open={cornerominosOpen} />
+      {gameOverDialog}
     </main>
   )
 }

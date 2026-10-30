@@ -62,6 +62,7 @@ export default {
         "moves_other": "{{count}} coups",
         "saved": "Sauvegardes",
         "generating": "Génération de la partie…",
+        "gameOver": "PERDU",
         "paused": "En pause",
         "copySeed": "Copier le seed",
         "verify": "Vérifier",

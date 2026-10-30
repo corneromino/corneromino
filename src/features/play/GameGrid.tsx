@@ -30,6 +30,7 @@ interface GameGridProps {
   onElapsedSecondsChange: (elapsedSeconds: number) => void
   onLockAvailable?: () => void
   onLocked?: () => void
+  onUnlocked?: () => void
   onMoveCountChange: (moveCount: number) => void
   onCorrectSolution?: () => void
   onVerifyAvailable?: () => void
@@ -151,6 +152,15 @@ export function GameGrid(props: GameGridProps) {
     return selection.size === 4
       && [...selection].every((key) => cellMap.has(key) && !lockedCellMap.has(key))
       && isTetrominoShape(parseCellKeys(selection))
+  }
+
+  function hasUniqueCorners(cellKeys: Iterable<string>) {
+    const corners = [...cellKeys].map((cellKey) => {
+      const piece = cellMap.get(cellKey)
+      const [x, y] = cellKey.split(',').map(Number)
+      return piece?.cells.find((cell) => cell.x === x && cell.y === y)?.corner
+    })
+    return corners.length === 4 && corners.every((corner) => corner !== undefined) && new Set(corners).size === 4
   }
 
   function latestFourCells(selection: ReadonlySet<string>): Set<string> {
@@ -349,7 +359,14 @@ export function GameGrid(props: GameGridProps) {
   }
 
   function lockCells(selection: ReadonlySet<string>, fullSelection: ReadonlySet<string> = selection) {
-    if (verification || !canLockCells(selection)) return
+    if (verification || !canLockCells(selection)) return false
+    if (props.config.unlockRepeatedCornerLocks === true && !hasUniqueCorners(selection)) {
+      // Do not leave a repeated-corner shape locked. Keeping its cells selected
+      // lets the player immediately correct the attempted group.
+      setSelectedCellKeys(new Set(fullSelection))
+      setSelectedLockedGroupId(null)
+      return false
+    }
     lastLockedTapRef.current = null
 
     const cellKeys = [...selection]
@@ -382,6 +399,7 @@ export function GameGrid(props: GameGridProps) {
     setMoveCount(nextMoveCount)
     props.onMoveCountChange(nextMoveCount)
     props.onLocked?.()
+    return true
   }
 
   function unlockSelectedCells() {
@@ -404,20 +422,14 @@ export function GameGrid(props: GameGridProps) {
     setSelectedLockedGroupId(null)
     setValidationResult(null)
     setMistakeDialogOpen(false)
+    props.onUnlocked?.()
   }
 
   function validateLockedCells() {
     lastLockedTapRef.current = null
     if (!canValidate || verification || isGameplayPaused || isExiting || !selectionLoaded) return
 
-    const validLockCount = lockedCellGroups.filter((group) => {
-      const corners = group.cellKeys.map((cellKey) => {
-        const piece = cellMap.get(cellKey)
-        const [x, y] = cellKey.split(',').map(Number)
-        return piece?.cells.find((cell) => cell.x === x && cell.y === y)?.corner
-      })
-      return corners.length === 4 && corners.every((corner) => corner !== undefined) && new Set(corners).size === 4
-    }).length
+    const validLockCount = lockedCellGroups.filter((group) => hasUniqueCorners(group.cellKeys)).length
 
     const isCorrect = validLockCount === lockedCellGroups.length
     setValidationResult({
@@ -428,6 +440,20 @@ export function GameGrid(props: GameGridProps) {
     setCompletionDialogOpen(false)
     setIsCompleted(isCorrect && !props.onCorrectSolution)
     setCompletionScreenshot(null)
+    if (props.config.completionAnimationEnabled === false) {
+      if (isCorrect) {
+        if (props.onCorrectSolution) {
+          props.onCorrectSolution()
+        } else {
+          const canvas = gameCanvasRef.current?.captureBoard()
+          setCompletionScreenshot(canvas ? canvas.toDataURL('image/png') : null)
+          setCompletionDialogOpen(true)
+        }
+      } else {
+        setMistakeDialogOpen(true)
+      }
+      return
+    }
     setVerification({
       id: ++verificationIdRef.current,
       isCorrect,
