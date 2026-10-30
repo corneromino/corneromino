@@ -1,5 +1,6 @@
-const CACHE_NAME = 'corneromino-shell-v2'
 const CACHE_PREFIX = 'corneromino-shell-'
+const APP_VERSION = new URL(self.location.href).searchParams.get('v') || 'unknown'
+const CACHE_NAME = `${CACHE_PREFIX}v${APP_VERSION}`
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(['./', './index.html'])))

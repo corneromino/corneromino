@@ -7,8 +7,7 @@ const bump = process.argv[2] ?? 'patch'
 const BUMPS = new Set(['patch', 'minor', 'major'])
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const manifestPath = resolve(root, 'public/manifest.json')
-const versionSourcePath = resolve(root, 'src/lib/appVersion.ts')
-const releaseFiles = ['public/manifest.json', 'src/lib/appVersion.ts']
+const releaseFiles = ['public/manifest.json']
 
 function fail(message) {
   console.error(`Release failed: ${message}`)
@@ -51,16 +50,9 @@ if (typeof manifest.version !== 'string') fail('public/manifest.json must have a
 
 const previousVersion = manifest.version
 const nextVersion = incrementVersion(previousVersion)
-const versionSource = readFileSync(versionSourcePath, 'utf8')
-const nextVersionSource = versionSource.replace(
-  /export const APP_VERSION = '([^']+)'/,
-  `export const APP_VERSION = '${nextVersion}'`,
-)
-if (nextVersionSource === versionSource) fail('Could not find APP_VERSION in src/lib/appVersion.ts.')
 
 manifest.version = nextVersion
 writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
-writeFileSync(versionSourcePath, nextVersionSource)
 
 const add = git(['add', '--', ...releaseFiles])
 if (add.status !== 0) fail(add.stderr.trim() || 'Could not stage release files.')

@@ -22,7 +22,8 @@ async function checkForReleaseUpdate(registration: ServiceWorkerRegistration | n
 async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return null
   try {
-    const registration = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, {
+    const workerUrl = `${import.meta.env.BASE_URL}sw.js?v=${encodeURIComponent(APP_VERSION)}`
+    const registration = await navigator.serviceWorker.register(workerUrl, {
       scope: import.meta.env.BASE_URL,
       updateViaCache: 'none',
     })
