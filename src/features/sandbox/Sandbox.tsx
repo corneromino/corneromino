@@ -29,7 +29,7 @@ export function SandboxWorldCard(props: {
   }, [props.world.screenshot])
 
   return (
-    <article className="saved-game-card flex gap-3 p-2 text-[var(--canvas-foreground)]">
+    <article className="saved-game-card ios-surface flex gap-3 p-2 text-[var(--canvas-foreground)]">
       {props.onSelect ? (
         <button className="flex min-w-0 flex-1 gap-3 text-left" onClick={() => props.onSelect?.(props.world)} type="button">
           {screenshotUrl &&

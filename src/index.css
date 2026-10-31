@@ -1,8 +1,13 @@
 @import "tailwindcss";
-@import "@fontsource/poppins/latin-400.css";
-@import "@fontsource/poppins/latin-700.css";
-@import "@fontsource/poppins/latin-800.css";
-@import "@fontsource/poppins/latin-900.css";
+
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  src: url('./assets/fonts/BricolageGrotesque-Variable.ttf') format('truetype');
+  font-weight: 200 800;
+  font-stretch: 75% 100%;
+  font-style: normal;
+  font-display: swap;
+}
 
 @font-face {
   font-family: 'Abbots Morton Spaceport Mono';
@@ -34,7 +39,7 @@
   color-scheme: light;
   --app-height: 100vh;
   --app-content-height: calc(var(--app-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-  font-family: 'Pixform', 'Abbots Morton Spaceport Mono', ui-monospace, monospace;
+  font-family: /*'Bricolage Grotesque', */'Pixform', 'Abbots Morton Spaceport Mono', ui-sans-serif, sans-serif;
   --background: var(--canvas);
   --foreground: var(--text-color);
   --card: var(--paper);
@@ -45,7 +50,9 @@
   --muted-foreground: var(--muted-text-color);
   --border: var(--outline-color);
   --ring: var(--outline-color);
+  --outline-width: 2px;
   --radius: 10px;
+  --ios-radius: 15px;
   --canvas: #f0ad61;
   --canvas-deep: #d37a36;
   --canvas-foreground: #15100e;
@@ -74,7 +81,7 @@
 }
 
 @theme inline {
-  --font-sans: 'Pixform', 'Abbots Morton Spaceport Mono', ui-monospace, monospace;
+  --font-sans: 'Pixform', 'Abbots Morton Spaceport Mono', ui-sans-serif, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -208,14 +215,14 @@
 
 .cartoon-press {
   --press-shadow-depth: 6px;
-  --press-face: #ffd18a;
+  --press-face: var(--paper);
   --press-face-active: #e49a50;
   --press-face-hover: #ffe0a4;
   --press-shadow: #b95c2e;
   position: relative;
   overflow: hidden;
   background-color: var(--press-face);
-  border: 1px solid #713324 !important;
+  border: var(--outline-width) solid #713324 !important;
   box-shadow:
     inset 0 calc(0px - var(--press-shadow-depth)) 0 var(--press-shadow),
     0 0 0 1px rgb(21 16 14 / 8%) !important;
@@ -417,13 +424,18 @@
 }
 
 .saved-game-card {
+  --press-shadow-depth: 6px;
+  --press-face: var(--paper);
+  --press-shadow: #b95c2e;
   position: relative;
   overflow: hidden;
-  background-color: var(--paper);
-  border: 1px solid var(--outline-color);
+  background-color: var(--press-face);
+  border: var(--outline-width) solid var(--outline-color);
   border-radius: var(--radius);
-  box-shadow: inset 0 -6px 0 color-mix(in srgb, var(--outline-color) 72%, var(--canvas-deep));
-  padding-bottom: 14px !important;
+  box-shadow:
+    inset 0 calc(0px - var(--press-shadow-depth)) 0 var(--press-shadow),
+    0 0 0 1px rgb(21 16 14 / 8%);
+  padding-bottom: calc(8px + var(--press-shadow-depth)) !important;
 }
 
 .saved-game-card::after {
@@ -432,19 +444,51 @@
   right: 0;
   bottom: 0;
   left: 0;
-  height: 6px;
+  height: var(--press-shadow-depth);
   pointer-events: none;
-  background: color-mix(in srgb, var(--outline-color) 72%, var(--canvas-deep));
-  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--press-shadow);
 }
 
 .dialog-content {
+  --dialog-band-color: #b95c2e;
+  --dialog-band-depth: 8px;
+  --dialog-content-padding: 20px;
   top: calc(var(--dialog-viewport-top, 0px) + env(safe-area-inset-top, 0px) + (var(--dialog-viewport-height, var(--app-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) / 2);
   left: calc(50% + (env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) / 2);
   width: calc(100% - 2.5rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
   max-height: max(0px, calc(var(--dialog-viewport-height, var(--app-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 40px));
+  box-sizing: border-box;
+  isolation: isolate;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  border: var(--outline-width) solid var(--outline-color) !important;
+  background: var(--paper);
+  box-shadow:
+    inset 0 calc(0px - var(--dialog-band-depth)) 0 var(--dialog-band-color),
+    0 0 0 1px rgb(21 16 14 / 8%);
+  padding: 0 !important;
+}
+
+.dialog-content-surface {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  max-height: calc(var(--dialog-viewport-height, var(--app-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 44px);
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  padding: var(--dialog-content-padding) var(--dialog-content-padding) calc(var(--dialog-content-padding) + var(--dialog-band-depth));
+}
+
+.dialog-content::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: var(--dialog-band-depth);
+  pointer-events: none;
+  background: var(--dialog-band-color);
 }
 
 .dialog-overlay[data-state='open'] {
@@ -517,12 +561,23 @@
   content: none;
 }
 
+/* Circular radii remain the fallback; supported browsers use Apple-style continuous corners. */
+.ios-surface {
+  border-radius: var(--ios-radius);
+}
+
+@supports (corner-shape: superellipse(1.5)) {
+  .ios-surface {
+    corner-shape: superellipse(1.5);
+  }
+}
+
 .poster-page {
   isolation: isolate;
   background:
     linear-gradient(rgb(113 51 36 / 13%) 1px, transparent 1px),
     linear-gradient(90deg, rgb(113 51 36 / 13%) 1px, transparent 1px),
-    linear-gradient(145deg, #ffd18a 0%, var(--canvas) 52%, #d9853f 100%);
+    linear-gradient(145deg, var(--paper) 0%, var(--canvas) 52%, #d9853f 100%);
   background-size: 64px 64px, 64px 64px, auto;
 }
 
@@ -531,7 +586,7 @@
 }
 
 .poster-kicker {
-  font-family: 'Pixform', 'Abbots Morton Spaceport Mono', monospace;
+  font-family: 'Pixform', 'Abbots Morton Spaceport Mono', ui-sans-serif, sans-serif;
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }

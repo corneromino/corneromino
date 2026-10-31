@@ -41,6 +41,7 @@ export default {
             "bottomLeft": "En bas à gauche...",
             "topLeft": "En haut à gauche...",
             "shapeExample": "Un Corneromino est composé de quatre carrés qui se touchent, chacun avec un coin unique.\nSélectionne les quatre carrés.",
+            "shapeExampleUnlock": "Bravo ! Appuie deux fois sur la forme verrouillée pour la déverrouiller.",
             "shapeExampleCompleted": "Bravo !",
             "lockSelection": "Verrouille ta sélection.",
             "verifySolution": "Une fois que tous les carrés sont verrouillés, tu peux vérifier ta solution.",

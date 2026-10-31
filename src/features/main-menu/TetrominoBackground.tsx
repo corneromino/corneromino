@@ -60,7 +60,7 @@ export function TetrominoBackground() {
       {MENU_BACKGROUND_CELLS.map((cell, index) => (
         <div className="relative aspect-square" key={cell.id}>
           {cell.hasTetrominoCell && (
-            <div className="relative size-full rounded-[2%] border-4 border-[#773526] bg-[#ffd18a]">
+            <div className="relative size-full rounded-[2%] border-4 border-[#773526] bg-[var(--paper)]">
               <span
                 className={`absolute left-[7%] top-[7%] z-10 w-1/2 aspect-square rounded-[10%] bg-[var(--outline-color)] transition-transform ease-in-out ${CORNER_TRANSFORM_CLASSES[cornerIndexes[index]]}`}
                 style={{ transitionDuration: `${CORNER_MOVE_DURATION_MS}ms` }}

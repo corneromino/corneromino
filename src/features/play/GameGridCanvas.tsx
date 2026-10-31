@@ -11,6 +11,7 @@ import { GAME_COLORS } from '@/rendering/colors'
 import { attachGridInput, type GridCellEvent } from '@/rendering/grid/gridInput'
 import { constrainGridView, createGridNavigation, type GridView } from '@/rendering/grid/gridNavigation'
 import { drawCellBody, drawCornerMarker, getCornerMarkerPosition } from '@/rendering/grid/drawCorneromino'
+import { getGridCornerSquircleRadius, getGridSquircleRadius } from '@/rendering/grid/gridSquircle'
 import { CELL_CORNERS } from '@/game/gameConfig'
 import { ShockwaveFilter } from 'pixi-filters'
 import { gsap } from 'gsap'
@@ -141,7 +142,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         : constrainGridView(view, { width, height }, { width: columns * cellSize, height: rows * cellSize })
       surface.update({ width, height, cellSize, fit: 'manual', ...view }, {
         cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR,
-        borderSize: cellSize * CELL_BORDER_RATIO, borderRadius: cellSize * 0.02, gap: 0,
+        borderSize: cellSize * CELL_BORDER_RATIO, borderRadius: getGridSquircleRadius(cellSize), gap: 0,
       })
       // Empty cells temporarily use individual sprites while a nearby lock
       // shake is active. Keep those sprites on the replacement zoom texture
@@ -314,7 +315,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           }
 
           const borderSize = cellSize * CELL_BORDER_RATIO
-          const radius = cellSize * 0.02
+          const radius = getGridSquircleRadius(cellWidth, cellHeight)
           const outerColor = selected ? CELL_COLOR : BOARD_COLOR
           const fillColor = selected ? BOARD_COLOR : lockedGroup ? lockedColorToNumber(lockedGroup.color) : CELL_COLOR
           const cellGraphic = new Graphics();
@@ -328,7 +329,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
 
           if (lockedGroup && !selected) {
             const shineMask = new Graphics()
-              .roundRect(borderSize, borderSize, cellWidth - borderSize * 2, cellHeight - borderSize * 2, Math.max(0, radius - borderSize))
+              .roundRect(borderSize, borderSize, cellWidth - borderSize * 2, cellHeight - borderSize * 2, getGridSquircleRadius(cellWidth - borderSize * 2, cellHeight - borderSize * 2))
               .fill({ color: 0xffffff })
             const shine = new Container()
             shine.mask = shineMask
@@ -355,7 +356,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
               const markerSize = cellWidth * 0.45
               const offsetX = cellWidth * 0.12
               const offsetY = cellHeight * 0.12
-            const style = { color: selected ? CELL_COLOR : OUTLINE_COLOR, size: markerSize, paddingX: offsetX, paddingY: offsetY, radius: markerSize * 0.1 }
+            const style = { color: selected ? CELL_COLOR : OUTLINE_COLOR, size: markerSize, paddingX: offsetX, paddingY: offsetY, radius: getGridCornerSquircleRadius(markerSize) }
             const position = getCornerMarkerPosition(CELL_CORNERS.indexOf(cell.corner), cellWidth, cellHeight, style)
             const markerGraphic = new Graphics()
             drawCornerMarker(markerGraphic, position.x, position.y, style)
@@ -553,7 +554,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           surface = new GridSurface(app, propsRef.current.scrolling ? { infinite: true } : { infinite: false, columns: propsRef.current.config.columns, rows: propsRef.current.config.rows }, {
             width: app.screen.width, height: app.screen.height,
             cellSize: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows), fit: 'stretch',
-          }, { cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR, borderSize: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows) * CELL_BORDER_RATIO, borderRadius: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows) * 0.02, gap: 0 })
+          }, { cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR, borderSize: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows) * CELL_BORDER_RATIO, borderRadius: getGridSquircleRadius(Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows)), gap: 0 })
           surface.layers.pieces.addChild(board)
           app.stage.addChild(surface.root)
           resetViewRef.current = () => {

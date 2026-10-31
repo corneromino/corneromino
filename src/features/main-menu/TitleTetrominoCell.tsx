@@ -139,7 +139,7 @@ export function TitleTetromino({ pointerAreaRef }: TitleTetrominoProps) {
   return (
     <div aria-hidden="true" className="main-menu-logo pointer-events-none grid select-none grid-cols-2 grid-rows-2 gap-1">
       {CELLS.map((cell, index) => (
-        <div className="relative row-start-2 aspect-square rounded-[2%] border-4 border-[#773526] bg-[#ffd18a]" key={cell} ref={(element) => { cellRefs.current[index] = element }}>
+        <div className="relative row-start-2 aspect-square rounded-[2%] border-4 border-[#773526] bg-[var(--paper)]" key={cell} ref={(element) => { cellRefs.current[index] = element }}>
           <span
             className="absolute left-0 top-0 z-10 aspect-square w-1/2 rounded-[10%] bg-[var(--outline-color)] transition-transform duration-100 ease-out motion-reduce:transition-none"
             ref={(element) => { markerRefs.current[index] = element }}

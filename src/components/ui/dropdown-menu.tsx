@@ -17,7 +17,7 @@ function DropdownMenuContent(props: React.ComponentProps<typeof DropdownMenuPrim
         collisionPadding={12}
         sideOffset={8}
         {...props}
-        className={cn('dropdown-menu-content', props.className)}
+        className={cn('dropdown-menu-content ios-surface', props.className)}
       />
     </DropdownMenuPrimitive.Portal>
   )

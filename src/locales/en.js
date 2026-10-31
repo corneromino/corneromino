@@ -48,6 +48,7 @@ export default {
             "bottomLeft": "Bottom Left...",
             "topLeft": "Top Left...",
             "shapeExample": "A Corneromino has exactly four connected squares, each with a unique corner.\nSelect the four squares.",
+            "shapeExampleUnlock": "Great! Double-tap the locked shape to unlock it.",
             "shapeExampleCompleted": "Bravo !",
             "lockSelection": "Lock your selection.",
             "verifySolution": "Once all squares are locked, you can verify your solution",

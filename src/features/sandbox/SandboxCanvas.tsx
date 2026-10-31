@@ -7,6 +7,7 @@ import { GAME_COLORS } from '@/rendering/colors'
 import { attachGridInput } from '@/rendering/grid/gridInput'
 import { createGridNavigation } from '@/rendering/grid/gridNavigation'
 import { drawCellBody, drawCornerMarker, getCornerMarkerPosition as getSharedMarkerPosition } from '@/rendering/grid/drawCorneromino'
+import { getGridCornerSquircleRadius, getGridSquircleRadius } from '@/rendering/grid/gridSquircle'
 import type { SandboxWorldState } from '@/lib/db'
 import { SandboxCellSystem, type SandboxCornerMarker, updatePowerStateFromNeighbors } from './cellSystem'
 
@@ -200,7 +201,13 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
           if (isCornerOn) {
             // Cover the light background tile, including the inset brown gaps.
             const cellInset = borderWidth * 1.5
-            drawCellBody(grid, x, y, cellSize, cellSize, { fillColor: CORNER_MARKER_COLOR, borderColor: CELL_BORDER_COLOR, borderSize: cellInset, borderRadius: 0, innerRadius: cellSize * 0.02 })
+            drawCellBody(grid, x, y, cellSize, cellSize, {
+              fillColor: CORNER_MARKER_COLOR,
+              borderColor: CELL_BORDER_COLOR,
+              borderSize: cellInset,
+              borderRadius: getGridSquircleRadius(cellSize),
+              innerRadius: getGridSquircleRadius(cellSize - cellInset * 2),
+            })
           }
 
           currentCornerStates.set(cellKey, cornerMarker)
@@ -217,7 +224,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
 
           if (transition && transitionProgress === 1) cornerTransitions.delete(cellKey)
 
-          drawCornerMarker(grid, markerX, markerY, { color: isCornerOn ? CELL_FILL_COLOR : CORNER_MARKER_COLOR, size: toPosition.markerSize, paddingX: 0, paddingY: 0, radius: toPosition.markerSize * 0.1 })
+          drawCornerMarker(grid, markerX, markerY, { color: isCornerOn ? CELL_FILL_COLOR : CORNER_MARKER_COLOR, size: toPosition.markerSize, paddingX: 0, paddingY: 0, radius: getGridCornerSquircleRadius(toPosition.markerSize) })
         }
       }
       lastCornerStates = currentCornerStates
@@ -244,7 +251,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       const handleSize = Math.max(8, cellSize * 0.22)
       const handleOffset = (cellSize - handleSize) / 2
 
-      grid.rect(x, y, width, height).fill({ color: 0x808080, alpha: 0.52 }).stroke({ color: 0xd6d6d6, width: Math.max(1, cellSize * 0.045) })
+      grid.roundRect(x, y, width, height, getGridSquircleRadius(width, height)).fill({ color: 0x808080, alpha: 0.52 }).stroke({ color: 0xd6d6d6, width: Math.max(1, cellSize * 0.045) })
       for (const bound of [upperSelectionBound, lowerSelectionBound]) {
         grid
           .roundRect(
@@ -252,7 +259,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
             bound.row * cellSize + gridOffsetY + handleOffset,
             handleSize,
             handleSize,
-            handleSize * 0.2,
+            getGridSquircleRadius(handleSize),
           )
           .fill({ color: 0xd6d6d6 })
           .stroke({ color: 0x4d4d4d, width: Math.max(1, cellSize * 0.035) })
@@ -272,7 +279,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
       const x = leftColumn * cellSize + gridOffsetX
       const y = topRow * cellSize + gridOffsetY
       grid
-        .rect(x, y, (rightColumn - leftColumn + 1) * cellSize, (bottomRow - topRow + 1) * cellSize)
+        .roundRect(x, y, (rightColumn - leftColumn + 1) * cellSize, (bottomRow - topRow + 1) * cellSize, getGridSquircleRadius((rightColumn - leftColumn + 1) * cellSize, (bottomRow - topRow + 1) * cellSize))
         .fill({ color: 0xb8b8b8, alpha: 0.28 })
 
       const borderWidth = 2 * zoom
@@ -285,17 +292,17 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
           const targetY = (row + moveOffset.row) * cellSize + gridOffsetY
           const cellInset = state.isOn ? borderWidth * 1.5 : borderWidth / 2
           const cellGraphic = grid
-            .roundRect(targetX + cellInset, targetY + cellInset, cellSize - cellInset * 2, cellSize - cellInset * 2, cellSize * 0.02)
+            .roundRect(targetX + cellInset, targetY + cellInset, cellSize - cellInset * 2, cellSize - cellInset * 2, getGridSquircleRadius(cellSize - cellInset * 2))
             .fill({ color: state.isOn ? CORNER_MARKER_COLOR : CELL_FILL_COLOR, alpha: 0.72 })
           if (!state.isOn) cellGraphic.stroke({ color: CELL_BORDER_COLOR, width: borderWidth, alpha: 0.72 })
 
           const markerPosition = getCornerMarkerPosition(state.corner, targetX, targetY, cellSize)
-          drawCornerMarker(grid, markerPosition.x, markerPosition.y, { color: state.isOn ? CELL_FILL_COLOR : CORNER_MARKER_COLOR, alpha: 0.72, size: markerPosition.markerSize, paddingX: 0, paddingY: 0, radius: markerPosition.markerSize * 0.1 })
+          drawCornerMarker(grid, markerPosition.x, markerPosition.y, { color: state.isOn ? CELL_FILL_COLOR : CORNER_MARKER_COLOR, alpha: 0.72, size: markerPosition.markerSize, paddingX: 0, paddingY: 0, radius: getGridCornerSquircleRadius(markerPosition.markerSize) })
         }
       }
 
       grid
-        .rect(x, y, (rightColumn - leftColumn + 1) * cellSize, (bottomRow - topRow + 1) * cellSize)
+        .roundRect(x, y, (rightColumn - leftColumn + 1) * cellSize, (bottomRow - topRow + 1) * cellSize, getGridSquircleRadius((rightColumn - leftColumn + 1) * cellSize, (bottomRow - topRow + 1) * cellSize))
         .stroke({ color: 0xe6e6e6, width: Math.max(1, cellSize * 0.05) })
     }
 
@@ -575,7 +582,7 @@ export const SandboxCanvas = forwardRef<SandboxCanvasHandle, SandboxCanvasProps>
           surface = new GridSurface(app, { infinite: true }, {
             width: app.screen.width, height: app.screen.height, cellSize: BASE_CELL_SIZE,
             fit: 'manual', zoom, offsetX: gridOffsetX, offsetY: gridOffsetY,
-          }, { cellColor: CELL_FILL_COLOR, borderColor: CELL_BORDER_COLOR, backgroundColor: CELL_BORDER_COLOR, borderSize: 2, borderRadius: BASE_CELL_SIZE * 0.02, gap: 0 })
+          }, { cellColor: CELL_FILL_COLOR, borderColor: CELL_BORDER_COLOR, backgroundColor: CELL_BORDER_COLOR, borderSize: 2, borderRadius: getGridSquircleRadius(BASE_CELL_SIZE), gap: 0 })
           surface.layers.pieces.addChild(grid)
           app.stage.addChild(surface.root)
           redrawRef.current = drawGrid

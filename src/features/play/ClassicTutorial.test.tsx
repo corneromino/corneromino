@@ -66,6 +66,14 @@ function solvePiece(id: number) {
   if (verificationWave) act(() => onVerificationComplete?.(verificationWave.id))
 }
 
+async function unlockShapeExample() {
+  const lockedCell = screen.getByRole('button', { name: 'Cell 1,1' })
+  fireEvent.click(lockedCell)
+  await waitFor(() => expect(canvasMock.props?.selectedLockedGroupId).not.toBeNull())
+  fireEvent.click(lockedCell)
+  await expectBubble('shapeExampleCompleted', 'classic-tutorial-shape-example')
+}
+
 describe('Automatic Classic tutorial', () => {
   it('keeps each exercise bubble on the grid until the whole solution automatically verifies', async () => {
     await openShapeExample()
@@ -77,7 +85,10 @@ describe('Automatic Classic tutorial', () => {
     await expectBubble('shapeExample', 'classic-tutorial-shape-example')
 
     solvePiece(1)
-    await expectBubble('shapeExampleCompleted', 'classic-tutorial-shape-example')
+    await expectBubble('shapeExampleUnlock', 'classic-tutorial-shape-example')
+    expect(screen.getByTestId('lock-count').textContent).toBe('1')
+    await unlockShapeExample()
+    expect(screen.getByTestId('lock-count').textContent).toBe('0')
     fireEvent.click(nextButton())
     await expectBubble('tRotations')
     expect(screen.getByTestId('lock-count').textContent).toBe('0')
@@ -110,7 +121,8 @@ describe('Automatic Classic tutorial', () => {
   it('resets the previous exercise and advances again only after solving it', async () => {
     await openShapeExample()
     solvePiece(1)
-    await expectBubble('shapeExampleCompleted', 'classic-tutorial-shape-example')
+    await expectBubble('shapeExampleUnlock', 'classic-tutorial-shape-example')
+    await unlockShapeExample()
     fireEvent.click(nextButton())
     await expectBubble('tRotations')
     solvePiece(1)
@@ -119,10 +131,14 @@ describe('Automatic Classic tutorial', () => {
     fireEvent.click(document.querySelector<HTMLButtonElement>('.driver-popover-prev-btn')!)
     await expectBubble('shapeExampleCompleted', 'classic-tutorial-shape-example')
     fireEvent.click(document.querySelector<HTMLButtonElement>('.driver-popover-prev-btn')!)
-    await expectBubble('shapeExample', 'classic-tutorial-shape-example')
+    await expectBubble('shapeExampleUnlock', 'classic-tutorial-shape-example')
     expect(screen.getByTestId('lock-count').textContent).toBe('0')
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.driver-popover-prev-btn')!)
+    await expectBubble('shapeExample', 'classic-tutorial-shape-example')
     expect(nextButton().disabled).toBe(true)
     solvePiece(1)
+    await expectBubble('shapeExampleUnlock', 'classic-tutorial-shape-example')
+    await unlockShapeExample()
     await expectBubble('shapeExampleCompleted', 'classic-tutorial-shape-example')
     fireEvent.click(nextButton())
     await expectBubble('tRotations')

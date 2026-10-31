@@ -1,6 +1,16 @@
-/** Shared Pixi palette. Keep canvas colours aligned across every game mode. */
+function cssVariableToPixiColor(variableName: string): number {
+  if (typeof document === 'undefined') return 0
+
+  const value = getComputedStyle(document.documentElement).getPropertyValue(variableName).trim()
+  const match = /^#([\da-f]{6})$/i.exec(value)
+  if (!match) throw new Error(`Expected ${variableName} to contain a six-digit CSS hex colour.`)
+
+  return Number.parseInt(match[1]!, 16)
+}
+
+/** Shared Pixi palette. CSS custom properties remain the palette source of truth. */
 export const GAME_COLORS = {
-  cellFill: 0xffd18a,
+  get cellFill() { return cssVariableToPixiColor('--paper') },
   cellBorder: 0x773526,
   cornerMarker: 0x713324,
   ink: 0x15100e,

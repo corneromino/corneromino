@@ -4,6 +4,7 @@ import { gsap } from 'gsap'
 import { ShockwaveFilter } from 'pixi-filters'
 import { GAME_COLORS } from '@/rendering/colors'
 import { drawCellBody, drawCornerMarker, getCornerMarkerPosition } from '@/rendering/grid/drawCorneromino'
+import { getGridCornerSquircleRadius, getGridSquircleRadius } from '@/rendering/grid/gridSquircle'
 import { GridSurface } from '@/rendering/grid/GridSurface'
 import { attachGridInput } from '@/rendering/grid/gridInput'
 import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
@@ -44,14 +45,13 @@ function drawPlacement(graphics: Graphics, surface: GridSurface, column: number,
     fillColor: selectedColor ?? (pending ? GAME_COLORS.cornerMarker : lockedBy === undefined ? getVsBaseCellColor(column, row) : VS_PLAYERS[lockedBy].lockedColor),
     borderColor: GAME_COLORS.cellBorder,
     borderSize: CELL_BORDER_SIZE,
-    // Match Normal mode: a cell radius is 2% of its size.
-    borderRadius: cellSize * 0.02,
+    borderRadius: getGridSquircleRadius(cellSize),
   })
   const marker = {
     size: width * 0.45,
     paddingX: Math.max(3, width * 0.12),
     paddingY: Math.max(3, height * 0.12),
-    radius: width * 0.45 * 0.1,
+    radius: getGridCornerSquircleRadius(width * 0.45),
   }
   const position = getCornerMarkerPosition(corner, width, height, marker)
   drawCornerMarker(graphics, x + position.x, y + position.y, { ...marker, color: pending ? GAME_COLORS.cellFill : GAME_COLORS.cornerMarker })
@@ -97,7 +97,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
       checkerboard.clear()
       const { cellHeight, cellWidth } = surface.metrics
       const border = CELL_BORDER_SIZE
-      const radius = Math.max(0, Math.min(cellWidth, cellHeight) * 0.02 - border)
+        const radius = getGridSquircleRadius(cellWidth - border * 2, cellHeight - border * 2)
       for (let row = 0; row < boardSize; row += 1) {
         for (let column = 0; column < boardSize; column += 1) {
           if (!isVsCheckerboardCell(column, row)) continue
@@ -257,8 +257,8 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
         const { x, y } = surface.cellToScreen(cell.column, cell.row)
         const { cellHeight, cellWidth } = surface.metrics
         const inset = 1.5
-        const radius = Math.min(cellWidth, cellHeight) * 0.02
-        pieces.roundRect(x + inset, y + inset, cellWidth - inset * 2, cellHeight - inset * 2, Math.max(0, radius - inset)).fill({ color: GAME_COLORS.cornerMarker, alpha: NEXT_OPPONENT_PREVIEW_ALPHA })
+        const radius = getGridSquircleRadius(cellWidth - inset * 2, cellHeight - inset * 2)
+        pieces.roundRect(x + inset, y + inset, cellWidth - inset * 2, cellHeight - inset * 2, radius).fill({ color: GAME_COLORS.cornerMarker, alpha: NEXT_OPPONENT_PREVIEW_ALPHA })
       }
       for (const cell of getVsTargetedCells(gameRef.current)) {
         const { x, y } = surface.cellToScreen(cell.column, cell.row)
@@ -319,7 +319,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
           borderColor: GAME_COLORS.cellBorder,
           backgroundColor: GAME_COLORS.cellBorder,
           borderSize: CELL_BORDER_SIZE,
-          borderRadius: cellSize * 0.02,
+          borderRadius: getGridSquircleRadius(cellSize),
           gap: 0,
         })
         surface.layers.underPieces.addChild(checkerboard)
@@ -356,7 +356,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
           borderColor: GAME_COLORS.cellBorder,
           backgroundColor: GAME_COLORS.cellBorder,
           borderSize: CELL_BORDER_SIZE,
-          borderRadius: cellSize * 0.02,
+          borderRadius: getGridSquircleRadius(cellSize),
           gap: 0,
         })
         drawCheckerboard()

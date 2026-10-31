@@ -6,6 +6,7 @@ import { CanvasStartupError } from '@/rendering/pixi/CanvasStartupError'
 import { GAME_COLORS, LOCKED_CELL_COLORS } from '@/rendering/colors'
 import { attachGridInput } from '@/rendering/grid/gridInput'
 import { drawCorneromino as drawSharedCorneromino } from '@/rendering/grid/drawCorneromino'
+import { getGridCornerSquircleRadius, getGridSquircleRadius } from '@/rendering/grid/gridSquircle'
 import { gsap } from 'gsap'
 import { ShockwaveFilter } from 'pixi-filters'
 import { CASCADE_LOCK_EFFECTS } from './cascadeEffects'
@@ -78,11 +79,11 @@ function drawCorneromino(graphics: Graphics, corner: CascadeCorner, cellSize: nu
     fillColor: lockedColor ?? pieceColor,
     borderColor: lockedColor !== undefined ? CELL_BORDER_COLOR : pieceColor,
     borderSize: lockedColor !== undefined ? borderWidth * 1.5 : 0,
-    borderRadius: 0,
+    borderRadius: getGridSquircleRadius(cellSize),
     outline: lockedColor === undefined ? { color: detailColor, width: borderWidth, inset: borderWidth * 1.5 } : undefined,
   }, {
     color: lockedColor !== undefined ? CORNER_MARKER_COLOR : detailColor,
-    size: cellSize / 2, paddingX: cellSize * 0.16, paddingY: cellSize * 0.16, radius: 0,
+    size: cellSize / 2, paddingX: cellSize * 0.16, paddingY: cellSize * 0.16, radius: getGridCornerSquircleRadius(cellSize / 2),
   })
 }
 
@@ -272,7 +273,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
 
       const lockedCellInset = borderWidth * 1.5
       renderedPiece.shineMask
-        .rect(lockedCellInset, lockedCellInset, cellSize - lockedCellInset * 2, cellSize - lockedCellInset * 2)
+        .roundRect(lockedCellInset, lockedCellInset, cellSize - lockedCellInset * 2, cellSize - lockedCellInset * 2, getGridSquircleRadius(cellSize - lockedCellInset * 2))
         .fill({ color: 0xffffff })
       const stripeHeight = cellSize * 3
       renderedPiece.shine
@@ -769,7 +770,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         onReady: () => {
           surface = new GridSurface(app, { infinite: false, ...props.gridSize }, {
             width: app.screen.width, height: app.screen.height, cellSize: 56, fit: 'contain',
-          }, { cellColor: CELL_FILL_COLOR, borderColor: CELL_BORDER_COLOR, backgroundColor: CELL_BORDER_COLOR, borderSize: 56 * 0.035, borderRadius: 0, gap: 0 })
+          }, { cellColor: CELL_FILL_COLOR, borderColor: CELL_BORDER_COLOR, backgroundColor: CELL_BORDER_COLOR, borderSize: 56 * 0.035, borderRadius: getGridSquircleRadius(56), gap: 0 })
           surface.layers.underPieces.addChild(boardGraphics, boardCells)
           surface.layers.pieces.addChild(piecesLayer)
           surface.layers.overlay.addChild(keyboardFocusGraphic)

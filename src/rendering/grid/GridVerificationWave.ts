@@ -2,6 +2,7 @@ import { Container, Graphics } from 'pixi.js'
 import { GAME_COLORS } from '@/rendering/colors'
 import { drawCellBody } from './drawCorneromino'
 import { getCellShakeOffset } from './cellShake'
+import { getGridSquircleRadius } from './gridSquircle'
 
 export interface VerificationWaveRequest {
   id: number
@@ -51,7 +52,7 @@ export class GridVerificationWave {
         fillColor: this.request.isCorrect ? 0x5fc47a : 0xe4555c,
         borderColor: GAME_COLORS.cellBorder,
         borderSize: this.cellSize * borderRatio,
-        borderRadius: this.cellSize * 0.02,
+        borderRadius: getGridSquircleRadius(width, height),
       })
       face.label = 'verification-face'
       face.visible = false

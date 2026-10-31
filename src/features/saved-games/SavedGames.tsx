@@ -46,7 +46,7 @@ function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => 
   }, [props.game.screenshot])
 
   return (
-    <article className="saved-game-card flex gap-3 p-2 text-[var(--canvas-foreground)]">
+    <article className="saved-game-card ios-surface flex gap-3 p-2 text-[var(--canvas-foreground)]">
       <AppNavigationButton
         aria-label={t('savedGames.continueSavedGame', { date: savedAt, mode: gameMode })}
         className="h-auto shrink-0 self-start p-0 hover:bg-transparent"

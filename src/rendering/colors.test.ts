@@ -1,5 +1,6 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import { LOCKED_CELL_COLOR_HEX, LOCKED_CELL_COLORS, pixiColorToCss } from './colors'
+import { GAME_COLORS, LOCKED_CELL_COLOR_HEX, LOCKED_CELL_COLORS, pixiColorToCss } from './colors'
 import { VS_PLAYERS } from '@/features/vs/vsLocalGame'
 
 describe('shared locked-cell palette', () => {
@@ -13,5 +14,15 @@ describe('shared locked-cell palette', () => {
     expect(VS_PLAYERS[1].lockedColor).toBe(LOCKED_CELL_COLORS[4])
     expect(VS_PLAYERS[0].bannerBorder).toBe(LOCKED_CELL_COLOR_HEX[0])
     expect(VS_PLAYERS[1].bannerBorder).toBe(LOCKED_CELL_COLOR_HEX[4])
+  })
+})
+
+describe('shared base palette', () => {
+  it('reads the Pixi cell fill from the CSS paper variable', () => {
+    document.documentElement.style.setProperty('--paper', '#fed899')
+
+    expect(GAME_COLORS.cellFill).toBe(0xfed899)
+
+    document.documentElement.style.removeProperty('--paper')
   })
 })

@@ -24,7 +24,14 @@ export function drawCellBody(graphics: Graphics, x: number, y: number, width: nu
   graphics.roundRect(x + inset, y + inset, width - inset * 2, height - inset * 2, style.innerRadius ?? Math.max(0, style.borderRadius - inset)).fill(style.fillColor)
   if (style.outline) {
     const { inset: outlineInset, color, width: strokeWidth } = style.outline
-    graphics.rect(x + outlineInset, y + outlineInset, width - outlineInset * 2, height - outlineInset * 2).stroke({ color, width: strokeWidth })
+    const innerRadius = style.innerRadius ?? Math.max(0, style.borderRadius - inset)
+    graphics.roundRect(
+      x + outlineInset,
+      y + outlineInset,
+      width - outlineInset * 2,
+      height - outlineInset * 2,
+      Math.max(0, innerRadius - outlineInset),
+    ).stroke({ color, width: strokeWidth })
   }
 }
 

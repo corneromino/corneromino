@@ -49,12 +49,14 @@ const TUTORIAL_T_ROTATIONS_CONFIG: GameConfig = {
 
 interface TutorialScenario {
   pieces: readonly PlacedTetromino[],
-  config : GameConfig
+  config : GameConfig,
+  disableUnlock: boolean
 }
 
-const TUTORIAL_SCENARIOS = {
+const TUTORIAL_SCENARIOS: Record<string, TutorialScenario> = {
   'corners': {
     config: TUTORIAL_CONFIG,
+    disableUnlock: true,
     pieces: [{
       id: 1,
       kind: 'O',
@@ -68,6 +70,7 @@ const TUTORIAL_SCENARIOS = {
   },
   'shape-example': {
     config: TUTORIAL_CONFIG,
+    disableUnlock: true,
     pieces: [{
       id: 1,
       kind: 'L',
@@ -81,6 +84,7 @@ const TUTORIAL_SCENARIOS = {
   },
   't-rotations': {
     config: TUTORIAL_T_ROTATIONS_CONFIG,
+    disableUnlock: false,
     pieces: [{
       id: 1,
       kind: 'T',
@@ -121,6 +125,7 @@ const TUTORIAL_SCENARIOS = {
   },
   'all-corneromino': {
     config: TUTORIAL_ALL_CORNEROMINOS_CONFIG,
+    disableUnlock: false,
     pieces: [{
       id: 1,
       kind: 'diagonal',
@@ -195,7 +200,7 @@ const TUTORIAL_SCENARIOS = {
       ],
     }],
   },
-} satisfies Record<string, TutorialScenario>
+}
 
 type TutorialScenarioKey = keyof typeof TUTORIAL_SCENARIOS
 
@@ -225,13 +230,11 @@ export function ClassicTutorial() {
   const [moveCount, setMoveCount] = useState(0)
   const [pauseOpen, setPauseOpen] = useState(false)
   const [tutorialScenario, setTutorialScenario] = useState<TutorialScenarioKey>('corners')
+  const [shapeUnlockStep, setShapeUnlockStep] = useState(false)
   const tutorialRef = useRef<ReturnType<typeof createTutorialDriver> | null>(null)
 
   function handleCorrectSolution() {
-    if (tutorialScenario === 'shape-example') {
-      setTutorialScenario('t-rotations')
-      tutorialRef.current?.moveNext()
-    } else if (tutorialScenario === 't-rotations') {
+    if (tutorialScenario === 't-rotations') {
       setTutorialScenario('all-corneromino')
       tutorialRef.current?.moveNext()
     } else if (tutorialScenario === 'all-corneromino') {
@@ -239,41 +242,86 @@ export function ClassicTutorial() {
     }
   }
 
+  function handleUnlock() {
+    if (tutorialScenario === 'shape-example') {
+      tutorialRef.current?.moveNext()
+
+    }
+  }
+
+  function handleLock() {
+    if (tutorialScenario === 'shape-example' && !shapeUnlockStep) {
+      tutorialRef.current?.moveNext()
+    }
+  }
+
   useEffect(() => {
     const tutorial = createTutorialDriver([{
       element: '#classic-tutorial-corners',
-      onHighlightStarted: () => setTutorialScenario('corners'),
+      onHighlightStarted: () => {
+        setTutorialScenario('corners')
+        setShapeUnlockStep(false)
+      },
       popover: {
         description: t('tutorial.classicSteps.corners'),
         side: 'bottom',
       },
     }, {
       element: '#classic-tutorial-top-right',
-      onHighlightStarted: () => setTutorialScenario('corners'),
+      onHighlightStarted: () => {
+        setTutorialScenario('corners')
+        setShapeUnlockStep(false)
+      },
       popover: { description: t('tutorial.classicSteps.topRight'), side: 'bottom' },
     }, {
       element: '#classic-tutorial-bottom-right',
-      onHighlightStarted: () => setTutorialScenario('corners'),
+      onHighlightStarted: () => {
+        setTutorialScenario('corners')
+        setShapeUnlockStep(false)
+      },
       popover: { description: t('tutorial.classicSteps.bottomRight'), side: 'bottom' },
     }, {
       element: '#classic-tutorial-bottom-left',
-      onHighlightStarted: () => setTutorialScenario('corners'),
+      onHighlightStarted: () => {
+        setTutorialScenario('corners')
+        setShapeUnlockStep(false)
+      },
       popover: { description: t('tutorial.classicSteps.bottomLeft'), side: 'bottom' },
     }, {
       element: '#classic-tutorial-top-left',
-      onHighlightStarted: () => setTutorialScenario('corners'),
+      onHighlightStarted: () => {
+        setTutorialScenario('corners')
+        setShapeUnlockStep(false)
+      },
       popover: { description: t('tutorial.classicSteps.topLeft'), side: 'bottom' },
     }, {
       element: '#classic-tutorial-shape-example',
       nextLocked: true,
-      onHighlightStarted: () => setTutorialScenario('shape-example'),
+      onHighlightStarted: () => {
+        setTutorialScenario('shape-example')
+        setShapeUnlockStep(false)
+      },
       popover: {
         description: t('tutorial.classicSteps.shapeExample'),
         side: 'bottom',
       }
-    },  {
+    }, {
       element: '#classic-tutorial-shape-example',
-      onHighlightStarted: () => setTutorialScenario('shape-example'),
+      nextLocked: true,
+      onHighlightStarted: () => {
+        setTutorialScenario('shape-example')
+        setShapeUnlockStep(true)
+      },
+      popover: {
+        description: t('tutorial.classicSteps.shapeExampleUnlock'),
+        side: 'bottom',
+      }
+    }, {
+      element: '#classic-tutorial-shape-example',
+      onHighlightStarted: () => {
+        setTutorialScenario('shape-example')
+        setShapeUnlockStep(false)
+      },
       popover: {
         description: t('tutorial.classicSteps.shapeExampleCompleted'),
         side: "bottom"
@@ -281,20 +329,32 @@ export function ClassicTutorial() {
     }, {
       element: '#classic-tutorial-board',
       nextLocked: true,
-      onHighlightStarted: () => setTutorialScenario('t-rotations'),
+      onHighlightStarted: () => {
+        setTutorialScenario('t-rotations')
+        setShapeUnlockStep(false)
+      },
       popover: { description: t('tutorial.classicSteps.tRotations'), side: 'bottom' },
     }, {
       element: '#classic-tutorial-board',
-      onHighlightStarted: () => setTutorialScenario('t-rotations'),
+      onHighlightStarted: () => {
+        setTutorialScenario('t-rotations')
+        setShapeUnlockStep(false)
+      },
       popover: { description: t('tutorial.classicSteps.tRotationsCompleted'), side: 'bottom' },
     }, {
       element: '#classic-tutorial-board',
       nextLocked: true,
-      onHighlightStarted: () => setTutorialScenario('all-corneromino'),
+      onHighlightStarted: () => {
+        setTutorialScenario('all-corneromino')
+        setShapeUnlockStep(false)
+      },
       popover: { description: t('tutorial.classicSteps.allCornerominos'), side: 'bottom' },
     }, {
       element: '#classic-tutorial-board',
-      onHighlightStarted: () => setTutorialScenario('all-corneromino'),
+      onHighlightStarted: () => {
+        setTutorialScenario('all-corneromino')
+        setShapeUnlockStep(false)
+      },
       popover: { description: t('tutorial.classicSteps.completed'), side: 'bottom' },
     }], {
       labels: {
@@ -356,7 +416,9 @@ export function ClassicTutorial() {
           paused={pauseOpen}
           persistSelection={false}
           pieces={TUTORIAL_SCENARIOS[tutorialScenario].pieces}
-          disableUnlock={true}
+          disableUnlock={shapeUnlockStep ? false : TUTORIAL_SCENARIOS[tutorialScenario].disableUnlock}
+          onLocked={handleLock}
+          onUnlocked={handleUnlock}
         />
       </div>
     </main>
