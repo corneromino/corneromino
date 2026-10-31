@@ -271,7 +271,7 @@ export function ClassicTutorial() {
         description: t('tutorial.classicSteps.shapeExample'),
         side: 'bottom',
       }
-    }, {
+    },  {
       element: '#classic-tutorial-shape-example',
       onHighlightStarted: () => setTutorialScenario('shape-example'),
       popover: {
@@ -356,6 +356,7 @@ export function ClassicTutorial() {
           paused={pauseOpen}
           persistSelection={false}
           pieces={TUTORIAL_SCENARIOS[tutorialScenario].pieces}
+          disableUnlock={true}
         />
       </div>
     </main>

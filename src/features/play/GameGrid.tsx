@@ -47,7 +47,8 @@ interface GameGridProps {
   pauseDialog?: ReactNode
   onCellExit?: (event: ClassicInfiniteCellExit) => void
   vhsCrt?: VhsCrtEffectConfig
-  exitDistortion?: InfiniteExitDistortionConfig
+  exitDistortion?: InfiniteExitDistortionConfig,
+  disableUnlock?: boolean
 }
 
 function createCellMap(pieces: readonly PlacedTetromino[]): Map<string, PlacedTetromino> {
@@ -321,7 +322,7 @@ export function GameGrid(props: GameGridProps) {
     if (lockedGroup) {
       if (autoLock) {
         const previousTap = lastLockedTapRef.current
-        if (previousTap?.groupId === lockedGroup.id && time >= previousTap.time && time - previousTap.time <= DOUBLE_TAP_UNLOCK_MS) {
+        if (previousTap?.groupId === lockedGroup.id && time >= previousTap.time && time - previousTap.time <= DOUBLE_TAP_UNLOCK_MS && !props.disableUnlock) {
           unlockGroup(lockedGroup.id)
           return
         }
@@ -410,7 +411,7 @@ export function GameGrid(props: GameGridProps) {
   }
 
   function unlockGroup(groupId: string) {
-    if (verification) return
+    if (verification || props.disableUnlock) return
     lastLockedTapRef.current = null
     const group = lockedCellGroups.find((lockedGroup) => lockedGroup.id === groupId)
     if (!group) return
