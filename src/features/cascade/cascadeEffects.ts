@@ -26,8 +26,8 @@ export const CASCADE_LOCK_EFFECTS = {
     radiusCells: 3,
     amplitudeCells: 1,
     durationSeconds: 0.35,
-    frequencyHz: 30,
-    propagationCellsPerSecond: 10,
+    frequencyHz: 2,
+    propagationCellsPerSecond: 20,
   },
   completionShake: {
     enabled: true,
