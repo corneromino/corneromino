@@ -13,9 +13,9 @@
   "theme_color": "#F0AD61",
   "icons": [
     {
-      "src": "happy-corner.svg",
+      "src": "icons/happy-corner-icon.png",
       "sizes": "any",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
