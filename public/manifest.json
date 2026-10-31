@@ -13,6 +13,12 @@
   "theme_color": "#F0AD61",
   "icons": [
     {
+      "src": "happy-corner.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
       "src": "icons/corneromino-192.png",
       "sizes": "192x192",
       "type": "image/png",
