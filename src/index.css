@@ -458,6 +458,8 @@
   width: calc(100% - 2.5rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
   max-height: max(0px, calc(var(--dialog-viewport-height, var(--app-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 40px));
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   isolation: isolate;
   overflow: hidden;
   overscroll-behavior: contain;
@@ -473,6 +475,10 @@
   position: relative;
   z-index: 1;
   box-sizing: border-box;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
   max-height: calc(var(--dialog-viewport-height, var(--app-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 44px);
   min-height: 0;
   overflow-y: auto;
