@@ -5,7 +5,7 @@ export const CLASSIC_LOCKING_MODE: GameConfig['lockingMode'] = 'auto'
 /** Automatically check a completed Classic board, or require the Verify button. */
 export const CLASSIC_FINAL_VERIFICATION_MODE: NonNullable<GameConfig['finalVerificationMode']> = 'auto'
 
-const COMPLETION_SCREENSHOT_DELAY_MS = 20;
+const COMPLETION_SCREENSHOT_DELAY_MS = 400;
 
 export interface GameConfig {
   /** Removes the shared game control bar; tutorials can then present only the board. */
@@ -36,6 +36,17 @@ export interface GameModeConfig extends GameConfig {
 }
 
 export const GAME_CONFIGS: Record<string, GameModeConfig> = {
+  'baby': {
+        columns: 4,
+        rows: 6,
+        spread: 1,
+        tetrominoCount: 5,
+        title: 'Baby',
+        lockingMode: CLASSIC_LOCKING_MODE,
+        finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
+        completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
+        finalLockAnimationEnabled: true
+    },
     'super-easy': {
         columns: 8,
         rows: 8,
@@ -45,6 +56,7 @@ export const GAME_CONFIGS: Record<string, GameModeConfig> = {
         lockingMode: CLASSIC_LOCKING_MODE,
         finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
         completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
+        // finalLockAnimationEnabled: true
     },
     easy: {
         columns: 8,
