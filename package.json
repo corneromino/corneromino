@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "test": "vitest run",
     "benchmark:sandbox": "node --experimental-strip-types scripts/benchmark-sandbox.mjs",
+    "icons:resize": "node scripts/resize-icon.mjs",
     "release": "node scripts/release.mjs",
     "preview": "vite preview"
   },
@@ -43,6 +44,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "jsdom": "^28.1.0",
     "oxlint": "^1.81.0",
+    "sharp": "^0.35.5",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
     "vitest": "^5.0.3"
