@@ -245,10 +245,10 @@ export function ClassicTutorialDialog(props: ClassicTutorialDialogProps) {
         </div>
         <DialogFooter className="grid-cols-3">
           <DialogClose asChild>
-            <Button className="cartoon-press h-[42px] w-full text-[10px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">Skip</Button>
+            <Button className="cartoon-press  w-full text-[10px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">Skip</Button>
           </DialogClose>
-          <Button className="cartoon-press h-[42px] w-full text-[10px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase" disabled={!previousPage} onClick={() => showPage(previousPage)} size="lg" type="button">Previous</Button>
-          <Button className="cartoon-press h-[42px] w-full text-[10px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase" disabled={!nextPage} onClick={() => showPage(nextPage)} size="lg" type="button">Next</Button>
+          <Button className="cartoon-press  w-full text-[10px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase" disabled={!previousPage} onClick={() => showPage(previousPage)} size="lg" type="button">Previous</Button>
+          <Button className="cartoon-press  w-full text-[10px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase" disabled={!nextPage} onClick={() => showPage(nextPage)} size="lg" type="button">Next</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

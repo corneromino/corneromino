@@ -21,7 +21,7 @@ export default {
         "save": "Sauvegarder",
         "saveAndQuit": "Sauvegarder et quitter",
         "quitWithoutSaving": "Quitter sans sauvegarder",
-        "settings": "Parametres",
+        "settings": "Paramétres",
         "close": "Fermer"
     },
     "difficulty": {

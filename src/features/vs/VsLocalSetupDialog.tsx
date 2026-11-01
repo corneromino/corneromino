@@ -51,10 +51,10 @@ export function VsLocalSetupDialog(props: VsLocalSetupDialogProps) {
           </DropdownMenu>
         </div>
         <DialogFooter>
-          <Button className="cartoon-press cartoon-press--green h-[42px] w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => onStart(boardSize)} size="lg" type="button">
+          <Button className="cartoon-press cartoon-press--green  w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => onStart(boardSize)} size="lg" type="button">
             {t('versusGame.start')}
           </Button>
-          <Button className="cartoon-press h-[42px] w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={onContinue} size="lg" type="button">
+          <Button className="cartoon-press  w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={onContinue} size="lg" type="button">
             {t('common.continue')}
           </Button>
         </DialogFooter>

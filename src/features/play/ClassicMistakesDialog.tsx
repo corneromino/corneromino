@@ -18,7 +18,7 @@ export function ClassicMistakesDialog(props: ClassicMistakesDialogProps) {
           <DialogTitle className='text-(--coral)'>{t('classic.mistakes', { count: props.mistakeCount })}</DialogTitle>
         </DialogHeader>
         <DialogFooter className="grid-cols-1">
-          <Button className="cartoon-press h-[42px] text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => props.onOpenChange(false)} size="lg" type="button">
+          <Button className="cartoon-press  text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => props.onOpenChange(false)} size="lg" type="button">
             {t('common.ok')}
           </Button>
         </DialogFooter>

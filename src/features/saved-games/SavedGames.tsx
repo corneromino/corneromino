@@ -181,27 +181,28 @@ export function SavedGames() {
           )}
           </div>
         <Dialog onOpenChange={setLoadDialogOpen} open={loadDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
+          <DialogContent className="dialog-content-fixed-chrome">
+            <DialogHeader className="shrink-0 m-0">
               <DialogTitle>{t('savedGames.loadGame')}</DialogTitle>
-              <DialogDescription>{t('savedGames.loadPrompt')}</DialogDescription>
             </DialogHeader>
-            <label className="poster-kicker mt-5 block text-[11px] text-[var(--muted-text-color)]">
-              {t('savedGames.gameModeAndSeed')}
-              <input
-                autoFocus
-                className="mt-2 h-[42px] w-full border border-[var(--outline-color)] bg-[var(--paper-muted)] px-3 text-[11px] text-[var(--canvas-foreground)] outline-none focus:border-[var(--canvas-foreground)]"
-                onChange={(event) => {
-                  setSeedToLoad(event.target.value)
-                  setLoadError('')
-                }}
-                placeholder={t('savedGames.seedPlaceholder')}
-                type="text"
-                value={seedToLoad}
-              />
-            </label>
-            {loadError && <p className="mt-3 text-[11px] text-[var(--coral)]" role="alert">{loadError}</p>}
-            <DialogFooter>
+            <div className="mt-5 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <label className="poster-kicker block text-[11px] text-[var(--muted-text-color)]">
+                {t('savedGames.gameModeAndSeed')}
+                <input
+                  autoFocus
+                  className="mt-2 py-[11px] w-full border border-[var(--outline-color)] bg-[var(--paper-muted)] px-3 text-[15px] text-[var(--canvas-foreground)] outline-none focus:border-[var(--canvas-foreground)]"
+                  onChange={(event) => {
+                    setSeedToLoad(event.target.value)
+                    setLoadError('')
+                  }}
+                  placeholder={t('savedGames.seedPlaceholder')}
+                  type="text"
+                  value={seedToLoad}
+                />
+              </label>
+              {loadError && <p className="mt-3 text-[11px] text-[var(--coral)]" role="alert">{loadError}</p>}
+            </div>
+            <DialogFooter className="shrink-0">
               <DialogClose asChild>
                 <Button className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">
                   {t('common.cancel')}

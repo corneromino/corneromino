@@ -26,7 +26,7 @@ export function CorrectGameDialog(props: CorrectGameDialogProps) {
         )}
         <DialogFooter>
           <Button
-            className="cartoon-press cartoon-press--green h-[42px] text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase"
+            className="cartoon-press cartoon-press--green  text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase"
             onClick={props.onNext}
             size="lg"
             type="button"
@@ -35,7 +35,7 @@ export function CorrectGameDialog(props: CorrectGameDialogProps) {
           </Button>
           <DialogClose asChild>
             <Button
-              className="cartoon-press h-[42px] text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase"
+              className="cartoon-press  text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase"
               size="lg"
               type="button"
             >

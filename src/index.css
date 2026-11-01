@@ -486,6 +486,10 @@
   padding: var(--dialog-content-padding) var(--dialog-content-padding) calc(var(--dialog-content-padding) + var(--dialog-band-depth));
 }
 
+.dialog-content-fixed-chrome .dialog-content-surface {
+  overflow: hidden;
+}
+
 .dialog-content::after {
   content: '';
   position: absolute;
