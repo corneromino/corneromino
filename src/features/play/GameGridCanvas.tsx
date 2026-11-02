@@ -63,7 +63,19 @@ const OUTLINE_COLOR = GAME_COLORS.cornerMarker
 const TEXT_COLOR = GAME_COLORS.ink
 /** Retains the existing 1.5px border at a 50px cell while scaling dense boards down. */
 const CELL_BORDER_RATIO = 0.04
-const MARKER_COLORS: Record<CellMarkerColor, number> = { black: GAME_COLORS.ink, white: GAME_COLORS.markerWhite }
+/** Note-outline stroke thickness as a fraction of the smaller cell dimension. */
+export const NOTE_OUTLINE_THICKNESS_RATIO = 0.1
+/** Pulses per second for noted cells. Set to 0 for a static white outline. */
+export const NOTE_OUTLINE_BEAT_FREQUENCY_HZ = 1.5
+const NOTE_OUTLINE_MIN_ALPHA = 0.35
+const NOTE_OUTLINE_COLOR = 0xffffff
+
+function drawNoteOutline(graphics: Graphics, width: number, height: number) {
+  const thickness = Math.max(1, Math.min(width, height) * NOTE_OUTLINE_THICKNESS_RATIO)
+  const inset = thickness / 2
+  graphics.roundRect(inset, inset, width - thickness, height - thickness, Math.max(0, getGridSquircleRadius(width, height) - inset))
+    .stroke({ color: NOTE_OUTLINE_COLOR, width: thickness })
+}
 
 function cellKey(x: number, y: number): string {
   return `${x},${y}`
@@ -122,6 +134,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     let disposed = false
     let cellShakeLayers = new Map<string, Container>()
     let emptyCellSprites = new Map<Container, Sprite>()
+    let noteOutlines: Graphics[] = []
     const gridShakeMotion = { time: 0 }
     const lockWaves = new Set<ShockwaveFilter>()
     let vhsCrtEffect: VhsCrtEffect | undefined
@@ -271,6 +284,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       }
       cellShakeLayers = new Map()
       emptyCellSprites = new Map()
+      noteOutlines = []
 
       const firstRow = current.scrolling?.firstRow ?? 0
       for (let y = firstRow; y < firstRow + current.config.rows; y += 1) {
@@ -368,8 +382,12 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
             shakeLayer.addChild(markerGraphic)
           }
 
-          const marker = current.markers.get(key)
-          if (marker) shakeLayer.addChild(new Graphics().circle(cellWidth / 2, cellHeight / 2, cellSize * 0.15).fill({ color: MARKER_COLORS[marker] }))
+          if (current.markers.has(key)) {
+            const noteGraphic = new Graphics()
+            drawNoteOutline(noteGraphic, cellWidth, cellHeight)
+            shakeLayer.addChild(noteGraphic)
+            noteOutlines.push(noteGraphic)
+          }
 
           board.addChild(cellContainer)
 
@@ -548,6 +566,10 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           verificationPhase = 'finished'
         }
       }
+      const noteAlpha = NOTE_OUTLINE_BEAT_FREQUENCY_HZ > 0
+        ? NOTE_OUTLINE_MIN_ALPHA + (1 - NOTE_OUTLINE_MIN_ALPHA) * (0.5 + 0.5 * Math.sin(performance.now() / 1000 * NOTE_OUTLINE_BEAT_FREQUENCY_HZ * Math.PI * 2))
+        : 1
+      for (const outline of noteOutlines) outline.alpha = noteAlpha
       vhsCrtEffect?.advance(app.ticker.deltaMS, propsRef.current.interactive === false || document.hidden)
       const scrolling = propsRef.current.scrolling
       if (scrolling && surface) {
