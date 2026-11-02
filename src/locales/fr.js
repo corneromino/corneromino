@@ -25,11 +25,12 @@ export default {
         "close": "Fermer"
     },
     "difficulty": {
-        "superEasy": "Tres facile",
+        "veryEasy": "Très facile",
         "easy": "Facile",
         "medium": "Moyen",
         "hard": "Difficile",
-        "superHard": "Impossible"
+        "expert": "Expert",
+        "impossible": "Impossible"
     },
     "tutorial": {
         "title": "Tutoriel",

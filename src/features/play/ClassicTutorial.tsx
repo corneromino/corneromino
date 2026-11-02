@@ -406,7 +406,7 @@ export function ClassicTutorial() {
           boardResetKey={tutorialScenario}
           config={TUTORIAL_SCENARIOS[tutorialScenario].config}
           gameId="classic-tutorial"
-          gameMode="super-easy"
+          gameMode="c002"
           highlightAreas={TUTORIAL_HIGHLIGHT_AREAS}
           onCorrectSolution={handleCorrectSolution}
           onElapsedSecondsChange={setElapsedSeconds}

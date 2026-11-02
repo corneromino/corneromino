@@ -1,5 +1,5 @@
 import { openDB } from 'idb'
-import { isGameMode, type CellMarker, type GameMode, type GameSelectionState, type LockedCellGroup } from '@/game/gameConfig'
+import { isGameMode, LEGACY_GAME_MODE_IDS, type CellMarker, type ClassicGameMode, type GameMode, type GameSelectionState, type LockedCellGroup } from '@/game/gameConfig'
 import { isVsLocalBoardSize, isVsTrapResolution, isVsWinCount, VS_LOCAL_CONFIG, VS_LOCAL_DEFAULT_BOARD_SIZE } from '@/features/vs/vsLocalConfig'
 import { getVsAllowedCells, getVsHistoryPosition, getVsPlayerScores, type VsCaptureStreak, type VsGameResult, type VsLocalGameState, type VsLocalPosition, type VsMoveHistory } from '@/features/vs/vsLocalGame'
 
@@ -9,9 +9,41 @@ export interface StoredGame {
   state: unknown
 }
 
+interface ClassicSaveMigration {
+  deleteIds: string[]
+  putRecords: StoredGame[]
+}
+
+/**
+ * Renames legacy difficulty-name save keys to permanent Classic mode IDs.
+ * The newest record wins if a partially migrated database has both forms.
+ */
+export function migrateLegacyClassicSaveRecords(records: readonly StoredGame[]): ClassicSaveMigration {
+  const latestById = new Map(records.map((record) => [record.id, record]))
+  const deleteIds: string[] = []
+  const putRecords: StoredGame[] = []
+
+  for (const record of records) {
+    const [prefix, legacyMode, ...gameIdParts] = record.id.split(':')
+    const gameMode = LEGACY_GAME_MODE_IDS[legacyMode as keyof typeof LEGACY_GAME_MODE_IDS]
+    if (prefix !== 'selection' || !gameMode || gameIdParts.length === 0) continue
+
+    const targetId = `selection:${gameMode}:${gameIdParts.join(':')}`
+    const existing = latestById.get(targetId)
+    if (!existing || record.updatedAt > existing.updatedAt) {
+      const migrated = { ...record, id: targetId }
+      latestById.set(targetId, migrated)
+      putRecords.push(migrated)
+    }
+    deleteIds.push(record.id)
+  }
+
+  return { deleteIds, putRecords }
+}
+
 export interface SavedGame {
   gameId: string
-  gameMode: GameMode
+  gameMode: ClassicGameMode
   savedAt: number
   screenshot: Blob
 }
@@ -67,13 +99,22 @@ interface CornerominoDatabase {
   }
 }
 
-export const db = openDB<CornerominoDatabase>('corneromino', 2, {
-  upgrade(database) {
+export const db = openDB<CornerominoDatabase>('corneromino', 3, {
+  upgrade(database, oldVersion, _newVersion, transaction) {
     if (!database.objectStoreNames.contains('games')) {
       database.createObjectStore('games', { keyPath: 'id' })
     }
     if (!database.objectStoreNames.contains('sandboxWorlds')) {
       database.createObjectStore('sandboxWorlds', { keyPath: 'id' })
+    }
+    if (oldVersion < 3) {
+      const games = transaction.objectStore('games')
+      // Issue writes while this versionchange transaction remains active.
+      void games.getAll().then((records) => {
+        const migration = migrateLegacyClassicSaveRecords(records)
+        for (const record of migration.putRecords) void games.put(record)
+        for (const id of migration.deleteIds) void games.delete(id)
+      })
     }
   },
 })

@@ -46,8 +46,8 @@ describe('generateTetrominoPlacementsV2', () => {
   })
 
   it('uses different configurations for each game mode', () => {
-    expect(GAME_CONFIGS.easy).not.toEqual(GAME_CONFIGS.medium)
-    expect(GAME_CONFIGS.medium).not.toEqual(GAME_CONFIGS.hard)
+    expect(GAME_CONFIGS.c003).not.toEqual(GAME_CONFIGS.c004)
+    expect(GAME_CONFIGS.c004).not.toEqual(GAME_CONFIGS.c005)
   })
 
   it('requires spread to be between zero and one', async () => {

@@ -32,11 +32,12 @@ export default {
         "version": "Version {{version}}"
     },
     "difficulty": {
-        "superEasy": "Super easy",
+        "veryEasy": "Very easy",
         "easy": "Easy",
         "medium": "Medium",
         "hard": "Hard",
-        "superHard": "Impossible"
+        "expert": "Expert",
+        "impossible": "Impossible"
     },
     "tutorial": {
         "title": "Tutorial",

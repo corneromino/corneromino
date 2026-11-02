@@ -91,8 +91,8 @@ function gridElement(props: GridProps) {
 
 function setup(lockingMode: 'auto' | 'manual' = 'auto', overrides: Partial<GridProps> = {}) {
   const props: GridProps = {
-    config: { ...GAME_CONFIGS.easy, lockingMode, finalVerificationMode: 'manual', completionScreenshotDelayMs: 0 },
-    gameMode: 'easy', gameId: 'locking-test', pieces, persistSelection: false, paused: false,
+    config: { ...GAME_CONFIGS.c003, lockingMode, finalVerificationMode: 'manual', completionScreenshotDelayMs: 0 },
+    gameMode: 'c003', gameId: 'locking-test', pieces, persistSelection: false, paused: false,
     onElapsedSecondsChange: vi.fn(), onMoveCountChange: vi.fn(), onNextGame: vi.fn(),
     onPauseOpenChange: vi.fn(), onLocked: vi.fn(), onLockAvailable: vi.fn(), onVerifyAvailable: vi.fn(), onCorrectSolution: vi.fn(),
     ...overrides,
@@ -120,7 +120,7 @@ describe('Classic locking modes', () => {
     vi.useFakeTimers()
     try {
       setup('auto', {
-        config: { ...GAME_CONFIGS.easy, completionScreenshotDelayMs: 200, finalVerificationMode },
+        config: { ...GAME_CONFIGS.c003, completionScreenshotDelayMs: 200, finalVerificationMode },
         onCorrectSolution: undefined,
       })
       tap(...firstSquare, ...secondSquare)
@@ -156,7 +156,7 @@ describe('Classic locking modes', () => {
         ? { ...piece, cells: piece.cells.map((cell) => ({ ...cell, corner: 'top-left' as const })) }
         : piece)
       setup('auto', {
-        config: { ...GAME_CONFIGS.easy, completionScreenshotDelayMs: 200, finalVerificationMode: 'manual' },
+        config: { ...GAME_CONFIGS.c003, completionScreenshotDelayMs: 200, finalVerificationMode: 'manual' },
         pieces: incorrectPieces,
       })
       tap(...firstSquare, ...secondSquare)
@@ -176,7 +176,7 @@ describe('Classic locking modes', () => {
 
   it.each(['auto', 'manual'] as const)('immediately leaves repeated-corner groups unlocked with %s locking', (lockingMode) => {
     const repeatedCorners: PlacedTetromino[] = [{ ...pieces[0], cells: pieces[0].cells.map((cell) => ({ ...cell, corner: 'top-left' })) }]
-    const { props } = setup(lockingMode, { config: { ...GAME_CONFIGS.easy, lockingMode, unlockRepeatedCornerLocks: true }, pieces: repeatedCorners })
+    const { props } = setup(lockingMode, { config: { ...GAME_CONFIGS.c003, lockingMode, unlockRepeatedCornerLocks: true }, pieces: repeatedCorners })
     tap(...firstSquare)
     if (lockingMode === 'manual') fireEvent.click(screen.getByRole('button', { name: 'Lock four selected cells' }))
     expect(board().locked).toEqual([])
@@ -194,7 +194,7 @@ describe('Classic locking modes', () => {
   })
 
   it('can skip verification animation for immediate correct results', () => {
-    const config = { ...GAME_CONFIGS.easy, completionAnimationEnabled: false, completionScreenshotDelayMs: 0, finalVerificationMode: 'manual' as const }
+    const config = { ...GAME_CONFIGS.c003, completionAnimationEnabled: false, completionScreenshotDelayMs: 0, finalVerificationMode: 'manual' as const }
     const { props } = setup('auto', { config })
     tap(...firstSquare, ...secondSquare)
     fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
@@ -204,7 +204,7 @@ describe('Classic locking modes', () => {
   })
 
   it('keeps a correctly verified board editable after dismissing its completion dialog', () => {
-    setup('auto', { config: { ...GAME_CONFIGS.easy, completionScreenshotDelayMs: 0, finalVerificationMode: 'manual' }, onCorrectSolution: undefined })
+    setup('auto', { config: { ...GAME_CONFIGS.c003, completionScreenshotDelayMs: 0, finalVerificationMode: 'manual' }, onCorrectSolution: undefined })
     tap(...firstSquare, ...secondSquare)
     fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
     finishVerificationWave()
@@ -216,7 +216,7 @@ describe('Classic locking modes', () => {
 
   it('cancels pending capture and ignores stale animation callbacks after a restart', async () => {
     vi.useFakeTimers()
-    setup('auto', { config: { ...GAME_CONFIGS.easy, finalVerificationMode: 'auto', completionScreenshotDelayMs: 200 }, onCorrectSolution: undefined })
+    setup('auto', { config: { ...GAME_CONFIGS.c003, finalVerificationMode: 'auto', completionScreenshotDelayMs: 200 }, onCorrectSolution: undefined })
     tap(...firstSquare, ...secondSquare)
     fireEvent.click(screen.getByRole('button', { name: 'common.restart' }))
     await act(async () => { await vi.advanceTimersByTimeAsync(300) })
@@ -234,7 +234,7 @@ describe('Classic locking modes', () => {
   })
 
   it('hides the shared game controls when configured for a tutorial board', () => {
-    setup('auto', { config: { ...GAME_CONFIGS.easy, hideGameControls: true } })
+    setup('auto', { config: { ...GAME_CONFIGS.c003, hideGameControls: true } })
     expect(screen.queryByRole('button', { name: 'common.restart' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Deselect all cells' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Take notes' })).toBeNull()
@@ -269,7 +269,7 @@ describe('Classic locking modes', () => {
   it('keeps Infinite playable after all current pieces lock and prunes only recycled cells', () => {
     const scrolling = { firstRow: 0, visibleRows: 6, getOffsetRows: () => 0, advance: vi.fn() }
     const { props, rerender } = setup('auto', {
-      config: { ...GAME_CONFIGS.easy, lockingMode: 'auto', finalVerificationMode: 'auto' }, scrolling,
+      config: { ...GAME_CONFIGS.c003, lockingMode: 'auto', finalVerificationMode: 'auto' }, scrolling,
     })
     tap(...firstSquare, ...secondSquare)
     expect(board().locked).toHaveLength(2)
@@ -371,7 +371,7 @@ describe('Classic locking modes', () => {
   })
 
   it('automatically verifies a fully locked board when configured', async () => {
-    const { props } = setup('auto', { config: { ...GAME_CONFIGS.easy, lockingMode: 'auto', finalVerificationMode: 'auto', completionScreenshotDelayMs: 0 } })
+    const { props } = setup('auto', { config: { ...GAME_CONFIGS.c003, lockingMode: 'auto', finalVerificationMode: 'auto', completionScreenshotDelayMs: 0 } })
     tap(...firstSquare, ...secondSquare)
     expect(props.onCorrectSolution).not.toHaveBeenCalled()
     finishVerificationWave()
@@ -471,10 +471,10 @@ describe('Classic locking modes', () => {
   it('supports switching configuration without discarding the current selection', () => {
     const { rerender } = setup('manual')
     tap(...firstSquare.slice(0, 3))
-    rerender({ config: { ...GAME_CONFIGS.easy, lockingMode: 'auto' } })
+    rerender({ config: { ...GAME_CONFIGS.c003, lockingMode: 'auto' } })
     tap(firstSquare[3])
     expect(board().locked).toHaveLength(1)
-    rerender({ config: { ...GAME_CONFIGS.easy, lockingMode: 'manual' } })
+    rerender({ config: { ...GAME_CONFIGS.c003, lockingMode: 'manual' } })
     expect(screen.queryByRole('button', { name: 'Unlock selected cells' })).not.toBeNull()
     expect(board().locked).toHaveLength(1)
   })
@@ -504,11 +504,11 @@ describe('Classic locking modes', () => {
     setup('auto', { persistSelection: true })
     await waitFor(() => expect(board().selected).toEqual(firstSquare))
     tap('1,1', '1,1')
-    await waitFor(() => expect(saveGameSelection).toHaveBeenLastCalledWith('easy', 'locking-test', expect.objectContaining({
+    await waitFor(() => expect(saveGameSelection).toHaveBeenLastCalledWith('c003', 'locking-test', expect.objectContaining({
       selectedCellKeys: [], moveCount: 1, lockedCellGroups: [expect.objectContaining({ cellKeys: firstSquare })],
     })))
     tap('0,0', '0,0')
-    await waitFor(() => expect(saveGameSelection).toHaveBeenLastCalledWith('easy', 'locking-test', expect.objectContaining({
+    await waitFor(() => expect(saveGameSelection).toHaveBeenLastCalledWith('c003', 'locking-test', expect.objectContaining({
       selectedCellKeys: [], lockedCellGroups: [], moveCount: 1,
     })))
   })

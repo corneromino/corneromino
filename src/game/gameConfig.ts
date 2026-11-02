@@ -35,79 +35,109 @@ export interface GameModeConfig extends GameConfig {
   title: string
 }
 
-export const GAME_CONFIGS: Record<string, GameModeConfig> = {
-  '?': {
-        columns: 4,
-        rows: 6,
-        spread: 1,
-        tetrominoCount: 5,
-        title: '?',
-        lockingMode: CLASSIC_LOCKING_MODE,
-        finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
-        completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
-        finalLockAnimationEnabled: true
-    },
-    'super-easy': {
-        columns: 8,
-        rows: 8,
-        spread: 1,
-        tetrominoCount: 5,
-        title: 'difficulty.superEasy',
-        lockingMode: CLASSIC_LOCKING_MODE,
-        finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
-        completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
-        finalLockAnimationEnabled: true
-    },
-    easy: {
-        columns: 8,
-        rows: 8,
-        spread: 0,
-        tetrominoCount: 10,
-        title: 'difficulty.easy',
-        lockingMode: CLASSIC_LOCKING_MODE,
-        finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
-        completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
-        finalLockAnimationEnabled: true
-    },
-    medium: {
-        columns: 10,
-        rows: 15,
-        spread: 0.5,
-        tetrominoCount: 20,
-        title: 'difficulty.medium',
-        lockingMode: CLASSIC_LOCKING_MODE,
-        finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
-        completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
-        finalLockAnimationEnabled: true
-    },
-    hard: {
-        columns: 12,
-        rows: 18,
-        spread: 0.8,
-        tetrominoCount: 35,
-        title: 'difficulty.hard',
-        lockingMode: CLASSIC_LOCKING_MODE,
-        finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
-        completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
-        finalLockAnimationEnabled: true
-    },
-    'super-hard': {
-        columns: 20,
-        rows: 30,
-        spread: 0.8,
-        tetrominoCount: 100,
-        title: 'difficulty.superHard',
-        lockingMode: CLASSIC_LOCKING_MODE,
-        finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
-        completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
-        finalLockAnimationEnabled: true
-    },
+/**
+ * Permanent Classic mode IDs. Object declaration order defines menu difficulty
+ * order; never rename or reuse a key after release.
+ */
+export const GAME_CONFIGS = {
+  c001: {
+    columns: 4,
+    rows: 6,
+    spread: 1,
+    tetrominoCount: 5,
+    title: 'difficulty.veryEasy',
+    lockingMode: CLASSIC_LOCKING_MODE,
+    finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
+    completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
+    finalLockAnimationEnabled: true,
+  },
+  c002: {
+    columns: 8,
+    rows: 8,
+    spread: 1,
+    tetrominoCount: 5,
+    title: 'difficulty.easy',
+    lockingMode: CLASSIC_LOCKING_MODE,
+    finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
+    completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
+    finalLockAnimationEnabled: true,
+  },
+  c003: {
+    columns: 8,
+    rows: 8,
+    spread: 0,
+    tetrominoCount: 10,
+    title: 'difficulty.medium',
+    lockingMode: CLASSIC_LOCKING_MODE,
+    finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
+    completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
+    finalLockAnimationEnabled: true,
+  },
+  c004: {
+    columns: 10,
+    rows: 15,
+    spread: 0.5,
+    tetrominoCount: 20,
+    title: 'difficulty.hard',
+    lockingMode: CLASSIC_LOCKING_MODE,
+    finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
+    completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
+    finalLockAnimationEnabled: true,
+  },
+  c005: {
+    columns: 12,
+    rows: 18,
+    spread: 0.8,
+    tetrominoCount: 35,
+    title: 'difficulty.expert',
+    lockingMode: CLASSIC_LOCKING_MODE,
+    finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
+    completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
+    finalLockAnimationEnabled: true,
+  },
+  c006: {
+    columns: 20,
+    rows: 30,
+    spread: 0.8,
+    tetrominoCount: 100,
+    title: 'difficulty.impossible',
+    lockingMode: CLASSIC_LOCKING_MODE,
+    finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
+    completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
+    finalLockAnimationEnabled: true,
+  },
+} satisfies Record<string, GameModeConfig>
+
+export type ClassicGameMode = keyof typeof GAME_CONFIGS
+/** Includes the non-configured Infinite mode, which shares GameGrid persistence. */
+export type GameMode = ClassicGameMode | 'infinite'
+export const GAME_MODES = Object.keys(GAME_CONFIGS) as ClassicGameMode[]
+
+/** Database-only migration map for saves made with pre-permanent difficulty keys. */
+export const LEGACY_GAME_MODE_IDS = {
+  '?': 'c001',
+  'super-easy': 'c002',
+  easy: 'c003',
+  medium: 'c004',
+  hard: 'c005',
+  'super-hard': 'c006',
+} as const satisfies Record<string, ClassicGameMode>
+
+/** Keeps migrated saves generating the board layout their old mode key produced. */
+const LEGACY_GAME_MODE_SEED_KEYS: Partial<Record<ClassicGameMode, string>> = {
+  c001: '?',
+  c002: 'super-easy',
+  c003: 'easy',
+  c004: 'medium',
+  c005: 'hard',
+  c006: 'super-hard',
 }
 
-export type GameMode = keyof typeof GAME_CONFIGS
-export const GAME_MODES = Object.keys(GAME_CONFIGS) as GameMode[]
+export function getGameModeSeedKey(gameMode: ClassicGameMode): string {
+  return LEGACY_GAME_MODE_SEED_KEYS[gameMode] ?? gameMode
+}
 
-export function isGameMode(value: string | null): value is GameMode {
+export function isGameMode(value: string | null): value is ClassicGameMode {
   return value !== null && value in GAME_CONFIGS
 }
 

@@ -10,7 +10,7 @@ vi.mock('idb', () => ({
   }),
 }))
 
-import { clearVsLocalGameState, db, loadVsLocalGameState, saveVsLocalGameState, type VsLocalGameSaveState } from './db'
+import { clearVsLocalGameState, db, loadVsLocalGameState, migrateLegacyClassicSaveRecords, saveVsLocalGameState, type VsLocalGameSaveState } from './db'
 import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsHistoryPosition, goToVsHistory, selectVsCell, toggleVsMoveDirection } from '@/features/vs/vsLocalGame'
 import { VS_LOCAL_CONFIG, type VsTrapResolution } from '@/features/vs/vsLocalConfig'
 
@@ -406,5 +406,27 @@ describe('Local VS persistence', () => {
     const state = { ...trappedVsGame('points'), ...overrides }
     await (await db).put('games', { id: 'vs:local:current', state, updatedAt: Date.now() })
     await expect(loadVsLocalGameState()).resolves.toBeNull()
+  })
+})
+
+describe('Classic save-key migration', () => {
+  it('renames legacy difficulty keys while retaining saved state', () => {
+    const legacy = { id: 'selection:easy:shared:seed', updatedAt: 10, state: { selectedCellKeys: ['0,0'] } }
+    const other = { id: 'cascade:current', updatedAt: 11, state: {} }
+
+    expect(migrateLegacyClassicSaveRecords([legacy, other])).toEqual({
+      deleteIds: ['selection:easy:shared:seed'],
+      putRecords: [{ ...legacy, id: 'selection:c003:shared:seed' }],
+    })
+  })
+
+  it('keeps the newer permanent-key record when both forms exist', () => {
+    const legacy = { id: 'selection:hard:seed', updatedAt: 10, state: { selectedCellKeys: ['0,0'] } }
+    const permanent = { id: 'selection:c005:seed', updatedAt: 11, state: { selectedCellKeys: ['1,1'] } }
+
+    expect(migrateLegacyClassicSaveRecords([legacy, permanent])).toEqual({
+      deleteIds: ['selection:hard:seed'],
+      putRecords: [],
+    })
   })
 })
