@@ -56,7 +56,7 @@ export const GAME_CONFIGS: Record<string, GameModeConfig> = {
         lockingMode: CLASSIC_LOCKING_MODE,
         finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
         completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
-        // finalLockAnimationEnabled: true
+        finalLockAnimationEnabled: true
     },
     easy: {
         columns: 8,
@@ -67,6 +67,7 @@ export const GAME_CONFIGS: Record<string, GameModeConfig> = {
         lockingMode: CLASSIC_LOCKING_MODE,
         finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
         completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
+        finalLockAnimationEnabled: true
     },
     medium: {
         columns: 10,
@@ -77,6 +78,7 @@ export const GAME_CONFIGS: Record<string, GameModeConfig> = {
         lockingMode: CLASSIC_LOCKING_MODE,
         finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
         completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
+        finalLockAnimationEnabled: true
     },
     hard: {
         columns: 12,
@@ -87,6 +89,7 @@ export const GAME_CONFIGS: Record<string, GameModeConfig> = {
         lockingMode: CLASSIC_LOCKING_MODE,
         finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
         completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
+        finalLockAnimationEnabled: true
     },
     'super-hard': {
         columns: 20,
@@ -97,6 +100,7 @@ export const GAME_CONFIGS: Record<string, GameModeConfig> = {
         lockingMode: CLASSIC_LOCKING_MODE,
         finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
         completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
+        finalLockAnimationEnabled: true
     },
 }
 

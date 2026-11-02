@@ -31,11 +31,11 @@ export const CASCADE_LOCK_EFFECTS = {
   },
   completionShake: {
     enabled: true,
-    radiusCells: 5,
+    radiusCells: 1,
     amplitudeCells: 2,
     durationSeconds: 0.5,
-    frequencyHz: 3,
-    propagationCellsPerSecond: 50,
+    frequencyHz: 2,
+    propagationCellsPerSecond: 20,
   },
   shakeDrop: {
     enabled: true,
