@@ -405,9 +405,10 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         if (current.verificationWave) {
           stopViewportEffects()
           verificationWave = new GridVerificationWave(current.verificationWave, current.config.columns, CASCADE_LOCK_EFFECTS.completionShake)
+          surface!.worldLayers.overlay.addChild(verificationWave.overlay)
         }
       }
-      verificationWave?.setCells(cellShakeLayers, cellWidth, cellHeight, CELL_BORDER_RATIO)
+      verificationWave?.setCells(cellShakeLayers.keys(), cellWidth, cellHeight, CELL_BORDER_RATIO)
     }
 
     function playGridShake(cellSize: number) {

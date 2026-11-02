@@ -149,6 +149,31 @@ describe('Classic locking modes', () => {
     }
   })
 
+  it('waits for the completion screenshot delay before drawing an incorrect wave', async () => {
+    vi.useFakeTimers()
+    try {
+      const incorrectPieces: PlacedTetromino[] = pieces.map((piece, index) => index === 1
+        ? { ...piece, cells: piece.cells.map((cell) => ({ ...cell, corner: 'top-left' as const })) }
+        : piece)
+      setup('auto', {
+        config: { ...GAME_CONFIGS.easy, completionScreenshotDelayMs: 200, finalVerificationMode: 'manual' },
+        pieces: incorrectPieces,
+      })
+      tap(...firstSquare, ...secondSquare)
+      fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
+      expect(canvasMock.props!.verificationWave).toBeUndefined()
+      expect(canvasMock.captureBoard).not.toHaveBeenCalled()
+
+      await act(async () => { await vi.advanceTimersByTimeAsync(199) })
+      expect(canvasMock.props!.verificationWave).toBeUndefined()
+      await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+      expect(canvasMock.props!.verificationWave).toMatchObject({ isCorrect: false })
+      expect(canvasMock.captureBoard).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it.each(['auto', 'manual'] as const)('immediately leaves repeated-corner groups unlocked with %s locking', (lockingMode) => {
     const repeatedCorners: PlacedTetromino[] = [{ ...pieces[0], cells: pieces[0].cells.map((cell) => ({ ...cell, corner: 'top-left' })) }]
     const { props } = setup(lockingMode, { config: { ...GAME_CONFIGS.easy, lockingMode, unlockRepeatedCornerLocks: true }, pieces: repeatedCorners })
@@ -346,7 +371,7 @@ describe('Classic locking modes', () => {
   })
 
   it('automatically verifies a fully locked board when configured', async () => {
-    const { props } = setup('auto', { config: { ...GAME_CONFIGS.easy, lockingMode: 'auto', finalVerificationMode: 'auto' } })
+    const { props } = setup('auto', { config: { ...GAME_CONFIGS.easy, lockingMode: 'auto', finalVerificationMode: 'auto', completionScreenshotDelayMs: 0 } })
     tap(...firstSquare, ...secondSquare)
     expect(props.onCorrectSolution).not.toHaveBeenCalled()
     finishVerificationWave()

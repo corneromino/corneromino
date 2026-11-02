@@ -460,7 +460,9 @@ export function GameGrid(props: GameGridProps) {
     setVerification({
       id: ++verificationIdRef.current,
       isCorrect,
-      phase: isCorrect && !props.onCorrectSolution ? 'screenshot' : 'wave',
+      // Let the settled board render before either verification color is drawn.
+      // Correct runs additionally use this interval to capture their clean image.
+      phase: 'screenshot',
     })
   }
 
@@ -468,9 +470,11 @@ export function GameGrid(props: GameGridProps) {
     if (verification?.phase !== 'screenshot' || isGameplayPaused || isExiting) return
     function capture() {
       if (verificationIdRef.current !== verification!.id) return
-      // Keep the completion image free of the verification overlay.
-      const canvas = gameCanvasRef.current?.captureBoard()
-      setCompletionScreenshot(canvas ? canvas.toDataURL('image/png') : null)
+      if (verification!.isCorrect && !props.onCorrectSolution) {
+        // Keep the completion image free of the verification overlay.
+        const canvas = gameCanvasRef.current?.captureBoard()
+        setCompletionScreenshot(canvas ? canvas.toDataURL('image/png') : null)
+      }
       setVerification({ ...verification!, phase: 'wave' })
     }
     const configuredDelay = props.config.completionScreenshotDelayMs ?? 0
@@ -481,7 +485,7 @@ export function GameGrid(props: GameGridProps) {
     }
     const timer = window.setTimeout(capture, delay)
     return () => window.clearTimeout(timer)
-  }, [verification, props.config.completionScreenshotDelayMs, isGameplayPaused, isExiting])
+  }, [verification, props.config.completionScreenshotDelayMs, props.onCorrectSolution, isGameplayPaused, isExiting])
 
   useEffect(() => {
     if (autoFinalVerification && canValidate && validationResult === null) validateLockedCells()

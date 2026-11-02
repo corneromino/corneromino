@@ -18,13 +18,14 @@ interface ShakeSettings {
 
 interface WaveCell {
   column: number
-  layer: Container
   face: Graphics
-  original: { child: Container; visible: boolean }[]
+  x: number
+  y: number
 }
 
-/** Colored faces share each cell's shake layer; original artwork is hidden, not tinted. */
+/** Opaque faces animate above the board without moving or hiding its artwork. */
 export class GridVerificationWave {
+  readonly overlay = new Container({ eventMode: 'none', label: 'verification-wave' })
   private cells: WaveCell[] = []
   private elapsedMs = 0
   private cellSize = 0
@@ -42,12 +43,15 @@ export class GridVerificationWave {
   }
 
   /** Rebind after a canvas redraw/resize without restarting the animation clock. */
-  setCells(layers: ReadonlyMap<string, Container>, width: number, height: number, borderRatio: number) {
+  setCells(cellKeys: Iterable<string>, width: number, height: number, borderRatio: number) {
     this.clearCells()
     this.cellSize = Math.min(width, height)
-    for (const [key, layer] of layers) {
+    // The parent is GridSurface's world overlay (cell coordinates). Keep face
+    // geometry and shake distances in fitted pixels while inheriting pan/zoom.
+    this.overlay.scale.set(1 / width, 1 / height)
+    for (const key of cellKeys) {
+      const [column, row] = key.split(',').map(Number)
       const face = new Graphics()
-      const original = layer.children.map((child) => ({ child, visible: child.visible }))
       drawCellBody(face, 0, 0, width, height, {
         fillColor: this.request.isCorrect ? 0x5fc47a : 0xe4555c,
         borderColor: GAME_COLORS.cellBorder,
@@ -56,8 +60,8 @@ export class GridVerificationWave {
       })
       face.label = 'verification-face'
       face.visible = false
-      layer.addChild(face)
-      this.cells.push({ column: Number(key.split(',')[0]), layer, face, original })
+      this.overlay.addChild(face)
+      this.cells.push({ column, face, x: column * width, y: row * height })
     }
     this.render()
   }
@@ -75,11 +79,10 @@ export class GridVerificationWave {
       const localTime = this.elapsedMs / 1000 - cell.column / propagation
       const active = this.elapsedMs < this.durationMs && localTime >= 0 && localTime < duration
       cell.face.visible = active
-      for (const { child, visible } of cell.original) child.visible = active ? false : visible
       const offset = active
         ? getCellShakeOffset(localTime, duration, this.cellSize * this.shake.amplitudeCells, this.shake.frequencyHz)
         : { x: 0, y: 0 }
-      cell.layer.position.set(offset.x, offset.y)
+      cell.face.position.set(cell.x + offset.x, cell.y + offset.y)
     }
   }
 
@@ -87,8 +90,6 @@ export class GridVerificationWave {
   hide() {
     for (const cell of this.cells) {
       cell.face.visible = false
-      cell.layer.position.set(0, 0)
-      for (const { child, visible } of cell.original) child.visible = visible
     }
   }
 
@@ -98,5 +99,8 @@ export class GridVerificationWave {
     this.cells = []
   }
 
-  destroy() { this.clearCells() }
+  destroy() {
+    this.clearCells()
+    this.overlay.destroy()
+  }
 }
