@@ -162,7 +162,9 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     }
 
     function renderShine() {
-      if (verificationAnimation instanceof GridVerificationFlip) return
+      // Flip hides the original locked-cell artwork, including its shine, but
+      // the shared sweep must keep advancing beneath the colored backs. That
+      // makes it reappear at its real in-flight position after the reverse flip.
       lockedShine.render(performance.now(), 0, propsRef.current.scrolling ? -view.offsetY : 0)
     }
 
@@ -532,9 +534,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
             verificationAnimation = undefined
             propsRef.current.onVerificationRestored?.(restoredId)
           }
-          return
-        }
-        if (verificationPhase === 'finished') {
+        } else if (verificationPhase === 'finished') {
           const completedId = verificationId!
           verificationPhase = 'notified'
           // Flip retains its backs until the owner clears the request on a board press.

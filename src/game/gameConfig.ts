@@ -7,7 +7,7 @@ export const CLASSIC_FINAL_VERIFICATION_MODE: NonNullable<GameConfig['finalVerif
 
 /** Shared defaults; individual game configurations can override these. */
 export const CLASSIC_VERIFICATION_EFFECT: NonNullable<GameConfig['verificationEffect']> = 'flip'
-export const VERIFICATION_FLIP_DURATION_MS = 1000
+export const VERIFICATION_FLIP_DURATION_MS = 2000
 export const VERIFICATION_FLIP_BATCH_SIZE = 5
 
 const COMPLETION_SCREENSHOT_DELAY_MS = 400;

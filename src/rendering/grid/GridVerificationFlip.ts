@@ -105,8 +105,13 @@ export class GridVerificationFlip {
     this.background.visible = false
     const batchCount = Math.ceil((this.order?.size ?? 0) / this.batchSize)
     const batchDuration = this.durationMs / Math.max(1, batchCount)
+    // Ease the board-wide clock in so the first cards begin gently and the
+    // batches gain speed toward the shared deadline. Decreasing this same
+    // clock during reversal gives an exact visual reverse of the forward flip.
+    const normalizedElapsed = this.durationMs === 0 ? 1 : this.elapsedMs / this.durationMs
+    const easedElapsed = this.durationMs * normalizedElapsed ** 2
     for (const cell of this.cells) {
-      const progress = batchDuration === 0 ? 1 : Math.min(1, Math.max(0, this.elapsedMs / batchDuration - cell.batch))
+      const progress = batchDuration === 0 ? 1 : Math.min(1, Math.max(0, easedElapsed / batchDuration - cell.batch))
       const showBack = progress >= 0.5
       for (const { child, visible } of cell.front) child.visible = !showBack && (visible || child === cell.emptyTile)
       cell.back.visible = showBack
