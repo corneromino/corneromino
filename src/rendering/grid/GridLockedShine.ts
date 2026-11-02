@@ -38,7 +38,7 @@ export class GridLockedShine {
     // cell movement at the edges. Stripe widths remain relative to ONE cell.
     const length = (height + cellWidth * 2) / Math.cos(ROTATION)
     this.band.clear()
-      .rect(0, -length / 2, cellWidth * 0.08, length).fill({ color: 0xffffff, alpha: 0.12 })
+      .rect(0,                -length / 2, cellWidth * 0.08, length).fill({ color: 0xffffff, alpha: 0.12 })
       .rect(cellWidth * 0.08, -length / 2, cellWidth * 0.06, length).fill({ color: 0xffffff, alpha: 0.72 })
       .rect(cellWidth * 0.14, -length / 2, cellWidth * 0.08, length).fill({ color: 0xffffff, alpha: 0.12 })
   }

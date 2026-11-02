@@ -5,6 +5,11 @@ export const CLASSIC_LOCKING_MODE: GameConfig['lockingMode'] = 'auto'
 /** Automatically check a completed Classic board, or require the Verify button. */
 export const CLASSIC_FINAL_VERIFICATION_MODE: NonNullable<GameConfig['finalVerificationMode']> = 'auto'
 
+/** Shared defaults; individual game configurations can override these. */
+export const CLASSIC_VERIFICATION_EFFECT: NonNullable<GameConfig['verificationEffect']> = 'flip'
+export const VERIFICATION_FLIP_DURATION_MS = 1000
+export const VERIFICATION_FLIP_BATCH_SIZE = 5
+
 const COMPLETION_SCREENSHOT_DELAY_MS = 400;
 
 export interface GameConfig {
@@ -13,8 +18,13 @@ export interface GameConfig {
   lockingMode: 'manual' | 'auto'
   /** Defaults to manual for older/custom game configurations. */
   finalVerificationMode?: 'manual' | 'auto'
-  /** Enables the correct/incorrect verification wave. Defaults to true. */
+  /** Enables the configured verification animation. Defaults to true. */
   completionAnimationEnabled?: boolean
+  verificationEffect?: 'wave' | 'flip'
+  /** Total time for ALL flip batches, after the screenshot delay. */
+  verificationFlipDurationMs?: number
+  /** Number of randomly chosen cells which flip together in each batch. */
+  verificationFlipBatchSize?: number
   /** Enables the ordinary lock ripple/shake for the board's final Corneromino. Defaults to false. */
   finalLockAnimationEnabled?: boolean
   /** Immediately rejects a lock whose four cells repeat a corner marker. Defaults to false. */

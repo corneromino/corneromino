@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import type { CellMarkerColor, GameConfig, GameMode, GameSelectionState, LockedCellGroup, PlacedTetromino } from '@/game/gameConfig'
+import { CLASSIC_VERIFICATION_EFFECT } from '@/game/gameConfig'
 import { isTetrominoShape } from '@/game/tetrominoes'
 import { clearGameSelection, loadGameSelection, saveGameSelection } from '@/lib/db'
 import { cn } from '@/lib/utils'
@@ -15,7 +16,7 @@ import { GameGridCanvas, type GameGridCanvasHandle, type ScrollingGridViewport }
 import type { ClassicInfiniteCellExit } from './classicInfiniteCellExit'
 import type { VhsCrtEffectConfig } from '@/rendering/pixi/VhsCrtEffect'
 import type { InfiniteExitDistortionConfig } from '@/rendering/pixi/InfiniteExitDistortionEffect'
-import type { VerificationWaveRequest } from '@/rendering/grid/GridVerificationWave'
+import type { VerificationRequest } from '@/rendering/grid/verificationEffect'
 
 const DOUBLE_TAP_UNLOCK_MS = 200
 
@@ -71,8 +72,8 @@ interface ValidationResult {
   validLockCount: number
 }
 
-interface VerificationRun extends VerificationWaveRequest {
-  phase: 'screenshot' | 'wave'
+interface VerificationRun extends VerificationRequest {
+  phase: 'screenshot' | 'animation' | 'result' | 'restoring'
 }
 
 export function GameGrid(props: GameGridProps) {
@@ -286,15 +287,32 @@ export function GameGrid(props: GameGridProps) {
   }
 
   function handleVerificationComplete(id: number) {
-    if (!verification || verification.id !== id || verificationIdRef.current !== id) return
-    // Consume the run before invoking tutorial callbacks, which may reset the board.
-    cancelVerification()
+    if (verification?.phase !== 'animation' || verification.id !== id || verificationIdRef.current !== id) return
+    if ((props.config.verificationEffect ?? CLASSIC_VERIFICATION_EFFECT) === 'flip' && !(verification.isCorrect && props.onCorrectSolution)) {
+      // Keep the colored backs through the result dialog and subsequent redraws.
+      verificationIdRef.current += 1
+      setVerification({ ...verification, phase: 'result' })
+    } else {
+      // Consume the run before invoking tutorial callbacks, which may reset the board.
+      cancelVerification()
+    }
     if (verification.isCorrect) {
       if (props.onCorrectSolution) props.onCorrectSolution()
       else setCompletionDialogOpen(true)
     } else {
       setMistakeDialogOpen(true)
     }
+  }
+
+  function dismissVerificationResult() {
+    if (verification?.phase !== 'result' || isGameplayPaused || isExiting || completionDialogOpen || mistakeDialogOpen) return
+    lastLockedTapRef.current = null
+    setVerification({ ...verification, phase: 'restoring' })
+  }
+
+  function handleVerificationRestored(id: number) {
+    if (verification?.phase !== 'restoring' || verification.id !== id) return
+    cancelVerification()
   }
 
   function toggleCellSelection(cellKey: string, time: number) {
@@ -432,7 +450,8 @@ export function GameGrid(props: GameGridProps) {
     lastLockedTapRef.current = null
     if (!canValidate || verification || isGameplayPaused || isExiting || !selectionLoaded) return
 
-    const validLockCount = lockedCellGroups.filter((group) => hasUniqueCorners(group.cellKeys)).length
+    const validGroups = lockedCellGroups.filter((group) => hasUniqueCorners(group.cellKeys))
+    const validLockCount = validGroups.length
 
     const isCorrect = validLockCount === lockedCellGroups.length
     setValidationResult({
@@ -457,9 +476,11 @@ export function GameGrid(props: GameGridProps) {
       }
       return
     }
+    const correctCellKeys = new Set(validGroups.flatMap((group) => group.cellKeys))
     setVerification({
       id: ++verificationIdRef.current,
       isCorrect,
+      incorrectCellKeys: new Set([...cellMap.keys()].filter((key) => !correctCellKeys.has(key))),
       // Let the settled board render before either verification color is drawn.
       // Correct runs additionally use this interval to capture their clean image.
       phase: 'screenshot',
@@ -475,7 +496,7 @@ export function GameGrid(props: GameGridProps) {
         const canvas = gameCanvasRef.current?.captureBoard()
         setCompletionScreenshot(canvas ? canvas.toDataURL('image/png') : null)
       }
-      setVerification({ ...verification!, phase: 'wave' })
+      setVerification({ ...verification!, phase: 'animation' })
     }
     const configuredDelay = props.config.completionScreenshotDelayMs ?? 0
     const delay = Number.isFinite(configuredDelay) ? Math.max(0, configuredDelay) : 0
@@ -621,10 +642,21 @@ export function GameGrid(props: GameGridProps) {
               selectedLockedGroupId={selectedLockedGroupId}
               showCellIds={showCellIds}
               scrolling={props.scrolling}
-              verificationWave={verification?.phase === 'wave' ? verification : undefined}
+              verificationRequest={verification && verification.phase !== 'screenshot' ? verification : undefined}
+              verificationRestoring={verification?.phase === 'restoring'}
               verificationPaused={isGameplayPaused || isExiting}
               onVerificationComplete={handleVerificationComplete}
+              onVerificationRestored={handleVerificationRestored}
             />
+            {verification?.phase === 'result' && !completionDialogOpen && !mistakeDialogOpen && (
+              <button
+                aria-label={t('classic.revealBoard')}
+                className="absolute inset-0 size-full touch-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white"
+                disabled={isGameplayPaused || isExiting}
+                onClick={dismissVerificationResult}
+                type="button"
+              />
+            )}
             {props.highlightAreas?.map((area) => (
               <div
                 aria-hidden="true"

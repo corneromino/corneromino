@@ -62,8 +62,8 @@ async function openShapeExample() {
 
 function solvePiece(id: number) {
   for (const button of within(screen.getByTestId(`piece-${id}`)).getAllByRole('button', { hidden: true })) fireEvent.click(button)
-  const { verificationWave, onVerificationComplete } = canvasMock.props!
-  if (verificationWave) act(() => onVerificationComplete?.(verificationWave.id))
+  const { verificationRequest, onVerificationComplete } = canvasMock.props!
+  if (verificationRequest) act(() => onVerificationComplete?.(verificationRequest.id))
 }
 
 async function unlockShapeExample() {

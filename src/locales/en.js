@@ -76,6 +76,7 @@ export default {
         "paused": "Paused",
         "copySeed": "Copy seed",
         "verify": "Verify",
+        "revealBoard": "Show the board again",
         "errors": "{{count}} errors",
         "mistakes": "{{count}} mistakes",
         "correct": "Well Done !",

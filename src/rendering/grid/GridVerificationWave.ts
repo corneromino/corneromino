@@ -3,11 +3,7 @@ import { GAME_COLORS } from '@/rendering/colors'
 import { drawCellBody } from './drawCorneromino'
 import { getCellShakeOffset } from './cellShake'
 import { getGridSquircleRadius } from './gridSquircle'
-
-export interface VerificationWaveRequest {
-  id: number
-  isCorrect: boolean
-}
+import { VERIFICATION_COLORS, type VerificationResult } from './verificationEffect'
 
 interface ShakeSettings {
   amplitudeCells: number
@@ -29,11 +25,11 @@ export class GridVerificationWave {
   private cells: WaveCell[] = []
   private elapsedMs = 0
   private cellSize = 0
-  private readonly request: VerificationWaveRequest
+  private readonly request: VerificationResult
   private readonly durationMs: number
   private readonly shake: ShakeSettings
 
-  constructor(request: VerificationWaveRequest, columns: number, shake: ShakeSettings) {
+  constructor(request: VerificationResult, columns: number, shake: ShakeSettings) {
     this.request = request
     this.shake = shake
     // The last column starts after propagation, then finishes its own shake.
@@ -53,7 +49,7 @@ export class GridVerificationWave {
       const [column, row] = key.split(',').map(Number)
       const face = new Graphics()
       drawCellBody(face, 0, 0, width, height, {
-        fillColor: this.request.isCorrect ? 0x5fc47a : 0xe4555c,
+        fillColor: this.request.isCorrect ? VERIFICATION_COLORS.correct : VERIFICATION_COLORS.incorrect,
         borderColor: GAME_COLORS.cellBorder,
         borderSize: this.cellSize * borderRatio,
         borderRadius: getGridSquircleRadius(width, height),

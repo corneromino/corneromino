@@ -69,6 +69,7 @@ export default {
         "paused": "En pause",
         "copySeed": "Copier le seed",
         "verify": "Vérifier",
+        "revealBoard": "Afficher à nouveau la grille",
         "errors": "{{count}} erreurs",
         "mistakes": "{{count}} erreurs",
         "correct": "Bien joué !",

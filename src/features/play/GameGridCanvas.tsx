@@ -2,7 +2,9 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 import { Application, Container, Graphics, Rectangle, Sprite, Text, TextStyle } from 'pixi.js'
 import { GridSurface } from '@/rendering/grid/GridSurface'
 import { GridLockedShine } from '@/rendering/grid/GridLockedShine'
-import { GridVerificationWave, type VerificationWaveRequest } from '@/rendering/grid/GridVerificationWave'
+import { GridVerificationWave } from '@/rendering/grid/GridVerificationWave'
+import { GridVerificationFlip } from '@/rendering/grid/GridVerificationFlip'
+import type { VerificationRequest } from '@/rendering/grid/verificationEffect'
 import { getCellShakeOffset } from '@/rendering/grid/cellShake'
 import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
 import { CanvasStartupError } from '@/rendering/pixi/CanvasStartupError'
@@ -13,7 +15,7 @@ import { attachGridInput, type GridCellEvent } from '@/rendering/grid/gridInput'
 import { constrainGridView, createGridNavigation, type GridView } from '@/rendering/grid/gridNavigation'
 import { drawCellBody, drawCornerMarker, getCornerMarkerPosition } from '@/rendering/grid/drawCorneromino'
 import { getGridCornerSquircleRadius, getGridSquircleRadius } from '@/rendering/grid/gridSquircle'
-import { CELL_CORNERS } from '@/game/gameConfig'
+import { CELL_CORNERS, CLASSIC_VERIFICATION_EFFECT, VERIFICATION_FLIP_BATCH_SIZE, VERIFICATION_FLIP_DURATION_MS } from '@/game/gameConfig'
 import { ShockwaveFilter } from 'pixi-filters'
 import { gsap } from 'gsap'
 import type { CellMarkerColor, GameConfig, LockedCellGroup, PlacedTetromino } from '@/game/gameConfig'
@@ -42,9 +44,12 @@ interface GameGridCanvasProps {
   onCellExit?: (event: ClassicInfiniteCellExit) => void
   vhsCrt?: VhsCrtEffectConfig
   exitDistortion?: InfiniteExitDistortionConfig
-  verificationWave?: VerificationWaveRequest
+  verificationRequest?: VerificationRequest
+  /** Reverse a retained Flip result back to its original board faces. */
+  verificationRestoring?: boolean
   verificationPaused?: boolean
   onVerificationComplete?: (id: number) => void
+  onVerificationRestored?: (id: number) => void
 }
 
 export interface GameGridCanvasHandle {
@@ -99,7 +104,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
 
   useEffect(() => {
     drawRef.current()
-  }, [props.config, props.exitDistortion, props.lockedCellGroups, props.markers, props.pieces, props.selectedCellKeys, props.selectedLockedGroupId, props.showCellIds, props.scrolling, props.vhsCrt, props.verificationWave])
+  }, [props.config, props.exitDistortion, props.lockedCellGroups, props.markers, props.pieces, props.selectedCellKeys, props.selectedLockedGroupId, props.showCellIds, props.scrolling, props.vhsCrt, props.verificationRequest])
 
   useEffect(() => {
     const container = containerRef.current
@@ -127,7 +132,8 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     const reportedExitedCellKeys = new Set<string>()
     let view: GridView = { zoom: 1, offsetX: 0, offsetY: 0 }
     let previousSize = { width: 0, height: 0, cellSize: 0 }
-    let verificationWave: GridVerificationWave | undefined
+    let verificationAnimation: GridVerificationWave | GridVerificationFlip | undefined
+    let verificationPhase: 'animating' | 'finished' | 'notified' | 'restoring' = 'animating'
     let verificationId: number | undefined
 
     function updateViewport() {
@@ -156,6 +162,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     }
 
     function renderShine() {
+      if (verificationAnimation instanceof GridVerificationFlip) return
       lockedShine.render(performance.now(), 0, propsRef.current.scrolling ? -view.offsetY : 0)
     }
 
@@ -254,7 +261,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       const nextSelectedKeys = new Set<string>()
       const newlyLockedCellKeys: string[] = []
 
-      verificationWave?.clearCells()
+      verificationAnimation?.clearCells()
       stopCellAnimations()
       lockedShine.clearCells()
       for (const child of board.removeChildren()) {
@@ -389,22 +396,40 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       previousSelectedKeysRef.current = nextSelectedKeys
       // The final lock usually leads directly into verification, so its normal
       // ripple/shake is opt-in (the tutorial deliberately keeps it).
-      if (newlyLockedCellKeys.length > 0 && (!isBoardFullyLocked || current.config.finalLockAnimationEnabled === true) && !current.verificationWave) {
+      if (newlyLockedCellKeys.length > 0 && (!isBoardFullyLocked || current.config.finalLockAnimationEnabled === true) && !current.verificationRequest) {
         playLockShake(newlyLockedCellKeys, cellSize)
         playGridShake(cellSize)
         playLockRipple(newlyLockedCellKeys, cellWidth, cellHeight, cellSize)
       }
-      if (current.verificationWave?.id !== verificationId) {
-        verificationWave?.destroy()
-        verificationWave = undefined
-        verificationId = current.verificationWave?.id
-        if (current.verificationWave) {
+      if (current.verificationRequest?.id !== verificationId) {
+        verificationAnimation?.destroy()
+        verificationAnimation = undefined
+        verificationPhase = 'animating'
+        verificationId = current.verificationRequest?.id
+        if (current.verificationRequest) {
           stopViewportEffects()
-          verificationWave = new GridVerificationWave(current.verificationWave, current.config.columns, CASCADE_LOCK_EFFECTS.completionShake)
-          surface!.worldLayers.overlay.addChild(verificationWave.overlay)
+          if ((current.config.verificationEffect ?? CLASSIC_VERIFICATION_EFFECT) === 'flip') {
+            verificationAnimation = new GridVerificationFlip(current.verificationRequest, surface!.background, {
+              durationMs: current.config.verificationFlipDurationMs ?? VERIFICATION_FLIP_DURATION_MS,
+              batchSize: current.config.verificationFlipBatchSize ?? VERIFICATION_FLIP_BATCH_SIZE,
+            })
+          } else {
+            verificationAnimation = new GridVerificationWave(current.verificationRequest, current.config.columns, CASCADE_LOCK_EFFECTS.completionShake)
+            surface!.worldLayers.overlay.addChild(verificationAnimation.overlay)
+          }
         }
       }
-      verificationWave?.setCells(cellShakeLayers.keys(), cellWidth, cellHeight, CELL_BORDER_RATIO)
+      if (current.verificationRestoring && verificationAnimation instanceof GridVerificationFlip && verificationPhase === 'notified') {
+        verificationAnimation.reverse()
+        verificationPhase = 'restoring'
+      }
+      // Refresh the front artwork before the flip captures and transforms it.
+      lockedShine.render(performance.now(), 0, current.scrolling ? -view.offsetY : 0)
+      if (verificationAnimation instanceof GridVerificationFlip) {
+        verificationAnimation.setCells(cellShakeLayers, cellWidth, cellHeight, CELL_BORDER_RATIO, emptyCellSprites)
+      } else {
+        verificationAnimation?.setCells(cellShakeLayers.keys(), cellWidth, cellHeight, CELL_BORDER_RATIO)
+      }
       renderShine()
     }
 
@@ -499,11 +524,29 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     }
 
     function update() {
-      if (verificationWave && !propsRef.current.verificationPaused && !document.hidden && verificationWave.advance(app.ticker.deltaMS)) {
-        const completedId = verificationId!
-        verificationWave.destroy()
-        verificationWave = undefined
-        propsRef.current.onVerificationComplete?.(completedId)
+      if (verificationAnimation && verificationPhase !== 'notified' && !propsRef.current.verificationPaused && !document.hidden) {
+        if (verificationPhase === 'restoring') {
+          if (verificationAnimation.advance(app.ticker.deltaMS)) {
+            const restoredId = verificationId!
+            verificationAnimation.destroy()
+            verificationAnimation = undefined
+            propsRef.current.onVerificationRestored?.(restoredId)
+          }
+          return
+        }
+        if (verificationPhase === 'finished') {
+          const completedId = verificationId!
+          verificationPhase = 'notified'
+          // Flip retains its backs until the owner clears the request on a board press.
+          if (verificationAnimation instanceof GridVerificationWave) {
+            verificationAnimation.destroy()
+            verificationAnimation = undefined
+          }
+          propsRef.current.onVerificationComplete?.(completedId)
+        } else if (verificationAnimation.advance(app.ticker.deltaMS)) {
+          // Render the final frame before notifying the owner and opening its dialog.
+          verificationPhase = 'finished'
+        }
       }
       vhsCrtEffect?.advance(app.ticker.deltaMS, propsRef.current.interactive === false || document.hidden)
       const scrolling = propsRef.current.scrolling
@@ -560,7 +603,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           }
           captureRef.current = () => {
             const savedView = view
-            verificationWave?.hide()
+            verificationAnimation?.hide()
             try {
               view = { zoom: 1, offsetX: 0, offsetY: 0 }
               updateViewport()
@@ -568,7 +611,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
             } finally {
               view = savedView
               updateViewport()
-              verificationWave?.render()
+              verificationAnimation?.render()
             }
           }
           const navigation = propsRef.current.scrolling || propsRef.current.config.navigationEnabled === false ? null : createGridNavigation(app.canvas, {
@@ -604,7 +647,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       navigationRef.current?.reset()
       navigationRef.current = null
       app.ticker?.remove(update)
-      verificationWave?.destroy()
+      verificationAnimation?.destroy()
       stopCellAnimations()
       stopViewportEffects()
       app.stage.filters = []

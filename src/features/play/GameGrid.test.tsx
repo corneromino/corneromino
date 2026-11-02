@@ -79,9 +79,9 @@ function tap(...keys: string[]) {
 }
 
 function finishVerificationWave() {
-  const { verificationWave, onVerificationComplete } = canvasMock.props!
-  expect(verificationWave).toBeDefined()
-  act(() => onVerificationComplete?.(verificationWave!.id))
+  const { verificationRequest, onVerificationComplete } = canvasMock.props!
+  expect(verificationRequest).toBeDefined()
+  act(() => onVerificationComplete?.(verificationRequest!.id))
 }
 
 type GridProps = ComponentProps<typeof GameGrid>
@@ -127,18 +127,19 @@ describe('Classic locking modes', () => {
       if (finalVerificationMode === 'manual') fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
       expect(screen.queryByTestId('completion-dialog')).toBeNull()
       expect(canvasMock.captureBoard).not.toHaveBeenCalled()
-      expect(canvasMock.props!.verificationWave).toBeUndefined()
+      expect(canvasMock.props!.verificationRequest).toBeUndefined()
 
       await act(async () => { await vi.advanceTimersByTimeAsync(199) })
       expect(canvasMock.captureBoard).not.toHaveBeenCalled()
       await act(async () => { await vi.advanceTimersByTimeAsync(1) })
       expect(canvasMock.captureBoard).toHaveBeenCalledOnce()
-      expect(canvasMock.props!.verificationWave).toMatchObject({ isCorrect: true })
-      const waveId = canvasMock.props!.verificationWave!.id
+      expect(canvasMock.props!.verificationRequest).toMatchObject({ isCorrect: true })
+      expect(canvasMock.props!.verificationRequest!.incorrectCellKeys.size).toBe(0)
+      const waveId = canvasMock.props!.verificationRequest!.id
       fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
       tap(firstSquare[0], firstSquare[0])
       expect(board().locked).toHaveLength(2)
-      expect(canvasMock.props!.verificationWave!.id).toBe(waveId)
+      expect(canvasMock.props!.verificationRequest!.id).toBe(waveId)
       await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
       expect(screen.queryByTestId('completion-dialog')).toBeNull()
       finishVerificationWave()
@@ -161,14 +162,28 @@ describe('Classic locking modes', () => {
       })
       tap(...firstSquare, ...secondSquare)
       fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
-      expect(canvasMock.props!.verificationWave).toBeUndefined()
+      expect(canvasMock.props!.verificationRequest).toBeUndefined()
       expect(canvasMock.captureBoard).not.toHaveBeenCalled()
 
       await act(async () => { await vi.advanceTimersByTimeAsync(199) })
-      expect(canvasMock.props!.verificationWave).toBeUndefined()
+      expect(canvasMock.props!.verificationRequest).toBeUndefined()
       await act(async () => { await vi.advanceTimersByTimeAsync(1) })
-      expect(canvasMock.props!.verificationWave).toMatchObject({ isCorrect: false })
+      expect(canvasMock.props!.verificationRequest).toMatchObject({ isCorrect: false })
+      expect(canvasMock.props!.verificationRequest!.incorrectCellKeys).toEqual(new Set(secondSquare))
       expect(canvasMock.captureBoard).not.toHaveBeenCalled()
+      const requestId = canvasMock.props!.verificationRequest!.id
+      finishVerificationWave()
+      fireEvent.click(screen.getByRole('button', { name: 'common.ok' }))
+      expect(canvasMock.props!.verificationRequest!.id).toBe(requestId)
+      expect(canvasMock.props!.interactive).toBe(false)
+      fireEvent.click(screen.getByRole('button', { name: 'classic.revealBoard' }))
+      expect(canvasMock.props!.verificationRestoring).toBe(true)
+      act(() => canvasMock.props!.onVerificationRestored?.(requestId))
+      expect(canvasMock.props!.verificationRequest).toBeUndefined()
+      expect(board().locked).toHaveLength(2)
+      expect(board().selectedLockedGroupId).toBeNull()
+      tap(secondSquare[0], secondSquare[0])
+      expect(board().locked).toHaveLength(1)
     } finally {
       vi.useRealTimers()
     }
@@ -182,7 +197,7 @@ describe('Classic locking modes', () => {
     expect(board().locked).toEqual([])
     expect(board().selected).toEqual(firstSquare)
     expect(props.onLocked).not.toHaveBeenCalled()
-    expect(canvasMock.props!.verificationWave).toBeUndefined()
+    expect(canvasMock.props!.verificationRequest).toBeUndefined()
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
@@ -198,18 +213,39 @@ describe('Classic locking modes', () => {
     const { props } = setup('auto', { config })
     tap(...firstSquare, ...secondSquare)
     fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
-    expect(canvasMock.props!.verificationWave).toBeUndefined()
+    expect(canvasMock.props!.verificationRequest).toBeUndefined()
     expect(props.onCorrectSolution).toHaveBeenCalledOnce()
 
   })
 
-  it('keeps a correctly verified board editable after dismissing its completion dialog', () => {
-    setup('auto', { config: { ...GAME_CONFIGS.c003, completionScreenshotDelayMs: 0, finalVerificationMode: 'manual' }, onCorrectSolution: undefined })
+  it.each(['flip', 'wave'] as const)('keeps a correctly verified board editable after dismissing its %s result', (verificationEffect) => {
+    const { rerender } = setup('auto', { config: { ...GAME_CONFIGS.c003, verificationEffect, completionScreenshotDelayMs: 0, finalVerificationMode: 'manual' }, onCorrectSolution: undefined })
     tap(...firstSquare, ...secondSquare)
     fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
+    const { verificationRequest, onVerificationComplete } = canvasMock.props!
     finishVerificationWave()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel completion' }))
 
+    if (verificationEffect === 'flip') {
+      expect(canvasMock.props!.verificationRequest!.id).toBe(verificationRequest!.id)
+      expect(canvasMock.props!.interactive).toBe(false)
+      // Duplicate notifications and pause/resume must neither reopen the dialog
+      // nor turn the cards back over.
+      act(() => onVerificationComplete?.(verificationRequest!.id))
+      expect(screen.queryByTestId('completion-dialog')).toBeNull()
+      rerender({ paused: true })
+      fireEvent.click(screen.getByRole('button', { name: 'classic.revealBoard' }))
+      expect(canvasMock.props!.verificationRequest!.id).toBe(verificationRequest!.id)
+      rerender({ paused: false })
+      fireEvent.click(screen.getByRole('button', { name: 'classic.revealBoard' }))
+      expect(canvasMock.props!.verificationRestoring).toBe(true)
+      expect(canvasMock.props!.interactive).toBe(false)
+      act(() => canvasMock.props!.onVerificationRestored?.(verificationRequest!.id))
+      expect(board().locked).toHaveLength(2)
+      expect(board().selectedLockedGroupId).toBeNull()
+    }
+    expect(canvasMock.props!.verificationRequest).toBeUndefined()
+    expect(canvasMock.props!.interactive).toBe(true)
     tap(firstSquare[0], firstSquare[0])
     expect(board().locked).toHaveLength(1)
   })
@@ -221,15 +257,15 @@ describe('Classic locking modes', () => {
     fireEvent.click(screen.getByRole('button', { name: 'common.restart' }))
     await act(async () => { await vi.advanceTimersByTimeAsync(300) })
     expect(canvasMock.captureBoard).not.toHaveBeenCalled()
-    expect(canvasMock.props!.verificationWave).toBeUndefined()
+    expect(canvasMock.props!.verificationRequest).toBeUndefined()
 
     tap(...firstSquare, ...secondSquare)
     await act(async () => { await vi.advanceTimersByTimeAsync(200) })
-    const { verificationWave, onVerificationComplete } = canvasMock.props!
+    const { verificationRequest, onVerificationComplete } = canvasMock.props!
     fireEvent.click(screen.getByRole('button', { name: 'common.restart' }))
-    act(() => onVerificationComplete?.(verificationWave!.id))
+    act(() => onVerificationComplete?.(verificationRequest!.id))
     expect(board().locked).toEqual([])
-    expect(canvasMock.props!.verificationWave).toBeUndefined()
+    expect(canvasMock.props!.verificationRequest).toBeUndefined()
     expect(screen.queryByTestId('completion-dialog')).toBeNull()
   })
 
