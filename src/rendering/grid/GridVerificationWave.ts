@@ -1,6 +1,6 @@
 import { Container, Graphics } from 'pixi.js'
 import { GAME_COLORS } from '@/rendering/colors'
-import { drawCellBody } from './drawCorneromino'
+import { drawCellBody } from './drawNokomino'
 import { getCellShakeOffset } from './cellShake'
 import { getGridSquircleRadius } from './gridSquircle'
 import { VERIFICATION_COLORS, type VerificationResult } from './verificationEffect'

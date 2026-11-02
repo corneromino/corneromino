@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const records = vi.hoisted(() => new Map<string, { id: string; state: unknown; updatedAt: number }>())
 
-vi.mock('idb', () => ({
-  openDB: async () => ({
+vi.mock('./gameDatabase', () => ({
+  openGameDatabase: async () => ({
     get: async (_store: string, key: string) => records.get(key),
     put: async (_store: string, value: { id: string; state: unknown; updatedAt: number }) => { records.set(value.id, value) },
     delete: async (_store: string, key: string) => { records.delete(key) },
@@ -18,7 +18,7 @@ function finishedVsGame() {
   const game = createVsLocalGame(() => 1, { combinationWinCount: 3 })
   for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1]]) {
     for (const corner of [1, 2, 3] as const) {
-      game.placedCornerominoes.push({ column: 4 + dx * corner, row: 4 + dy * corner, corner, player: 0 })
+      game.placedNokominos.push({ column: 4 + dx * corner, row: 4 + dy * corner, corner, player: 0 })
     }
   }
   return finishVsTurn({ ...game, pendingPlacement: { column: 4, row: 4, corner: 0 } })
@@ -29,13 +29,13 @@ function trappedVsGame(trapResolution: VsTrapResolution, capture = true, opponen
   game.pendingPlacement = { column: 0, row: 0, corner: 0 }
   game.pendingMoveDirection = 'diagonal'
   for (let index = 1; index < 10; index += 1) {
-    game.placedCornerominoes.push({ column: index, row: index, corner: capture && index === 1 ? 1 : capture && index === 2 ? 2 : 3, player: 1 })
+    game.placedNokominos.push({ column: index, row: index, corner: capture && index === 1 ? 1 : capture && index === 2 ? 2 : 3, player: 1 })
   }
   for (let index = 0; index < opponentShapes; index += 1) {
     const row = 1 + index * 3
     const cells = [[6, row, 0], [7, row, 1], [6, row + 1, 2], [7, row + 1, 3]] as const
-    game.lockedCornerominoes.push({ id: `old:${index}`, player: 1, cellKeys: cells.map(([x, y]) => `${x},${y}`) })
-    for (const [column, row, corner] of cells) game.placedCornerominoes.push({ column, row, corner, player: 0, lockedBy: 1 })
+    game.lockedNokominos.push({ id: `old:${index}`, player: 1, cellKeys: cells.map(([x, y]) => `${x},${y}`) })
+    for (const [column, row, corner] of cells) game.placedNokominos.push({ column, row, corner, player: 0, lockedBy: 1 })
   }
   return finishVsTurn(game)
 }
@@ -47,11 +47,11 @@ describe('Local VS persistence', () => {
     const state: VsLocalGameSaveState = {
       ...createVsLocalGame(() => 1, { combinationWinCount: 3 }),
       activePlayer: 1,
-      lockedCornerominoes: [{ id: 'lock:1', player: 0, cellKeys: ['0,0', '1,0', '0,1', '1,1'] }],
+      lockedNokominos: [{ id: 'lock:1', player: 0, cellKeys: ['0,0', '1,0', '0,1', '1,1'] }],
       nextMoveConstraint: { direction: 'diagonal', originColumn: 4, originRow: 5 },
       pendingMoveDirection: 'orthogonal',
       pendingPlacement: { column: 5, row: 6, corner: 2 },
-      placedCornerominoes: [
+      placedNokominos: [
         { column: 0, row: 0, corner: 0, player: 0, lockedBy: 0 },
         { column: 5, row: 6, corner: 2, player: 1 },
       ],
@@ -66,7 +66,7 @@ describe('Local VS persistence', () => {
     const game = createVsLocalGame(() => 0)
     for (const direction of [-1, 1]) {
       for (const corner of [1, 2, 3] as const) {
-        game.placedCornerominoes.push({ column: 4 + direction * corner, row: 4, corner, player: 1 })
+        game.placedNokominos.push({ column: 4 + direction * corner, row: 4, corner, player: 1 })
       }
     }
     game.pendingPlacement = { column: 4, row: 4, corner: 0 }
@@ -78,7 +78,7 @@ describe('Local VS persistence', () => {
 
     const finished = finishVsTurn(restored!)
     expect(finished.result).toEqual({ reason: 'combination', winner: 0, shapeCount: 2 })
-    expect(finished.lockedCornerominoes).toHaveLength(2)
+    expect(finished.lockedNokominos).toHaveLength(2)
     await saveVsLocalGameState(finished)
     await expect(loadVsLocalGameState()).resolves.toEqual(finished)
     expect(goToVsHistory(goToVsHistory(finished, 0), 1)).toEqual(finished)
@@ -95,9 +95,9 @@ describe('Local VS persistence', () => {
       updatedAt: Date.now(),
       state: {
         activePlayer: 0,
-        lockedCornerominoes: [],
+        lockedNokominos: [],
         pendingPlacement: null,
-        placedCornerominoes: [],
+        placedNokominos: [],
       },
     })
 
@@ -133,14 +133,14 @@ describe('Local VS persistence', () => {
     const corners = [1, 2, 3, 0, 1, 2] as const
     for (let column = 0; column < shapeCount + 3; column++) {
       if (column === 3) game.pendingPlacement = { column, row: 4, corner: 0 }
-      else game.placedCornerominoes.push({ column, row: 4, corner: corners[column], player: 1 })
+      else game.placedNokominos.push({ column, row: 4, corner: corners[column], player: 1 })
     }
     game.history = { positions: [getVsHistoryPosition(game)], index: 0 }
     await saveVsLocalGameState(structuredClone(game))
     game = (await loadVsLocalGameState())!
     expect(game.allowOverlappingCombinationWin).toBe(allowOverlappingCombinationWin)
     const finished = finishVsTurn(game)
-    expect(finished.lockedCornerominoes).toHaveLength(shapeCount)
+    expect(finished.lockedNokominos).toHaveLength(shapeCount)
     expect(finished.result).toEqual(allowOverlappingCombinationWin ? { reason: 'combination', winner: 0, shapeCount } : null)
     await saveVsLocalGameState(finished)
     await expect(loadVsLocalGameState()).resolves.toEqual(finished)
@@ -155,7 +155,7 @@ describe('Local VS persistence', () => {
   it('preserves an overlapping victory and its history when migrating a save without the overlap option', async () => {
     const game = createVsLocalGame(() => 0, { allowOverlappingCombinationWin: true })
     for (const [column, corner] of [[3, 1], [4, 2], [6, 3], [7, 1]] as const) {
-      game.placedCornerominoes.push({ column, row: 4, corner, player: 1 })
+      game.placedNokominos.push({ column, row: 4, corner, player: 1 })
     }
     const finished = finishVsTurn({ ...game, pendingPlacement: { column: 5, row: 4, corner: 0 } })
     expect(finished.result).toEqual({ reason: 'combination', winner: 0, shapeCount: 2 })
@@ -208,7 +208,7 @@ describe('Local VS persistence', () => {
     let game = createVsLocalGame(() => 0, { consecutiveTurnWinCount: 3 })
     for (const row of [1, 4, 7]) {
       for (const corner of [1, 2, 3] as const) {
-        game.placedCornerominoes.push({ column: corner, row, corner, player: 1 })
+        game.placedNokominos.push({ column: corner, row, corner, player: 1 })
       }
     }
     game = finishVsTurn({ ...game, pendingPlacement: { column: 4, row: 1, corner: 0 } })
@@ -333,8 +333,8 @@ describe('Local VS persistence', () => {
     })
     const continued = finishVsTurn(selectVsCell(restored!, 4, 5))
     expect(continued.history.positions).toHaveLength(2)
-    expect(continued.placedCornerominoes).toHaveLength(2)
-    expect(goToVsHistory(continued, 0).placedCornerominoes).toEqual(latest.placedCornerominoes)
+    expect(continued.placedNokominos).toHaveLength(2)
+    expect(goToVsHistory(continued, 0).placedNokominos).toEqual(latest.placedNokominos)
   })
 
   it('preserves a finished result when migrating a pre-history save', async () => {
@@ -373,7 +373,7 @@ describe('Local VS persistence', () => {
     const future = game.history.positions[1]
     await saveVsLocalGameState({
       ...past,
-      history: { index: 0, positions: [past.history.positions[0], { ...future, placedCornerominoes: [] }] },
+      history: { index: 0, positions: [past.history.positions[0], { ...future, placedNokominos: [] }] },
     })
     await expect(loadVsLocalGameState()).resolves.toBeNull()
     await saveVsLocalGameState({

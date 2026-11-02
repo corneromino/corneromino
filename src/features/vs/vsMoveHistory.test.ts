@@ -31,7 +31,7 @@ describe('Local VS move history', () => {
     const confirmed = finishVsTurn(draft)
     expect(confirmed.history.positions).toHaveLength(2)
     expect(confirmed.history.index).toBe(1)
-    expect(confirmed.history.positions[1].placedCornerominoes).toEqual([{ column: 4, row: 4, corner: 2, player }])
+    expect(confirmed.history.positions[1].placedNokominos).toEqual([{ column: 4, row: 4, corner: 2, player }])
     expect(confirmed.history.positions[1]).not.toHaveProperty('pendingPlacement')
     expect(confirmed.history.positions[1]).not.toHaveProperty('history')
   })
@@ -52,12 +52,12 @@ describe('Local VS move history', () => {
   it('undoes and restores captures, points, and streaks without mutating previous positions', () => {
     const latest = squareGame()
     const saved = structuredClone(latest)
-    expect(getVsPlayerScores(latest.placedCornerominoes)).toEqual([0, 4])
+    expect(getVsPlayerScores(latest.placedNokominos)).toEqual([0, 4])
     expect(latest.captureStreak).toEqual({ player: 1, turnCount: 1 })
     const beforeCapture = goToVsHistory(latest, 3)
-    expect(beforeCapture.lockedCornerominoes).toEqual([])
+    expect(beforeCapture.lockedNokominos).toEqual([])
     expect(beforeCapture.captureStreak).toBeNull()
-    expect(getVsPlayerScores(beforeCapture.placedCornerominoes)).toEqual([0, 0])
+    expect(getVsPlayerScores(beforeCapture.placedNokominos)).toEqual([0, 0])
     expect(goToVsHistory(beforeCapture, 4)).toEqual(latest)
     expect(latest).toEqual(saved)
   })
@@ -85,9 +85,9 @@ describe('Local VS move history', () => {
     expect(branch.history.index).toBe(3)
     expect(branch.history.positions).toHaveLength(4)
     expect(branch.history.positions.slice(0, 2)).toEqual(latest.history.positions.slice(0, 2))
-    expect(branch.placedCornerominoes).toHaveLength(3)
-    expect(branch.placedCornerominoes.at(-1)).toMatchObject({ column: 1, row: 4, corner: 0 })
-    expect(branch.lockedCornerominoes).toEqual([])
+    expect(branch.placedNokominos).toHaveLength(3)
+    expect(branch.placedNokominos.at(-1)).toMatchObject({ column: 1, row: 4, corner: 0 })
+    expect(branch.lockedNokominos).toEqual([])
     expect(branch.captureStreak).toBeNull()
     expect(goToVsHistory(branch, 4)).toBe(branch)
     const continued = play(branch, 2, 5)
@@ -102,7 +102,7 @@ describe('Local VS move history', () => {
     const branch = play(goToVsHistory(latest, 0), 9, 9)
     expect(branch.history.positions).toHaveLength(2)
     expect(branch.activePlayer).toBe(1)
-    expect(branch.placedCornerominoes).toEqual([{ column: 9, row: 9, corner: 1, player: 0 }])
+    expect(branch.placedNokominos).toEqual([{ column: 9, row: 9, corner: 1, player: 0 }])
   })
 
   it('keeps earlier positions view-only when rewriting is disabled, including stale confirmation attempts', () => {
@@ -129,18 +129,18 @@ describe('Local VS move history', () => {
     let before = createVsLocalGame(() => 0)
     if (reason === 'combination') {
       for (const [dx, dy] of [[1, 0], [0, 1]]) {
-        for (const corner of [1, 2, 3] as const) before.placedCornerominoes.push({ column: corner * dx, row: corner * dy, corner, player: 1 })
+        for (const corner of [1, 2, 3] as const) before.placedNokominos.push({ column: corner * dx, row: corner * dy, corner, player: 1 })
       }
     } else if (reason === 'consecutive-turns') {
       for (const row of [1, 4]) {
-        for (const corner of [1, 2, 3] as const) before.placedCornerominoes.push({ column: corner, row, corner, player: 1 })
+        for (const corner of [1, 2, 3] as const) before.placedNokominos.push({ column: corner, row, corner, player: 1 })
       }
       before = play(before, 4, 1, 0)
       before = play(before, 4, 2)
     } else {
       for (let index = 1; index < 10; index += 1) {
         const corner = reason === 'trap' && index < 3 ? index as VsCorner : 3
-        before.placedCornerominoes.push({ column: index, row: index, corner, player: 1 })
+        before.placedNokominos.push({ column: index, row: index, corner, player: 1 })
       }
     }
     const finished = reason === 'consecutive-turns' ? play(before, 4, 4, 0)
@@ -163,6 +163,6 @@ describe('Local VS move history', () => {
     expect(rematch.history.index).toBe(0)
     expect(rematch.history.positions).toEqual([getVsHistoryPosition(rematch)])
     expect(rematch.activePlayer).toBe(1)
-    expect(rematch.placedCornerominoes).toEqual([])
+    expect(rematch.placedNokominos).toEqual([])
   })
 })

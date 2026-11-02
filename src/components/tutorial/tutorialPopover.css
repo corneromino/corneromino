@@ -1,4 +1,4 @@
-.driver-popover.corneromino-tutorial {
+.driver-popover.nokomino-tutorial {
   --tutorial-band-depth: 8px;
   --tutorial-band-color: #b95c2e;
   box-sizing: border-box;
@@ -15,11 +15,11 @@
   pointer-events: none;
 }
 
-.driver-popover.corneromino-tutorial * {
+.driver-popover.nokomino-tutorial * {
   pointer-events: none;
 }
 
-.driver-popover.corneromino-tutorial::after {
+.driver-popover.nokomino-tutorial::after {
   content: '';
   position: absolute;
   right: 0;
@@ -31,7 +31,7 @@
   pointer-events: none;
 }
 
-.corneromino-tutorial .driver-popover-description {
+.nokomino-tutorial .driver-popover-description {
   font-size: 18px;
   font-weight: 100;
   line-height: 1.4;
@@ -44,13 +44,13 @@
   pointer-events: none !important;
 }
 
-.corneromino-tutorial .driver-popover-navigation-btns {
+.nokomino-tutorial .driver-popover-navigation-btns {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
-.driver-popover.corneromino-tutorial .cartoon-press {
+.driver-popover.nokomino-tutorial .cartoon-press {
   box-sizing: border-box;
   overflow: hidden;
   pointer-events: auto;
@@ -75,7 +75,7 @@
   text-align: center;
 }
 
-.driver-popover.corneromino-tutorial .cartoon-press:disabled {
+.driver-popover.nokomino-tutorial .cartoon-press:disabled {
   --press-face: #c7c2ba;
   --press-shadow: #8a8178;
   color: #625c55;
@@ -84,40 +84,40 @@
   pointer-events: none;
 }
 
-.driver-popover.corneromino-tutorial .cartoon-press:focus-visible {
+.driver-popover.nokomino-tutorial .cartoon-press:focus-visible {
   outline: var(--outline-width) solid var(--outline-color);
   outline-offset: 3px;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .driver-popover.corneromino-tutorial .cartoon-press:hover:not(:disabled) {
+  .driver-popover.nokomino-tutorial .cartoon-press:hover:not(:disabled) {
     background-color: var(--press-face-hover);
   }
 }
 
-.driver-popover.corneromino-tutorial .cartoon-press:active:not(:disabled) {
+.driver-popover.nokomino-tutorial .cartoon-press:active:not(:disabled) {
   background-color: var(--press-face-active);
 }
 
 @supports (corner-shape: superellipse(1.5)) {
-  .driver-popover.corneromino-tutorial,
-  .driver-popover.corneromino-tutorial .cartoon-press {
+  .driver-popover.nokomino-tutorial,
+  .driver-popover.nokomino-tutorial .cartoon-press {
     corner-shape: superellipse(1.5);
   }
 }
 
-.corneromino-tutorial .driver-popover-arrow-side-left {
+.nokomino-tutorial .driver-popover-arrow-side-left {
   border-left-color: var(--paper);
 }
 
-.corneromino-tutorial .driver-popover-arrow-side-right {
+.nokomino-tutorial .driver-popover-arrow-side-right {
   border-right-color: var(--paper);
 }
 
-.corneromino-tutorial .driver-popover-arrow-side-top {
+.nokomino-tutorial .driver-popover-arrow-side-top {
   border-top-color: var(--tutorial-band-color);
 }
 
-.corneromino-tutorial .driver-popover-arrow-side-bottom {
+.nokomino-tutorial .driver-popover-arrow-side-bottom {
   border-bottom-color: var(--paper);
 }

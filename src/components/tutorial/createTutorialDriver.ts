@@ -53,7 +53,7 @@ export function createTutorialDriver(steps: TutorialStep[], options: TutorialDri
     overlayColor: '#15100e',
     overlayOpacity: 0.5,
     overlayClickBehavior: 'none',
-    popoverClass: 'corneromino-tutorial',
+    popoverClass: 'nokomino-tutorial',
     showButtons: ['close', 'previous', 'next'],
     nextBtnText: 'Next',
     doneBtnText: 'Next',

@@ -125,7 +125,7 @@ export function SandboxWorld() {
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
       <header className="relative z-10 mx-auto flex w-full max-w-[550px] items-end justify-between gap-3 px-5 pb-6">
         <div>
-          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
+          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Nokomino</p>
           <h1 className="poster-title mt-2 text-[33px] leading-none">Sandbox</h1>
         </div>
         <div className="flex shrink-0 gap-1 sm:gap-2">

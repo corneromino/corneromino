@@ -48,7 +48,7 @@ export function drawCornerMarker(graphics: Graphics, x: number, y: number, style
   graphics.roundRect(x, y, style.size, style.size, style.radius).fill({ color: style.color, alpha: style.alpha ?? 1 })
 }
 
-export function drawCorneromino(graphics: Graphics, corner: number, width: number, height: number, body: CellBodyStyle, marker: CornerMarkerStyle) {
+export function drawNokomino(graphics: Graphics, corner: number, width: number, height: number, body: CellBodyStyle, marker: CornerMarkerStyle) {
   drawCellBody(graphics, 0, 0, width, height, body)
   const position = getCornerMarkerPosition(corner, width, height, marker)
   drawCornerMarker(graphics, position.x, position.y, marker)

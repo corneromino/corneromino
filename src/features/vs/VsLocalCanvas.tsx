@@ -3,7 +3,7 @@ import { Application, Container, Graphics, Text } from 'pixi.js'
 import { gsap } from 'gsap'
 import { ShockwaveFilter } from 'pixi-filters'
 import { GAME_COLORS } from '@/rendering/colors'
-import { drawCellBody, drawCornerMarker, getCornerMarkerPosition } from '@/rendering/grid/drawCorneromino'
+import { drawCellBody, drawCornerMarker, getCornerMarkerPosition } from '@/rendering/grid/drawNokomino'
 import { getGridCornerSquircleRadius, getGridSquircleRadius } from '@/rendering/grid/gridSquircle'
 import { GridSurface } from '@/rendering/grid/GridSurface'
 import { attachGridInput } from '@/rendering/grid/gridInput'
@@ -117,7 +117,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
       const cellSize = Math.min(cellWidth, cellHeight)
       const inset = Math.min(4, Math.max(2, cellSize * 0.1))
       const fontSize = Math.min(10, Math.max(6, cellSize * 0.19))
-      const placements = new Map(game.placedCornerominoes.map((cell) => [`${cell.column},${cell.row}`, cell]))
+      const placements = new Map(game.placedNokominos.map((cell) => [`${cell.column},${cell.row}`, cell]))
 
       for (const label of coordinateLabels) {
         const column = label.kind === 'column' ? label.index : facingTop ? boardSize - 1 : 0
@@ -216,7 +216,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
     function playLockedCellImpacts(lockedCellKeys: readonly string[]) {
       const config = CASCADE_LOCK_EFFECTS.shakeDrop
       if (!config.enabled || config.durationSeconds <= 0 || !surface) return
-      const placements = new Map(gameRef.current.placedCornerominoes.map((placement) => [`${placement.column},${placement.row}`, placement]))
+      const placements = new Map(gameRef.current.placedNokominos.map((placement) => [`${placement.column},${placement.row}`, placement]))
       const amplitude = Math.min(surface.metrics.cellWidth, surface.metrics.cellHeight) * config.amplitudeCells
       for (const key of lockedCellKeys) {
         const placement = placements.get(key)
@@ -249,7 +249,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
       const confirmedMove = previousGame
         && game.history.positions !== previousGame.history.positions
         && game.history.index === previousGame.history.index + 1
-        && game.placedCornerominoes.length === previousGame.placedCornerominoes.length + 1
+        && game.placedNokominos.length === previousGame.placedNokominos.length + 1
       if (previousGame && game.history !== previousGame.history && !confirmedMove) clearLockEffects()
       pieces.clear()
       const previewCells = getVsNextTurnPreviewCells(gameRef.current)
@@ -266,18 +266,18 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
         pieces.circle(x + cellWidth / 2, y + cellHeight / 2, Math.min(cellWidth, cellHeight) * TARGET_DOT_RADIUS_RATIO).fill({ color: GAME_COLORS.cornerMarker, alpha: TARGET_DOT_ALPHA })
       }
       const selectedCellKeys = new Set(game.selectedCellKeys)
-      for (const placement of gameRef.current.placedCornerominoes) {
+      for (const placement of gameRef.current.placedNokominos) {
         const selected = selectedCellKeys.has(`${placement.column},${placement.row}`)
         drawPlacement(pieces, surface, placement.column, placement.row, placement.corner, false, placement.lockedBy, selected ? SELECTED_CELL_COLOR : undefined)
       }
       // Draw joins after all bodies so neighbouring cell borders cannot cover them.
-      for (const bridge of getVsLockedShapeBridges(gameRef.current.lockedCornerominoes, surface.metrics, CELL_BORDER_SIZE)) {
+      for (const bridge of getVsLockedShapeBridges(gameRef.current.lockedNokominos, surface.metrics, CELL_BORDER_SIZE)) {
         pieces.rect(bridge.x, bridge.y, bridge.width, bridge.height).fill(VS_PLAYERS[bridge.player].lockedColor)
       }
       const pending = gameRef.current.pendingPlacement
       if (pending) drawPlacement(pieces, surface, pending.column, pending.row, pending.corner, true)
       drawCoordinates()
-      const lockedCellKeys = new Set(gameRef.current.placedCornerominoes
+      const lockedCellKeys = new Set(gameRef.current.placedNokominos
         .filter((placement) => placement.lockedBy !== undefined)
         .map((placement) => `${placement.column},${placement.row}`))
       const newlyLockedCellKeys = [...lockedCellKeys].filter((key) => !previousLockedCellKeys.has(key))

@@ -3,7 +3,8 @@ import { initReactI18next } from 'react-i18next'
 import en from '@/locales/en.js'
 import fr from '@/locales/fr.js'
 
-export const LANGUAGE_STORAGE_KEY = 'corneromino:language'
+export const LANGUAGE_STORAGE_KEY = 'nokomino:language'
+const LEGACY_LANGUAGE_STORAGE_KEY = 'corneromino:language'
 export const SUPPORTED_LANGUAGES = ['en', 'fr'] as const
 export type AppLanguage = typeof SUPPORTED_LANGUAGES[number]
 
@@ -13,8 +14,15 @@ const resources = {
 } as const
 
 function getInitialLanguage(): AppLanguage {
-  const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY)
-  if (stored === 'en' || stored === 'fr') return stored
+  try {
+    const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY)
+    if (stored === 'en' || stored === 'fr') return stored
+    const legacy = window.localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY)
+    if (legacy === 'en' || legacy === 'fr') {
+      try { window.localStorage.setItem(LANGUAGE_STORAGE_KEY, legacy) } catch { /* Keep the language usable when storage is full. */ }
+      return legacy
+    }
+  } catch { /* Storage can be unavailable in private or restricted contexts. */ }
   return 'en'
 }
 
@@ -32,7 +40,7 @@ void i18n
 
 i18n.on('languageChanged', (language) => {
   const selected = SUPPORTED_LANGUAGES.includes(language as AppLanguage) ? language : 'en'
-  window.localStorage.setItem(LANGUAGE_STORAGE_KEY, selected)
+  try { window.localStorage.setItem(LANGUAGE_STORAGE_KEY, selected) } catch { /* The in-session preference still applies. */ }
   document.documentElement.lang = selected
 })
 

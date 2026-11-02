@@ -1,5 +1,6 @@
-import { openDB } from 'idb'
-import { isGameMode, LEGACY_GAME_MODE_IDS, type CellMarker, type ClassicGameMode, type GameMode, type GameSelectionState, type LockedCellGroup } from '@/game/gameConfig'
+import { openGameDatabase } from './gameDatabase'
+import { migrateLegacyGameState } from './saveMigration'
+import { isGameMode, type CellMarker, type ClassicGameMode, type GameMode, type GameSelectionState, type LockedCellGroup } from '@/game/gameConfig'
 import { isVsLocalBoardSize, isVsTrapResolution, isVsWinCount, VS_LOCAL_CONFIG, VS_LOCAL_DEFAULT_BOARD_SIZE } from '@/features/vs/vsLocalConfig'
 import { getVsAllowedCells, getVsHistoryPosition, getVsPlayerScores, type VsCaptureStreak, type VsGameResult, type VsLocalGameState, type VsLocalPosition, type VsMoveHistory } from '@/features/vs/vsLocalGame'
 
@@ -9,37 +10,7 @@ export interface StoredGame {
   state: unknown
 }
 
-interface ClassicSaveMigration {
-  deleteIds: string[]
-  putRecords: StoredGame[]
-}
-
-/**
- * Renames legacy difficulty-name save keys to permanent Classic mode IDs.
- * The newest record wins if a partially migrated database has both forms.
- */
-export function migrateLegacyClassicSaveRecords(records: readonly StoredGame[]): ClassicSaveMigration {
-  const latestById = new Map(records.map((record) => [record.id, record]))
-  const deleteIds: string[] = []
-  const putRecords: StoredGame[] = []
-
-  for (const record of records) {
-    const [prefix, legacyMode, ...gameIdParts] = record.id.split(':')
-    const gameMode = LEGACY_GAME_MODE_IDS[legacyMode as keyof typeof LEGACY_GAME_MODE_IDS]
-    if (prefix !== 'selection' || !gameMode || gameIdParts.length === 0) continue
-
-    const targetId = `selection:${gameMode}:${gameIdParts.join(':')}`
-    const existing = latestById.get(targetId)
-    if (!existing || record.updatedAt > existing.updatedAt) {
-      const migrated = { ...record, id: targetId }
-      latestById.set(targetId, migrated)
-      putRecords.push(migrated)
-    }
-    deleteIds.push(record.id)
-  }
-
-  return { deleteIds, putRecords }
-}
+export { migrateLegacyClassicSaveRecords } from './saveMigration'
 
 export interface SavedGame {
   gameId: string
@@ -77,7 +48,7 @@ export interface CascadeGameSaveState {
   lockedPieces: Array<{ cellKey: string; color: number; groupId: string }>
   /** Backwards compatibility for Cascade saves created before lock groups existed. */
   lockedPieceColors?: Array<{ cellKey: string; color: number }>
-  lockedCornerominoCount?: number
+  lockedNokominoCount?: number
   score?: number
   selectedPieceKeys: string[]
 }
@@ -88,36 +59,7 @@ type OptionalLegacyVsFields = 'allowHistoryRewrite' | 'allowOverlappingCombinati
 type LegacyVsLocalGameSaveState = Omit<VsLocalGameSaveState, OptionalLegacyVsFields>
   & Partial<Pick<VsLocalGameSaveState, OptionalLegacyVsFields>>
 
-interface CornerominoDatabase {
-  games: {
-    key: string
-    value: StoredGame
-  }
-  sandboxWorlds: {
-    key: string
-    value: SavedSandboxWorld
-  }
-}
-
-export const db = openDB<CornerominoDatabase>('corneromino', 3, {
-  upgrade(database, oldVersion, _newVersion, transaction) {
-    if (!database.objectStoreNames.contains('games')) {
-      database.createObjectStore('games', { keyPath: 'id' })
-    }
-    if (!database.objectStoreNames.contains('sandboxWorlds')) {
-      database.createObjectStore('sandboxWorlds', { keyPath: 'id' })
-    }
-    if (oldVersion < 3) {
-      const games = transaction.objectStore('games')
-      // Issue writes while this versionchange transaction remains active.
-      void games.getAll().then((records) => {
-        const migration = migrateLegacyClassicSaveRecords(records)
-        for (const record of migration.putRecords) void games.put(record)
-        for (const id of migration.deleteIds) void games.delete(id)
-      })
-    }
-  },
-})
+export const db = openGameDatabase()
 
 function selectionStorageKey(gameMode: GameMode, gameId: string): string {
   return `selection:${gameMode}:${gameId}`
@@ -181,16 +123,16 @@ function isVsLocalPosition(value: unknown): value is Pick<LegacyVsLocalGameSaveS
     && (!('captureStreak' in value) || value.captureStreak === null || isVsCaptureStreak(value.captureStreak))
     && (!('result' in value) || value.result === null || isVsGameResult(value.result))
     && (!('nextMoveConstraint' in value) || value.nextMoveConstraint === null || isVsMoveConstraint(value.nextMoveConstraint))
-    && 'placedCornerominoes' in value && Array.isArray(value.placedCornerominoes) && value.placedCornerominoes.every((placement) => (
+    && 'placedNokominos' in value && Array.isArray(value.placedNokominos) && value.placedNokominos.every((placement) => (
       isVsPlacement(placement)
       && 'player' in placement && isVsPlayer(placement.player)
       && (!('lockedBy' in placement) || isVsPlayer(placement.lockedBy))
     ))
-    && 'lockedCornerominoes' in value && Array.isArray(value.lockedCornerominoes) && value.lockedCornerominoes.every((corneromino) => (
-      typeof corneromino === 'object' && corneromino !== null
-      && 'id' in corneromino && typeof corneromino.id === 'string'
-      && 'player' in corneromino && isVsPlayer(corneromino.player)
-      && 'cellKeys' in corneromino && Array.isArray(corneromino.cellKeys) && corneromino.cellKeys.length === 4 && corneromino.cellKeys.every((cellKey: unknown) => typeof cellKey === 'string')
+    && 'lockedNokominos' in value && Array.isArray(value.lockedNokominos) && value.lockedNokominos.every((nokomino) => (
+      typeof nokomino === 'object' && nokomino !== null
+      && 'id' in nokomino && typeof nokomino.id === 'string'
+      && 'player' in nokomino && isVsPlayer(nokomino.player)
+      && 'cellKeys' in nokomino && Array.isArray(nokomino.cellKeys) && nokomino.cellKeys.length === 4 && nokomino.cellKeys.every((cellKey: unknown) => typeof cellKey === 'string')
     ))
 }
 
@@ -238,7 +180,7 @@ function hasValidVsResult(state: VsLocalGameSaveState): boolean {
       if (!state.nextMoveConstraint || getVsAllowedCells({ ...state, result: null }).length > 0) return false
       if (result.reason === 'no-legal-moves') return state.captureStreak?.player !== state.activePlayer
       if (state.captureStreak?.player !== state.activePlayer) return false
-      const [first, second] = getVsPlayerScores(state.placedCornerominoes)
+      const [first, second] = getVsPlayerScores(state.placedNokominos)
       const expectedWinner = state.trapResolution === 'draw' || first === second ? null : first > second ? 0 : 1
       return result.winner === expectedWinner
     }
@@ -250,14 +192,14 @@ function hasValidVsHistory(state: VsLocalGameSaveState): boolean {
   if (JSON.stringify(getVsHistoryPosition(state)) !== JSON.stringify(getVsHistoryPosition(positions[index]))) return false
   if (!state.allowHistoryRewrite && index < positions.length - 1 && state.pendingPlacement !== null) return false
   return positions.every((position, positionIndex) => {
-    if (position.placedCornerominoes.length > 100) return false
+    if (position.placedNokominos.length > 100) return false
     if (position.result && positionIndex !== positions.length - 1) return false
     if (!hasValidVsResult({ ...state, ...position, pendingPlacement: null })) return false
     if (positionIndex === 0) return true
     const previous = positions[positionIndex - 1]
-    if (position.placedCornerominoes.length !== previous.placedCornerominoes.length + 1) return false
-    return previous.placedCornerominoes.every((cell, cellIndex) => {
-      const next = position.placedCornerominoes[cellIndex]
+    if (position.placedNokominos.length !== previous.placedNokominos.length + 1) return false
+    return previous.placedNokominos.every((cell, cellIndex) => {
+      const next = position.placedNokominos[cellIndex]
       return cell.column === next.column && cell.row === next.row && cell.corner === next.corner && cell.player === next.player
         && (cell.lockedBy === undefined || cell.lockedBy === next.lockedBy)
     })
@@ -300,7 +242,7 @@ function isCascadeGameSaveState(value: unknown): value is CascadeGameSaveState {
       typeof piece === 'object' && piece !== null && 'cellKey' in piece && typeof piece.cellKey === 'string' && 'color' in piece && typeof piece.color === 'number'
     ))))
     && ('lockedPieces' in value || 'lockedPieceColors' in value)
-    && (!('lockedCornerominoCount' in value) || (typeof value.lockedCornerominoCount === 'number' && value.lockedCornerominoCount >= 0))
+    && (!('lockedNokominoCount' in value) || (typeof value.lockedNokominoCount === 'number' && value.lockedNokominoCount >= 0))
     && (!('score' in value) || (typeof value.score === 'number' && value.score >= 0))
     && 'selectedPieceKeys' in value && Array.isArray(value.selectedPieceKeys) && value.selectedPieceKeys.every((cellKey) => typeof cellKey === 'string')
 }
@@ -422,7 +364,8 @@ export async function deleteSavedGame(gameMode: GameMode, gameId: string): Promi
 
 export async function loadCascadeGameState(): Promise<CascadeGameSaveState | null> {
   const storedState = await (await db).get('games', CASCADE_STORAGE_KEY)
-  return storedState && isCascadeGameSaveState(storedState.state) ? storedState.state : null
+  const state = migrateLegacyGameState(CASCADE_STORAGE_KEY, storedState?.state)
+  return isCascadeGameSaveState(state) ? state : null
 }
 
 export async function saveCascadeGameState(state: CascadeGameSaveState): Promise<void> {
@@ -434,15 +377,16 @@ export async function clearCascadeGameState(): Promise<void> {
 }
 
 export async function loadVsLocalGameState(): Promise<VsLocalGameSaveState | null> {
-  const storedState = await (await db).get('games', VS_LOCAL_STORAGE_KEY)
-  if (!storedState || !isVsLocalGameSaveState(storedState.state)) return null
+  const record = await (await db).get('games', VS_LOCAL_STORAGE_KEY)
+  const storedState = { state: migrateLegacyGameState(VS_LOCAL_STORAGE_KEY, record?.state) }
+  if (!isVsLocalGameSaveState(storedState.state)) return null
   const position: VsLocalPosition = {
     activePlayer: storedState.state.activePlayer,
     // Earlier saves cannot reconstruct a capture streak from locked groups alone.
     captureStreak: storedState.state.captureStreak ?? null,
-    lockedCornerominoes: storedState.state.lockedCornerominoes,
+    lockedNokominos: storedState.state.lockedNokominos,
     nextMoveConstraint: storedState.state.nextMoveConstraint ?? null,
-    placedCornerominoes: storedState.state.placedCornerominoes,
+    placedNokominos: storedState.state.placedNokominos,
     // Older saves have no turn history from which to infer a combination victory.
     result: storedState.state.result ?? null,
   }

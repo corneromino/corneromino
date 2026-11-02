@@ -1,5 +1,5 @@
 import type { GridMetrics } from '@/rendering/grid/gridGeometry'
-import type { VsLockedCorneromino, VsPlayerId } from './vsLocalGame'
+import type { VsLockedNokomino, VsPlayerId } from './vsLocalGame'
 
 interface LockedShapeBridge {
   x: number
@@ -11,7 +11,7 @@ interface LockedShapeBridge {
 
 /** Fills internal grid seams using lock-group membership, not just matching colours. */
 export function getVsLockedShapeBridges(
-  groups: readonly VsLockedCorneromino[],
+  groups: readonly VsLockedNokomino[],
   metrics: GridMetrics,
   borderSize: number,
 ): LockedShapeBridge[] {

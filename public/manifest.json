@@ -1,31 +1,31 @@
 {
-  "id": "/corneromino/corneromino-pwa-v1",
-  "name": "Corneromino",
-  "short_name": "Corneromino",
+  "id": "./nokomino-pwa-v1",
+  "name": "Nokomino",
+  "short_name": "Nokomino",
   "version": "0.9.16",
   "description": "A tetromino deduction puzzle game.",
   "lang": "en",
-  "start_url": "/corneromino/#/",
-  "scope": "/corneromino/",
+  "start_url": "./#/",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F0AD61",
   "theme_color": "#F0AD61",
   "icons": [
     {
-      "src": "icons/corneromino.png",
+      "src": "icons/nokomino.png",
       "sizes": "any",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/corneromino-192.png",
+      "src": "icons/nokomino-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icons/corneromino-512.png",
+      "src": "icons/nokomino-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

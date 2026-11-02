@@ -12,7 +12,7 @@ const OLD_CONFIG: VsLocalConfig = {
 
 describe('Local VS match configuration', () => {
   it('uses current code settings when no saved match exists', () => {
-    expect(resumeVsLocalGame(null)).toMatchObject({ ...VS_LOCAL_CONFIG, placedCornerominoes: [], result: null })
+    expect(resumeVsLocalGame(null)).toMatchObject({ ...VS_LOCAL_CONFIG, placedNokominos: [], result: null })
   })
 
   it('refreshes the reported empty save without changing its starting player or mutating it', () => {
@@ -33,7 +33,7 @@ describe('Local VS match configuration', () => {
     const played = finishVsTurn(selectVsCell(createVsLocalGame(() => 0, OLD_CONFIG), 4, 4))
     expect(resumeVsLocalGame(played)).toBe(played)
     const past = goToVsHistory(played, 0)
-    expect(past.placedCornerominoes).toEqual([])
+    expect(past.placedNokominos).toEqual([])
     expect(resumeVsLocalGame(past)).toBe(past)
   })
 

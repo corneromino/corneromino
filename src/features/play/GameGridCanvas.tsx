@@ -13,7 +13,7 @@ import { InfiniteExitDistortionEffect, type InfiniteExitDistortionConfig } from 
 import { GAME_COLORS } from '@/rendering/colors'
 import { attachGridInput, type GridCellEvent } from '@/rendering/grid/gridInput'
 import { constrainGridView, createGridNavigation, type GridView } from '@/rendering/grid/gridNavigation'
-import { drawCellBody, drawCornerMarker, getCornerMarkerPosition } from '@/rendering/grid/drawCorneromino'
+import { drawCellBody, drawCornerMarker, getCornerMarkerPosition } from '@/rendering/grid/drawNokomino'
 import { getGridCornerSquircleRadius, getGridSquircleRadius } from '@/rendering/grid/gridSquircle'
 import { CELL_CORNERS, CLASSIC_VERIFICATION_EFFECT, VERIFICATION_FLIP_BATCH_SIZE, VERIFICATION_FLIP_DURATION_MS } from '@/game/gameConfig'
 import { ShockwaveFilter } from 'pixi-filters'

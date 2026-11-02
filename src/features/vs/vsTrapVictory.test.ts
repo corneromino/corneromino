@@ -7,14 +7,14 @@ function trapSetup(direction: VsMoveDirection, player: VsPlayerId = 0, trapResol
   game.pendingPlacement = { column: 0, row: 0, corner: 0 }
   game.pendingMoveDirection = direction
   for (let index = 1; index < 10; index += 1) {
-    game.placedCornerominoes.push({
+    game.placedNokominos.push({
       column: direction === 'diagonal' ? index : 0,
       row: index,
       corner: index === 1 ? 1 : index === 2 ? 2 : 3,
       player: player === 0 ? 1 : 0,
     })
     // Block the row without also completing an overlapping L beside the vertical I.
-    if (direction === 'orthogonal') game.placedCornerominoes.push({ column: index, row: 0, corner: 0, player })
+    if (direction === 'orthogonal') game.placedNokominos.push({ column: index, row: 0, corner: 0, player })
   }
   return game
 }
@@ -22,10 +22,10 @@ function trapSetup(direction: VsMoveDirection, player: VsPlayerId = 0, trapResol
 function addLockedSquare(game: VsLocalGameState, column: number, row: number, player: VsPlayerId) {
   const cells = [[column, row], [column + 1, row], [column, row + 1], [column + 1, row + 1]]
   const corners = [0, 1, 2, 3] as const
-  game.lockedCornerominoes.push({ id: `old:${game.lockedCornerominoes.length}`, player, cellKeys: cells.map(([x, y]) => `${x},${y}`) })
+  game.lockedNokominos.push({ id: `old:${game.lockedNokominos.length}`, player, cellKeys: cells.map(([x, y]) => `${x},${y}`) })
   for (const [index, [x, y]] of cells.entries()) {
-    if (!game.placedCornerominoes.some((cell) => cell.column === x && cell.row === y)) {
-      game.placedCornerominoes.push({ column: x, row: y, corner: corners[index], player: player === 0 ? 1 : 0, lockedBy: player })
+    if (!game.placedNokominos.some((cell) => cell.column === x && cell.row === y)) {
+      game.placedNokominos.push({ column: x, row: y, corner: corners[index], player: player === 0 ? 1 : 0, lockedBy: player })
     }
   }
 }
@@ -37,21 +37,21 @@ describe.each(['orthogonal', 'diagonal'] as const)('Local VS %s traps', (directi
     expect(before.result).toBeNull()
     const after = finishVsTurn(before)
     expect(after.result).toEqual({ reason: 'trap', winner: player })
-    expect(after.lockedCornerominoes).toHaveLength(1)
-    expect(getVsPlayerScores(after.placedCornerominoes)[player]).toBe(4)
+    expect(after.lockedNokominos).toHaveLength(1)
+    expect(getVsPlayerScores(after.placedNokominos)[player]).toBe(4)
     expect(after.pendingPlacement).toBeNull()
     expect(getVsAllowedCells({ ...after, result: null })).toEqual([])
-    expect(before.lockedCornerominoes).toEqual([])
-    expect(before.placedCornerominoes.every((cell) => cell.lockedBy === undefined)).toBe(true)
+    expect(before.lockedNokominos).toEqual([])
+    expect(before.placedNokominos.every((cell) => cell.lockedBy === undefined)).toBe(true)
   })
 
   it.each([0, 1] as const)('includes player %s’s final capture when comparing tied scores', (player) => {
     const before = trapSetup(direction, player)
     const opponent = player === 0 ? 1 : 0
     addLockedSquare(before, 6, 1, opponent)
-    expect(getVsPlayerScores(before.placedCornerominoes)[player]).toBe(0)
+    expect(getVsPlayerScores(before.placedNokominos)[player]).toBe(0)
     const after = finishVsTurn(before)
-    expect(getVsPlayerScores(after.placedCornerominoes)).toEqual([4, 4])
+    expect(getVsPlayerScores(after.placedNokominos)).toEqual([4, 4])
     expect(after.result).toEqual({ reason: 'trap', winner: null })
   })
 
@@ -62,31 +62,31 @@ describe.each(['orthogonal', 'diagonal'] as const)('Local VS %s traps', (directi
     addLockedSquare(before, 6, 4, opponent)
     const after = finishVsTurn(before)
     expect(after.result).toEqual({ reason: 'trap', winner: opponent })
-    expect(getVsPlayerScores(after.placedCornerominoes)[opponent]).toBe(8)
-    expect(getVsPlayerScores(after.placedCornerominoes)[player]).toBe(4)
+    expect(getVsPlayerScores(after.placedNokominos)[opponent]).toBe(8)
+    expect(getVsPlayerScores(after.placedNokominos)[player]).toBe(4)
     expect(after.activePlayer).toBe(player)
   })
 
   it('always draws a trapping capture in draw mode, even with unequal points', () => {
     const after = finishVsTurn(trapSetup(direction, 0, 'draw'))
-    expect(getVsPlayerScores(after.placedCornerominoes)).toEqual([4, 0])
+    expect(getVsPlayerScores(after.placedNokominos)).toEqual([4, 0])
     expect(after.result).toEqual({ reason: 'trap', winner: null })
   })
 
   it.each(['points', 'draw'] as const)('draws a non-capturing block regardless of points in %s mode', (trapResolution) => {
     const before = trapSetup(direction, 0, trapResolution)
-    for (const cell of before.placedCornerominoes) cell.corner = 3
+    for (const cell of before.placedNokominos) cell.corner = 3
     addLockedSquare(before, 6, 1, 0)
     const after = finishVsTurn(before)
-    expect(getVsPlayerScores(after.placedCornerominoes)).toEqual([4, 0])
-    expect(after.lockedCornerominoes).toHaveLength(1)
+    expect(getVsPlayerScores(after.placedNokominos)).toEqual([4, 0])
+    expect(after.lockedNokominos).toHaveLength(1)
     expect(after.result).toEqual({ reason: 'no-legal-moves', winner: null })
   })
 
   it('continues if even one distant legal cell remains empty', () => {
     const before = trapSetup(direction)
     const column = direction === 'diagonal' ? 9 : 0
-    before.placedCornerominoes = before.placedCornerominoes.filter((cell) => cell.column !== column || cell.row !== 9)
+    before.placedNokominos = before.placedNokominos.filter((cell) => cell.column !== column || cell.row !== 9)
     const after = finishVsTurn(before)
     expect(after.result).toBeNull()
     expect(getVsAllowedCells(after)).toEqual([{ column, row: 9 }])
@@ -100,7 +100,7 @@ describe('Local VS trap resolution', () => {
     const rematch = createVsLocalGame(() => 1, { trapResolution: finished.trapResolution })
     expect(rematch.trapResolution).toBe('draw')
     expect(rematch.result).toBeNull()
-    expect(rematch.placedCornerominoes).toEqual([])
+    expect(rematch.placedNokominos).toEqual([])
   })
 
   it('uses the selected direction rather than an alternative blocked direction', () => {
@@ -117,21 +117,21 @@ describe('Local VS trap resolution', () => {
     addLockedSquare(before, 7, 2, 1)
     addLockedSquare(before, 1, 7, 0)
     const after = finishVsTurn(before)
-    expect(after.lockedCornerominoes.filter((shape) => shape.player === 0)).toHaveLength(2)
-    expect(after.lockedCornerominoes.filter((shape) => shape.player === 1)).toHaveLength(2)
-    expect(getVsPlayerScores(after.placedCornerominoes)).toEqual([8, 7])
+    expect(after.lockedNokominos.filter((shape) => shape.player === 0)).toHaveLength(2)
+    expect(after.lockedNokominos.filter((shape) => shape.player === 1)).toHaveLength(2)
+    expect(getVsPlayerScores(after.placedNokominos)).toEqual([8, 7])
     expect(after.result).toEqual({ reason: 'trap', winner: 0 })
   })
 
   it.each(['points', 'draw'] as const)('prioritizes combination victory over a trap in %s mode', (trapResolution) => {
     const before = trapSetup('orthogonal', 0, trapResolution)
-    before.placedCornerominoes.find((cell) => cell.column === 1 && cell.row === 0)!.corner = 1
-    before.placedCornerominoes.find((cell) => cell.column === 2 && cell.row === 0)!.corner = 2
-    before.placedCornerominoes.find((cell) => cell.column === 3 && cell.row === 0)!.corner = 3
+    before.placedNokominos.find((cell) => cell.column === 1 && cell.row === 0)!.corner = 1
+    before.placedNokominos.find((cell) => cell.column === 2 && cell.row === 0)!.corner = 2
+    before.placedNokominos.find((cell) => cell.column === 3 && cell.row === 0)!.corner = 3
     addLockedSquare(before, 6, 1, 1)
     addLockedSquare(before, 6, 4, 1)
     const after = finishVsTurn(before)
-    expect(getVsPlayerScores(after.placedCornerominoes)).toEqual([7, 8])
+    expect(getVsPlayerScores(after.placedNokominos)).toEqual([7, 8])
     expect(after.result).toEqual({ reason: 'combination', winner: 0, shapeCount: 2 })
   })
 
@@ -142,7 +142,7 @@ describe('Local VS trap resolution', () => {
     addLockedSquare(before, 6, 1, 1)
     addLockedSquare(before, 6, 4, 1)
     const after = finishVsTurn(before)
-    expect(getVsPlayerScores(after.placedCornerominoes)).toEqual([8, 8])
+    expect(getVsPlayerScores(after.placedNokominos)).toEqual([8, 8])
     expect(after.result).toEqual({ reason: 'consecutive-turns', winner: 0, turnCount: 2 })
   })
 
@@ -151,12 +151,12 @@ describe('Local VS trap resolution', () => {
     for (let row = 0; row < 10; row += 1) {
       for (let column = 0; column < 10; column += 1) {
         if (column === row) continue
-        before.placedCornerominoes.push({ column, row, corner: 3, player: 1 })
+        before.placedNokominos.push({ column, row, corner: 3, player: 1 })
       }
     }
-    if (!capture) for (const cell of before.placedCornerominoes) cell.corner = 3
+    if (!capture) for (const cell of before.placedNokominos) cell.corner = 3
     const after = finishVsTurn(before)
-    expect(after.placedCornerominoes).toHaveLength(100)
+    expect(after.placedNokominos).toHaveLength(100)
     expect(after.result).toEqual(capture ? { reason: 'trap', winner: 0 } : { reason: 'no-legal-moves', winner: null })
   })
 

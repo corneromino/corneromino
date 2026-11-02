@@ -159,7 +159,7 @@ export function SavedGames() {
       <section className="relative z-10 mx-auto flex min-h-0 w-full max-w-[720px] flex-col">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
+            <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Nokomino</p>
             <h1 className="poster-title mt-2 whitespace-nowrap text-[33px] leading-none">{t('savedGames.title')}</h1>
           </div>
           <AppNavigationButton aria-label={t('savedGames.backToClassic')} className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('savedGames.backToClassic')} to="/play"><ArrowLeft aria-hidden="true" /></AppNavigationButton>

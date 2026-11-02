@@ -6,7 +6,7 @@ import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
 import { CanvasStartupError } from '@/rendering/pixi/CanvasStartupError'
 import { GAME_COLORS, LOCKED_CELL_COLORS } from '@/rendering/colors'
 import { attachGridInput } from '@/rendering/grid/gridInput'
-import { drawCellBody, drawCornerMarker, getCornerMarkerPosition } from '@/rendering/grid/drawCorneromino'
+import { drawCellBody, drawCornerMarker, getCornerMarkerPosition } from '@/rendering/grid/drawNokomino'
 import { getGridCornerSquircleRadius, getGridSquircleRadius } from '@/rendering/grid/gridSquircle'
 import { gsap } from 'gsap'
 import { ShockwaveFilter } from 'pixi-filters'
@@ -36,8 +36,8 @@ interface CascadeCanvasProps {
   getFallIntervalMs: (gameState: CascadeGameSaveState) => number
   gridSize: CascadeGridSize
   initialState: CascadeGameSaveState | null
-  onStatsChange: (stats: { destroyedLineCount: number; lockedCornerominoCount: number; score: number; upcomingCorners: CascadeCorner[] }) => void
-  scorePointsPerLockedCorneromino: number
+  onStatsChange: (stats: { destroyedLineCount: number; lockedNokominoCount: number; score: number; upcomingCorners: CascadeCorner[] }) => void
+  scorePointsPerLockedNokomino: number
   scorePointsPerLine: number
 }
 
@@ -72,7 +72,7 @@ function invertColor(color: number): number {
   return color ^ 0xffffff
 }
 
-function drawCorneromino(graphics: Graphics, cornerGraphic: Graphics, corner: CascadeCorner, cellSize: number, borderWidth: number, isSelected: boolean, lockedColor: number | undefined) {
+function drawNokomino(graphics: Graphics, cornerGraphic: Graphics, corner: CascadeCorner, cellSize: number, borderWidth: number, isSelected: boolean, lockedColor: number | undefined) {
   const pieceColor = isSelected ? invertColor(CORNER_MARKER_COLOR) : CORNER_MARKER_COLOR
   const detailColor = isSelected ? invertColor(CELL_FILL_COLOR) : CELL_FILL_COLOR
   drawCellBody(graphics, 0, 0, cellSize, cellSize, {
@@ -138,7 +138,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     const lockedPieceColors = new Map(lockedPieces.map((piece) => [piece.cellKey, piece.color]))
     const lockedPieceGroupIds = new Map(lockedPieces.map((piece) => [piece.cellKey, piece.groupId]))
     let destroyedLineCount = props.initialState?.destroyedLineCount ?? 0
-    let lockedCornerominoCount = props.initialState?.lockedCornerominoCount ?? lockedPieceColors.size
+    let lockedNokominoCount = props.initialState?.lockedNokominoCount ?? lockedPieceColors.size
     let score = props.initialState?.score ?? 0
     const lockWaves = new Set<ShockwaveFilter>()
     let disposed = false
@@ -163,7 +163,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         destroyedLineCount,
         elapsedSinceFall,
         gameState,
-        lockedCornerominoCount,
+        lockedNokominoCount,
         lockedPieces: [...lockedPieceColors].map(([cellKey, color]) => ({ cellKey, color, groupId: lockedPieceGroupIds.get(cellKey) ?? `legacy:${cellKey}` })),
         score,
         selectedPieceKeys: [...selectedPieceKeys],
@@ -212,7 +212,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         color: `#${color.toString(16).padStart(6, '0')}`,
         groupId: lockedPieceGroupIds.get(cellKey) ?? `legacy:${cellKey}`,
       })),
-      lockedCornerominoCount,
+      lockedNokominoCount,
       score,
       selectedPieceKeys: [...selectedPieceKeys],
       version: 1,
@@ -221,7 +221,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     function notifyStats() {
       props.onStatsChange({
         destroyedLineCount,
-        lockedCornerominoCount,
+        lockedNokominoCount,
         score,
         upcomingCorners: [...(gameState.upcomingCorners ?? [])],
       })
@@ -337,7 +337,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         if (needsRedraw) {
           renderedPiece.graphic.clear()
           renderedPiece.cornerGraphic.clear()
-          drawCorneromino(renderedPiece.graphic, renderedPiece.cornerGraphic, piece.corner, cellSize, borderWidth, isSelected, lockedColor)
+          drawNokomino(renderedPiece.graphic, renderedPiece.cornerGraphic, piece.corner, cellSize, borderWidth, isSelected, lockedColor)
           renderedPiece.graphic.pivot.set(cellSize / 2, cellSize / 2)
           configureLockedShine(renderedPiece, cellSize, borderWidth, lockedColor !== undefined)
         }
@@ -594,7 +594,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         lockedPieceColors.set(pieceKey, lockedColor)
         lockedPieceGroupIds.set(pieceKey, lockGroupId)
       }
-      score += props.scorePointsPerLockedCorneromino
+      score += props.scorePointsPerLockedNokomino
       selectedPieceKeys.clear()
       const resolution = resolveCascadeLockedRows(
         gameState,
@@ -630,7 +630,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         score += props.scorePointsPerLine
         fallIntervalMs = props.getFallIntervalMs(getCurrentSaveState())
       }
-      lockedCornerominoCount = lockedPieceColors.size
+      lockedNokominoCount = lockedPieceColors.size
       notifyStats()
       playLockShake(selectedPieces)
       playGridShake()
@@ -832,7 +832,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
 
     void start()
     return () => host?.destroy()
-  }, [props.cornerDifficulty, props.cornerSpawnMode, props.getFallIntervalMs, props.gridSize.columns, props.gridSize.rows, props.maxConsecutiveSameCorner, props.scorePointsPerLine, props.scorePointsPerLockedCorneromino])
+  }, [props.cornerDifficulty, props.cornerSpawnMode, props.getFallIntervalMs, props.gridSize.columns, props.gridSize.rows, props.maxConsecutiveSameCorner, props.scorePointsPerLine, props.scorePointsPerLockedNokomino])
 
   return <div className="size-full" ref={containerRef}>{startupFailed && <CanvasStartupError />}</div>
 })

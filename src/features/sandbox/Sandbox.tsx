@@ -143,7 +143,7 @@ export function Sandbox() {
       <TetrominoBackground />
       <header className="relative z-10 mx-auto flex w-full max-w-[550px] items-center justify-between gap-3 px-5 pb-6">
         <div className="min-w-0">
-          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
+          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Nokomino</p>
           <h1 className="poster-title mt-2 text-[40px] leading-none">Sandbox</h1>
         </div>
         <AppNavigationButton aria-label="Back to main menu" className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title="Back to main menu" to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>

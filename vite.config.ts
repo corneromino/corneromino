@@ -13,7 +13,7 @@ const generatedServiceWorker = serviceWorkerSource.replaceAll('__APP_VERSION__',
 
 function versionedServiceWorker(): Plugin {
   return {
-    name: 'corneromino-versioned-service-worker',
+    name: 'nokomino-versioned-service-worker',
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
         if (new URL(request.url ?? '/', 'http://localhost').pathname !== '/sw.js') return next()

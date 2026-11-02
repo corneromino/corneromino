@@ -25,7 +25,7 @@ export default {
         "close": "Close"
     },
     "mainMenu": {
-        "title": "Corneromino",
+        "title": "Nokomino",
         "classic": "Classic",
         "cascade": "Cascade",
         "versus": "VS",
@@ -48,14 +48,14 @@ export default {
             "bottomRight": "Bottom Right...",
             "bottomLeft": "Bottom Left...",
             "topLeft": "Top Left...",
-            "shapeExample": "A Corneromino has exactly four connected squares, each with a unique corner.\nSelect the four squares.",
+            "shapeExample": "A Nokomino has exactly four connected squares, each with a unique corner.\nSelect the four squares.",
             "shapeExampleUnlock": "Great! Double-tap the locked shape to unlock it.",
             "shapeExampleCompleted": "Bravo !",
             "lockSelection": "Lock your selection.",
             "verifySolution": "Once all squares are locked, you can verify your solution",
-            "tRotations": "Each Corneromino has 4 rotations.\nHere are the 4 rotations of the 'T' Corneromino.\nCan you spot them ?",
+            "tRotations": "Each Nokomino has 4 rotations.\nHere are the 4 rotations of the 'T' Nokomino.\nCan you spot them ?",
             "tRotationsCompleted": "Super !",
-            "allCornerominos": "There are 8 different cornerominos. Each has 4 different rotations.",
+            "allNokominos": "There are 8 different nokominos. Each has 4 different rotations.",
             "completed": "Well done ! You can close the tutorial."
         }
     },
@@ -80,7 +80,7 @@ export default {
         "errors": "{{count}} errors",
         "mistakes": "{{count}} mistakes",
         "correct": "Well Done !",
-        "cornerominosDescription": "Here is the list of all possible 8 cornerominos.",
+        "nokominosDescription": "Here is the list of all possible 8 nokominos.",
         "result": "Result",
         "completedBoard": "Completed game board",
         "saveGame": "Save game",

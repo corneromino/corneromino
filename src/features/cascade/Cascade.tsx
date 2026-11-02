@@ -19,7 +19,7 @@ interface CascadeConfig {
   gridSize: { columns: number; rows: number }
   scoreContinueIncrementAnimationStep: number
   scoreIncrementAnimationStep: number
-  scorePointsPerLockedCorneromino: number
+  scorePointsPerLockedNokomino: number
   scorePointsPerLine: number
 }
 
@@ -35,7 +35,7 @@ const CASCADE_CONFIG: CascadeConfig = {
   },
   scoreContinueIncrementAnimationStep: 100,
   scoreIncrementAnimationStep: 3,
-  scorePointsPerLockedCorneromino: 10,
+  scorePointsPerLockedNokomino: 10,
   scorePointsPerLine: 100,
 }
 
@@ -90,9 +90,9 @@ export function Cascade(props: { startNew?: boolean }) {
   const [initialState, setInitialState] = useState<CascadeGameSaveState | null | undefined>(undefined)
   const [isPaused, setIsPaused] = useState(false)
   const [scoreAnimationStep, setScoreAnimationStep] = useState(CASCADE_CONFIG.scoreIncrementAnimationStep)
-  const [stats, setStats] = useState<{ destroyedLineCount: number; lockedCornerominoCount: number; score: number; upcomingCorners: CascadeCorner[] }>({
+  const [stats, setStats] = useState<{ destroyedLineCount: number; lockedNokominoCount: number; score: number; upcomingCorners: CascadeCorner[] }>({
     destroyedLineCount: 0,
-    lockedCornerominoCount: 0,
+    lockedNokominoCount: 0,
     score: 0,
     upcomingCorners: [],
   })
@@ -103,7 +103,7 @@ export function Cascade(props: { startNew?: boolean }) {
       void clearCascadeGameState().then(() => {
         if (!active) return
         setInitialState(null)
-        setStats({ destroyedLineCount: 0, lockedCornerominoCount: 0, score: 0, upcomingCorners: [] })
+        setStats({ destroyedLineCount: 0, lockedNokominoCount: 0, score: 0, upcomingCorners: [] })
         setScoreAnimationStep(CASCADE_CONFIG.scoreIncrementAnimationStep)
       })
       return () => {
@@ -115,7 +115,7 @@ export function Cascade(props: { startNew?: boolean }) {
       setInitialState(state)
       setStats({
         destroyedLineCount: state?.destroyedLineCount ?? 0,
-        lockedCornerominoCount: state?.lockedCornerominoCount ?? state?.lockedPieces.length ?? state?.lockedPieceColors?.length ?? 0,
+        lockedNokominoCount: state?.lockedNokominoCount ?? state?.lockedPieces.length ?? state?.lockedPieceColors?.length ?? 0,
         score: state?.score ?? 0,
         upcomingCorners: state?.gameState.upcomingCorners ?? [],
       })
@@ -161,7 +161,7 @@ export function Cascade(props: { startNew?: boolean }) {
     void clearCascadeGameState()
     setInitialState(null)
     setIsPaused(false)
-    setStats({ destroyedLineCount: 0, lockedCornerominoCount: 0, score: 0, upcomingCorners: [] })
+    setStats({ destroyedLineCount: 0, lockedNokominoCount: 0, score: 0, upcomingCorners: [] })
     setScoreAnimationStep(CASCADE_CONFIG.scoreIncrementAnimationStep)
     setGameVersion((version) => version + 1)
   }
@@ -192,7 +192,7 @@ export function Cascade(props: { startNew?: boolean }) {
     <main className="poster-page app-page flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
       <header className="mx-auto flex w-full max-w-[550px] items-end justify-between gap-4 px-5 pb-5">
         <div>
-          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Corneromino</p>
+          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Nokomino</p>
           <h1 className="poster-title mt-2 text-[33px] leading-none">{t('cascade.title')}</h1>
         </div>
         <Button
@@ -227,7 +227,7 @@ export function Cascade(props: { startNew?: boolean }) {
                 onStatsChange={setStats}
                 ref={canvasRef}
                 scorePointsPerLine={CASCADE_CONFIG.scorePointsPerLine}
-                scorePointsPerLockedCorneromino={CASCADE_CONFIG.scorePointsPerLockedCorneromino}
+                scorePointsPerLockedNokomino={CASCADE_CONFIG.scorePointsPerLockedNokomino}
               />
             )}
             {isPaused && <div aria-hidden="true" className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--outline-color)]"><Pause className="size-10 text-[var(--paper)]" /></div>}
@@ -239,7 +239,7 @@ export function Cascade(props: { startNew?: boolean }) {
             </div>
             <div>
               <p><span className="sr-only">{t('cascade.locked')}</span><PixelLockIcon /></p>
-              <p className="mt-2 text-[22px] leading-none">{stats.lockedCornerominoCount}</p>
+              <p className="mt-2 text-[22px] leading-none">{stats.lockedNokominoCount}</p>
             </div>
             <div className="mt-auto pb-2">
               <PixelNextIcon />
