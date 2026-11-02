@@ -43,8 +43,8 @@ export const GAME_CONFIGS = {
   c001: {
     columns: 4,
     rows: 6,
-    spread: 1,
-    tetrominoCount: 5,
+    spread: 0,
+    tetrominoCount: 3,
     title: 'difficulty.veryEasy',
     lockingMode: CLASSIC_LOCKING_MODE,
     finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,

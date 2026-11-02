@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Application, Container, Graphics, Rectangle, Sprite, Text, TextStyle } from 'pixi.js'
 import { GridSurface } from '@/rendering/grid/GridSurface'
+import { GridLockedShine } from '@/rendering/grid/GridLockedShine'
 import { GridVerificationWave, type VerificationWaveRequest } from '@/rendering/grid/GridVerificationWave'
 import { getCellShakeOffset } from '@/rendering/grid/cellShake'
 import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
@@ -108,12 +109,12 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
 
     const app = new Application()
     const board = new Container()
+    const lockedShine = new GridLockedShine(board)
     let surface: GridSurface | undefined
     let host: PixiCanvasHost | undefined
     let detachInput: (() => void) | undefined
     board.sortableChildren = true
     let disposed = false
-    let shineLayers: Array<{ layer: Container; size: number }> = []
     let cellShakeLayers = new Map<string, Container>()
     let emptyCellSprites = new Map<Container, Sprite>()
     const gridShakeMotion = { time: 0 }
@@ -150,6 +151,12 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       for (const tile of emptyCellSprites.values()) tile.texture = surface.texture
       board.position.set(view.offsetX, view.offsetY)
       board.scale.set(view.zoom)
+      lockedShine.setBounds(columns * cellSize, (scrolling?.visibleRows ?? rows) * cellSize, cellSize)
+      renderShine()
+    }
+
+    function renderShine() {
+      lockedShine.render(performance.now(), 0, propsRef.current.scrolling ? -view.offsetY : 0)
     }
 
     function updateStageFilters() {
@@ -249,10 +256,10 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
 
       verificationWave?.clearCells()
       stopCellAnimations()
+      lockedShine.clearCells()
       for (const child of board.removeChildren()) {
         child.destroy({ children: true })
       }
-      shineLayers = []
       cellShakeLayers = new Map()
       emptyCellSprites = new Map()
 
@@ -328,18 +335,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           shakeLayer.addChild(cellGraphic);
 
           if (lockedGroup && !selected) {
-            const shineMask = new Graphics()
-              .roundRect(borderSize, borderSize, cellWidth - borderSize * 2, cellHeight - borderSize * 2, getGridSquircleRadius(cellWidth - borderSize * 2, cellHeight - borderSize * 2))
-              .fill({ color: 0xffffff })
-            const shine = new Container()
-            shine.mask = shineMask
-            shine.addChild(new Graphics()
-              .rect(0, -cellHeight, cellWidth * 0.08, cellHeight * 3).fill({ color: 0xffffff, alpha: 0.12 })
-              .rect(cellWidth * 0.08, -cellHeight, cellWidth * 0.06, cellHeight * 3).fill({ color: 0xffffff, alpha: 0.72 })
-              .rect(cellWidth * 0.14, -cellHeight, cellWidth * 0.08, cellHeight * 3).fill({ color: 0xffffff, alpha: 0.12 }))
-            shine.rotation = -0.35
-            shakeLayer.addChild(shine, shineMask)
-            shineLayers.push({ layer: shine, size: cellSize })
+            lockedShine.setCell(shakeLayer, cellWidth, cellHeight, borderSize)
           }
 
           if (current.showCellIds && piece) {
@@ -409,6 +405,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         }
       }
       verificationWave?.setCells(cellShakeLayers.keys(), cellWidth, cellHeight, CELL_BORDER_RATIO)
+      renderShine()
     }
 
     function playGridShake(cellSize: number) {
@@ -527,10 +524,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         })
         for (const event of exitedCells) current.onCellExit?.(event)
       }
-      const time = performance.now() / 4000
-      for (const { layer, size } of shineLayers) {
-        layer.position.set(-size * 1.5 + (time % 1) * size * 3.5, size / 2)
-      }
+      renderShine()
     }
 
     function handleCellTap({ column: x, row: y, originalEvent }: GridCellEvent) {
@@ -616,6 +610,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       app.stage.filters = []
       vhsCrtEffect?.destroy()
       exitDistortionEffect?.destroy()
+      lockedShine.destroy()
       surface?.destroy()
       if (!board.destroyed) board.destroy({ children: true })
     }

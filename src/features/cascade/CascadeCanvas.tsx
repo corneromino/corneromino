@@ -1,11 +1,12 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Application, Container, Graphics, Sprite } from 'pixi.js'
 import { GridSurface } from '@/rendering/grid/GridSurface'
+import { GridLockedShine } from '@/rendering/grid/GridLockedShine'
 import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
 import { CanvasStartupError } from '@/rendering/pixi/CanvasStartupError'
 import { GAME_COLORS, LOCKED_CELL_COLORS } from '@/rendering/colors'
 import { attachGridInput } from '@/rendering/grid/gridInput'
-import { drawCorneromino as drawSharedCorneromino } from '@/rendering/grid/drawCorneromino'
+import { drawCellBody, drawCornerMarker, getCornerMarkerPosition } from '@/rendering/grid/drawCorneromino'
 import { getGridCornerSquircleRadius, getGridSquircleRadius } from '@/rendering/grid/gridSquircle'
 import { gsap } from 'gsap'
 import { ShockwaveFilter } from 'pixi-filters'
@@ -59,11 +60,10 @@ interface RenderedPiece {
   column: number
   corner: CascadeCorner
   graphic: Graphics
+  cornerGraphic: Graphics
   isSelected: boolean
   lockedColor: number | undefined
   row: number
-  shine: Graphics
-  shineMask: Graphics
   sprite: Container
   shakeLayer: Container
 }
@@ -72,19 +72,22 @@ function invertColor(color: number): number {
   return color ^ 0xffffff
 }
 
-function drawCorneromino(graphics: Graphics, corner: CascadeCorner, cellSize: number, borderWidth: number, isSelected: boolean, lockedColor: number | undefined) {
+function drawCorneromino(graphics: Graphics, cornerGraphic: Graphics, corner: CascadeCorner, cellSize: number, borderWidth: number, isSelected: boolean, lockedColor: number | undefined) {
   const pieceColor = isSelected ? invertColor(CORNER_MARKER_COLOR) : CORNER_MARKER_COLOR
   const detailColor = isSelected ? invertColor(CELL_FILL_COLOR) : CELL_FILL_COLOR
-  drawSharedCorneromino(graphics, corner, cellSize, cellSize, {
+  drawCellBody(graphics, 0, 0, cellSize, cellSize, {
     fillColor: lockedColor ?? pieceColor,
     borderColor: lockedColor !== undefined ? CELL_BORDER_COLOR : pieceColor,
     borderSize: lockedColor !== undefined ? borderWidth * 1.5 : 0,
     borderRadius: getGridSquircleRadius(cellSize),
     outline: lockedColor === undefined ? { color: detailColor, width: borderWidth, inset: borderWidth * 1.5 } : undefined,
-  }, {
+  })
+  const markerStyle = {
     color: lockedColor !== undefined ? CORNER_MARKER_COLOR : detailColor,
     size: cellSize / 2, paddingX: cellSize * 0.16, paddingY: cellSize * 0.16, radius: getGridCornerSquircleRadius(cellSize / 2),
-  })
+  }
+  const position = getCornerMarkerPosition(corner, cellSize, cellSize, markerStyle)
+  drawCornerMarker(cornerGraphic, position.x, position.y, markerStyle)
 }
 
 export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>(function CascadeCanvas(props, ref) {
@@ -123,6 +126,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     let surface: GridSurface | undefined
     const shakes = new Map<Container, { time: number }>()
     const piecesLayer = new Container()
+    const lockedShine = new GridLockedShine(piecesLayer)
     const keyboardFocusGraphic = new Graphics()
     keyboardFocusGraphic.eventMode = 'none'
     keyboardFocusGraphic.visible = false
@@ -236,6 +240,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     function drawBoard() {
       surface!.update({ width: app.screen.width, height: app.screen.height, cellSize: 56, fit: 'contain' })
       const { borderWidth, cellSize, offsetX, offsetY } = getBoardMetrics()
+      lockedShine.setBounds(props.gridSize.columns * cellSize, props.gridSize.rows * cellSize, cellSize)
       const landingRow = getCascadeLandingRow(gameState, props.gridSize)
       const landingColumn = gameState.activePiece?.column
       boardGraphics.clear()
@@ -264,30 +269,18 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     }
 
     function configureLockedShine(renderedPiece: RenderedPiece, cellSize: number, borderWidth: number, isLocked: boolean) {
-      gsap.killTweensOf(renderedPiece.shine)
-      renderedPiece.shine.clear()
-      renderedPiece.shineMask.clear()
-      renderedPiece.shine.visible = isLocked
-      renderedPiece.shine.mask = isLocked ? renderedPiece.shineMask : null
-      if (!isLocked) return
+      if (isLocked) {
+        lockedShine.setCell(renderedPiece.graphic, cellSize, cellSize, borderWidth * 1.5)
+        // The corner remains legible above the light, just as in Classic.
+        renderedPiece.graphic.addChild(renderedPiece.cornerGraphic)
+      } else {
+        lockedShine.removeCell(renderedPiece.graphic)
+      }
+    }
 
-      const lockedCellInset = borderWidth * 1.5
-      renderedPiece.shineMask
-        .roundRect(lockedCellInset, lockedCellInset, cellSize - lockedCellInset * 2, cellSize - lockedCellInset * 2, getGridSquircleRadius(cellSize - lockedCellInset * 2))
-        .fill({ color: 0xffffff })
-      const stripeHeight = cellSize * 3
-      renderedPiece.shine
-        .rect(0, -stripeHeight / 2, cellSize * 0.08, stripeHeight).fill({ alpha: 0.12, color: 0xffffff })
-        .rect(cellSize * 0.08, -stripeHeight / 2, cellSize * 0.06, stripeHeight).fill({ alpha: 0.72, color: 0xffffff })
-        .rect(cellSize * 0.14, -stripeHeight / 2, cellSize * 0.08, stripeHeight).fill({ alpha: 0.12, color: 0xffffff })
-      renderedPiece.shine.rotation = -0.35
-      gsap.set(renderedPiece.shine, { x: -cellSize * 1.5, y: cellSize / 2 })
-      gsap.to(renderedPiece.shine, {
-        duration: 4,
-        ease: 'none',
-        repeat: -1,
-        x: cellSize * 2,
-      })
+    function renderShine() {
+      const { offsetX, offsetY } = getBoardMetrics()
+      lockedShine.render(performance.now(), offsetX, offsetY)
     }
 
     function syncPieces(animate: boolean) {
@@ -316,10 +309,10 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         if (!renderedPiece) {
           const sprite = new Container()
           const graphic = new Graphics()
-          const shine = new Graphics()
-          const shineMask = new Graphics()
+          const cornerGraphic = new Graphics()
+          graphic.addChild(cornerGraphic)
           const shakeLayer = new Container()
-          shakeLayer.addChild(graphic, shineMask, shine)
+          shakeLayer.addChild(graphic)
           sprite.addChild(shakeLayer)
           piecesLayer.addChild(sprite)
           renderedPiece = {
@@ -327,11 +320,10 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
             column: piece.column,
             corner: piece.corner,
             graphic,
+            cornerGraphic,
             isSelected,
             lockedColor,
             row: piece.row,
-            shine,
-            shineMask,
             sprite,
             shakeLayer,
           }
@@ -344,7 +336,8 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         const needsMovement = renderedPiece.column !== piece.column || renderedPiece.row !== piece.row
         if (needsRedraw) {
           renderedPiece.graphic.clear()
-          drawCorneromino(renderedPiece.graphic, piece.corner, cellSize, borderWidth, isSelected, lockedColor)
+          renderedPiece.cornerGraphic.clear()
+          drawCorneromino(renderedPiece.graphic, renderedPiece.cornerGraphic, piece.corner, cellSize, borderWidth, isSelected, lockedColor)
           renderedPiece.graphic.pivot.set(cellSize / 2, cellSize / 2)
           configureLockedShine(renderedPiece, cellSize, borderWidth, lockedColor !== undefined)
         }
@@ -409,6 +402,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         renderedPiece.row = piece.row
       }
       syncKeyboardFocus()
+      renderShine()
     }
 
     function endKeyboardFocus() {
@@ -464,7 +458,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       gsap.killTweensOf(renderedPiece.sprite)
       gsap.killTweensOf(renderedPiece.graphic)
       gsap.killTweensOf(renderedPiece.graphic.scale)
-      gsap.killTweensOf(renderedPiece.shine)
+      lockedShine.removeCell(renderedPiece.graphic)
       renderedPiece.sprite.destroy({ children: true })
     }
 
@@ -493,6 +487,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     }
 
     function update(ticker: { deltaMS: number }) {
+      renderShine()
       if (isPaused) return
       elapsedSinceFall += ticker.deltaMS
       while (elapsedSinceFall >= fallIntervalMs) {
@@ -827,8 +822,8 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         gsap.killTweensOf(renderedPiece.sprite)
         gsap.killTweensOf(renderedPiece.graphic)
         gsap.killTweensOf(renderedPiece.graphic.scale)
-        gsap.killTweensOf(renderedPiece.shine)
       }
+      lockedShine.destroy()
       surface?.destroy()
       for (const layer of [boardGraphics, boardCells, piecesLayer, keyboardFocusGraphic]) {
         if (!layer.destroyed) layer.destroy({ children: true })
