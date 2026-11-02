@@ -36,12 +36,12 @@ export interface GameModeConfig extends GameConfig {
 }
 
 export const GAME_CONFIGS: Record<string, GameModeConfig> = {
-  'baby': {
+  '?': {
         columns: 4,
         rows: 6,
         spread: 1,
         tetrominoCount: 5,
-        title: 'Baby',
+        title: '?',
         lockingMode: CLASSIC_LOCKING_MODE,
         finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
         completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
