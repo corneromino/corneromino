@@ -71,6 +71,7 @@ const NOTE_OUTLINE_MIN_ALPHA = 0.35
 const NOTE_OUTLINE_COLOR = 0xffffff
 /** Transparent render space for selected cells, capped below the game header. */
 const TOP_SELECTION_OVERFLOW_PX = 20
+const SELECTED_CELL_SCALE = 0.85
 
 function drawNoteOutline(graphics: Graphics, width: number, height: number) {
   const thickness = Math.max(1, Math.min(width, height) * NOTE_OUTLINE_THICKNESS_RATIO)
@@ -361,7 +362,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
             } else {
               cellContainer.position.set(centerX, selectedY)
               cellContainer.rotation = Math.PI / 90
-              cellContainer.scale.set(0.9)
+              cellContainer.scale.set(SELECTED_CELL_SCALE)
             }
           } else if (isNewlyLocked) {
             cellContainer.pivot.set(cellWidth / 2, cellHeight / 2)
@@ -373,7 +374,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
             cellContainer.pivot.set(cellWidth / 2, cellHeight / 2)
             cellContainer.position.set(centerX, centerY - cellHeight * 0.2)
             cellContainer.rotation = Math.PI / 90
-            cellContainer.scale.set(0.9)
+            cellContainer.scale.set(SELECTED_CELL_SCALE)
           }
 
           const borderSize = cellSize * CELL_BORDER_RATIO
@@ -383,7 +384,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           drawCellBody(cellGraphic, 0, 0, cellWidth, cellHeight, {
             fillColor,
             borderColor: selected ? fillColor : BOARD_COLOR,
-            borderSize,
+            borderSize: selected ? 0 : borderSize,
             borderRadius: radius
           });
           shakeLayer.addChild(cellGraphic);
@@ -431,7 +432,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
               rotation: Math.PI / 90,
               y: y * cellHeight + cellHeight / 2 - cellHeight * 0.2,
             })
-            gsap.to(cellContainer.scale, { duration: 0.15, ease: 'power2.out', x: 0.9, y: 0.9 })
+            gsap.to(cellContainer.scale, { duration: 0.15, ease: 'power2.out', x: SELECTED_CELL_SCALE, y: SELECTED_CELL_SCALE })
           } else if (isNewlyDeselected) {
             gsap.to(cellContainer, {
               duration: 0.15,
