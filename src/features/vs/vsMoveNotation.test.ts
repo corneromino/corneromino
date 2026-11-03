@@ -53,11 +53,11 @@ describe('Local VS move notation', () => {
     const game = createVsLocalGame(() => 0)
     for (const [dx, dy] of [[1, 0], [0, 1]]) {
       for (const corner of [1, 2, 3] as const) {
-        game.placedNokominos.push({ column: dx * corner, row: dy * corner, corner, player: 1 })
+        game.placedCells.push({ column: dx * corner, row: dy * corner, corner, player: 1 })
       }
     }
     const finished = play(game, 0, 0, 0)
-    expect(finished.lockedNokominos).toHaveLength(2)
+    expect(finished.lockedShapes).toHaveLength(2)
     expect(getVsMoveNotations(finished.history.positions)[0].notation).toBe('A0D+A0B0C0D0A1A2A3')
   })
 

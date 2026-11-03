@@ -1,4 +1,4 @@
-.driver-popover.nokomino-tutorial {
+.driver-popover.game-tutorial {
   --tutorial-band-depth: 8px;
   --tutorial-band-color: #b95c2e;
   box-sizing: border-box;
@@ -15,11 +15,11 @@
   pointer-events: none;
 }
 
-.driver-popover.nokomino-tutorial * {
+.driver-popover.game-tutorial * {
   pointer-events: none;
 }
 
-.driver-popover.nokomino-tutorial::after {
+.driver-popover.game-tutorial::after {
   content: '';
   position: absolute;
   right: 0;
@@ -31,7 +31,7 @@
   pointer-events: none;
 }
 
-.nokomino-tutorial .driver-popover-description {
+.game-tutorial .driver-popover-description {
   font-size: 18px;
   font-weight: 100;
   line-height: 1.4;
@@ -44,13 +44,13 @@
   pointer-events: none !important;
 }
 
-.nokomino-tutorial .driver-popover-navigation-btns {
+.game-tutorial .driver-popover-navigation-btns {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
-.driver-popover.nokomino-tutorial .cartoon-press {
+.driver-popover.game-tutorial .cartoon-press {
   box-sizing: border-box;
   overflow: hidden;
   pointer-events: auto;
@@ -75,7 +75,7 @@
   text-align: center;
 }
 
-.driver-popover.nokomino-tutorial .cartoon-press:disabled {
+.driver-popover.game-tutorial .cartoon-press:disabled {
   --press-face: #c7c2ba;
   --press-shadow: #8a8178;
   color: #625c55;
@@ -84,40 +84,40 @@
   pointer-events: none;
 }
 
-.driver-popover.nokomino-tutorial .cartoon-press:focus-visible {
+.driver-popover.game-tutorial .cartoon-press:focus-visible {
   outline: var(--outline-width) solid var(--outline-color);
   outline-offset: 3px;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .driver-popover.nokomino-tutorial .cartoon-press:hover:not(:disabled) {
+  .driver-popover.game-tutorial .cartoon-press:hover:not(:disabled) {
     background-color: var(--press-face-hover);
   }
 }
 
-.driver-popover.nokomino-tutorial .cartoon-press:active:not(:disabled) {
+.driver-popover.game-tutorial .cartoon-press:active:not(:disabled) {
   background-color: var(--press-face-active);
 }
 
 @supports (corner-shape: superellipse(1.5)) {
-  .driver-popover.nokomino-tutorial,
-  .driver-popover.nokomino-tutorial .cartoon-press {
+  .driver-popover.game-tutorial,
+  .driver-popover.game-tutorial .cartoon-press {
     corner-shape: superellipse(1.5);
   }
 }
 
-.nokomino-tutorial .driver-popover-arrow-side-left {
+.game-tutorial .driver-popover-arrow-side-left {
   border-left-color: var(--paper);
 }
 
-.nokomino-tutorial .driver-popover-arrow-side-right {
+.game-tutorial .driver-popover-arrow-side-right {
   border-right-color: var(--paper);
 }
 
-.nokomino-tutorial .driver-popover-arrow-side-top {
+.game-tutorial .driver-popover-arrow-side-top {
   border-top-color: var(--tutorial-band-color);
 }
 
-.nokomino-tutorial .driver-popover-arrow-side-bottom {
+.game-tutorial .driver-popover-arrow-side-bottom {
   border-bottom-color: var(--paper);
 }

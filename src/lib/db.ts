@@ -48,7 +48,7 @@ export interface CascadeGameSaveState {
   lockedPieces: Array<{ cellKey: string; color: number; groupId: string }>
   /** Backwards compatibility for Cascade saves created before lock groups existed. */
   lockedPieceColors?: Array<{ cellKey: string; color: number }>
-  lockedNokominoCount?: number
+  lockedShapeCount?: number
   score?: number
   selectedPieceKeys: string[]
 }
@@ -123,16 +123,16 @@ function isVsLocalPosition(value: unknown): value is Pick<LegacyVsLocalGameSaveS
     && (!('captureStreak' in value) || value.captureStreak === null || isVsCaptureStreak(value.captureStreak))
     && (!('result' in value) || value.result === null || isVsGameResult(value.result))
     && (!('nextMoveConstraint' in value) || value.nextMoveConstraint === null || isVsMoveConstraint(value.nextMoveConstraint))
-    && 'placedNokominos' in value && Array.isArray(value.placedNokominos) && value.placedNokominos.every((placement) => (
+    && 'placedCells' in value && Array.isArray(value.placedCells) && value.placedCells.every((placement) => (
       isVsPlacement(placement)
       && 'player' in placement && isVsPlayer(placement.player)
       && (!('lockedBy' in placement) || isVsPlayer(placement.lockedBy))
     ))
-    && 'lockedNokominos' in value && Array.isArray(value.lockedNokominos) && value.lockedNokominos.every((nokomino) => (
-      typeof nokomino === 'object' && nokomino !== null
-      && 'id' in nokomino && typeof nokomino.id === 'string'
-      && 'player' in nokomino && isVsPlayer(nokomino.player)
-      && 'cellKeys' in nokomino && Array.isArray(nokomino.cellKeys) && nokomino.cellKeys.length === 4 && nokomino.cellKeys.every((cellKey: unknown) => typeof cellKey === 'string')
+    && 'lockedShapes' in value && Array.isArray(value.lockedShapes) && value.lockedShapes.every((shape) => (
+      typeof shape === 'object' && shape !== null
+      && 'id' in shape && typeof shape.id === 'string'
+      && 'player' in shape && isVsPlayer(shape.player)
+      && 'cellKeys' in shape && Array.isArray(shape.cellKeys) && shape.cellKeys.length === 4 && shape.cellKeys.every((cellKey: unknown) => typeof cellKey === 'string')
     ))
 }
 
@@ -180,7 +180,7 @@ function hasValidVsResult(state: VsLocalGameSaveState): boolean {
       if (!state.nextMoveConstraint || getVsAllowedCells({ ...state, result: null }).length > 0) return false
       if (result.reason === 'no-legal-moves') return state.captureStreak?.player !== state.activePlayer
       if (state.captureStreak?.player !== state.activePlayer) return false
-      const [first, second] = getVsPlayerScores(state.placedNokominos)
+      const [first, second] = getVsPlayerScores(state.placedCells)
       const expectedWinner = state.trapResolution === 'draw' || first === second ? null : first > second ? 0 : 1
       return result.winner === expectedWinner
     }
@@ -192,14 +192,14 @@ function hasValidVsHistory(state: VsLocalGameSaveState): boolean {
   if (JSON.stringify(getVsHistoryPosition(state)) !== JSON.stringify(getVsHistoryPosition(positions[index]))) return false
   if (!state.allowHistoryRewrite && index < positions.length - 1 && state.pendingPlacement !== null) return false
   return positions.every((position, positionIndex) => {
-    if (position.placedNokominos.length > 100) return false
+    if (position.placedCells.length > 100) return false
     if (position.result && positionIndex !== positions.length - 1) return false
     if (!hasValidVsResult({ ...state, ...position, pendingPlacement: null })) return false
     if (positionIndex === 0) return true
     const previous = positions[positionIndex - 1]
-    if (position.placedNokominos.length !== previous.placedNokominos.length + 1) return false
-    return previous.placedNokominos.every((cell, cellIndex) => {
-      const next = position.placedNokominos[cellIndex]
+    if (position.placedCells.length !== previous.placedCells.length + 1) return false
+    return previous.placedCells.every((cell, cellIndex) => {
+      const next = position.placedCells[cellIndex]
       return cell.column === next.column && cell.row === next.row && cell.corner === next.corner && cell.player === next.player
         && (cell.lockedBy === undefined || cell.lockedBy === next.lockedBy)
     })
@@ -242,7 +242,7 @@ function isCascadeGameSaveState(value: unknown): value is CascadeGameSaveState {
       typeof piece === 'object' && piece !== null && 'cellKey' in piece && typeof piece.cellKey === 'string' && 'color' in piece && typeof piece.color === 'number'
     ))))
     && ('lockedPieces' in value || 'lockedPieceColors' in value)
-    && (!('lockedNokominoCount' in value) || (typeof value.lockedNokominoCount === 'number' && value.lockedNokominoCount >= 0))
+    && (!('lockedShapeCount' in value) || (typeof value.lockedShapeCount === 'number' && value.lockedShapeCount >= 0))
     && (!('score' in value) || (typeof value.score === 'number' && value.score >= 0))
     && 'selectedPieceKeys' in value && Array.isArray(value.selectedPieceKeys) && value.selectedPieceKeys.every((cellKey) => typeof cellKey === 'string')
 }
@@ -384,9 +384,9 @@ export async function loadVsLocalGameState(): Promise<VsLocalGameSaveState | nul
     activePlayer: storedState.state.activePlayer,
     // Earlier saves cannot reconstruct a capture streak from locked groups alone.
     captureStreak: storedState.state.captureStreak ?? null,
-    lockedNokominos: storedState.state.lockedNokominos,
+    lockedShapes: storedState.state.lockedShapes,
     nextMoveConstraint: storedState.state.nextMoveConstraint ?? null,
-    placedNokominos: storedState.state.placedNokominos,
+    placedCells: storedState.state.placedCells,
     // Older saves have no turn history from which to infer a combination victory.
     result: storedState.state.result ?? null,
   }

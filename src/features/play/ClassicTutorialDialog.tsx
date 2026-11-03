@@ -94,7 +94,7 @@ interface TutorialPieceExampleProps {
 function CornerMarkersTutorialPage() {
   return (
     <>
-      <p>A Nokomino is a shape made of four connected cells. Each cell has a different corner marker:</p>
+      <p>A shape is made of four connected cells. Each cell has a different corner marker:</p>
       <div className="mt-3 grid grid-cols-2 gap-2" role="list">
         {TUTORIAL_CORNERS.map(({ corner, label }) => (
           <div className="flex items-center gap-2" key={label} role="listitem">
@@ -189,7 +189,7 @@ function LShapeTutorialPage() {
   return (
     <>
       <p>Find the shape by selecting each of its cells:</p>
-      <TutorialPieceExample ariaLabel="A 5 by 5 grid showing an L-shaped Nokomino. Select its cells." gridClassName="max-w-[180px]" lockId="tutorial-l-shape" lockInstruction="Once you have found and selected the four cells, lock it:" pieces={TUTORIAL_L_PIECE} />
+      <TutorialPieceExample ariaLabel="A 5 by 5 grid showing an L-shaped piece. Select its cells." gridClassName="max-w-[180px]" lockId="tutorial-l-shape" lockInstruction="Once you have found and selected the four cells, lock it:" pieces={TUTORIAL_L_PIECE} />
     </>
   )
 }
@@ -197,12 +197,12 @@ function LShapeTutorialPage() {
 function ShapesTutorialPage() {
   return (
     <>
-      <p>There are {TUTORIAL_SHAPES.length} possible Nokomino shapes. Each has four different rotations.</p>
+      <p>There are {TUTORIAL_SHAPES.length} possible shapes. Each has four different rotations.</p>
       <div className="mt-3 grid grid-cols-2 gap-4">
         {TUTORIAL_SHAPES.map((kind) => (
           <section className="text-center" key={kind}>
             <p className="mb-1 font-black text-[var(--canvas-foreground)]">{kind}</p>
-            <TutorialPieceExample ariaLabel={`${kind} Nokomino shape`} gridClassName="max-w-[110px]" lockId={`tutorial-shape-${kind}`} pieces={createTutorialShapePiece(kind)} />
+            <TutorialPieceExample ariaLabel={`${kind} shape`} gridClassName="max-w-[110px]" lockId={`tutorial-shape-${kind}`} pieces={createTutorialShapePiece(kind)} />
           </section>
         ))}
       </div>

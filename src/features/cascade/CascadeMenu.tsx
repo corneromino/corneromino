@@ -33,7 +33,7 @@ export function CascadeMenu() {
       <TetrominoBackground />
       <header className="relative z-10 mx-auto flex w-full max-w-[550px] shrink-0 items-start justify-between gap-3 pb-10">
         <div>
-          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Nokomino</p>
+          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{t('mainMenu.title')}</p>
           <h1 className="poster-title mt-2 text-[40px] leading-none">{t('cascade.title')}</h1>
         </div>
         <AppNavigationButton aria-label={t('common.backToMainMenu')} className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>

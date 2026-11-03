@@ -35,7 +35,7 @@ describe('Local VS debug report', () => {
     const before = structuredClone(game)
     const exported = report(game)
 
-    expect(exported).toMatchObject({ format: 'nokomino-debug', version: 1, mode: 'vs-local', exportedAt: EXPORTED_AT, ...CONTEXT })
+    expect(exported).toMatchObject({ format: 'game-debug', version: 1, mode: 'vs-local', exportedAt: EXPORTED_AT, ...CONTEXT })
     expect(exported.gameState).toEqual(before)
     expect(game).toEqual(before)
     expect(exported.gameState).toMatchObject({ allowOverlappingCombinationWin: false, combinationWinCount: 3, consecutiveTurnWinCount: 4, trapResolution: 'draw' })
@@ -48,7 +48,7 @@ describe('Local VS debug report', () => {
       { column: 1, row: 1, corner: 2, player: 0, lockedBy: 1, coordinate: 'B1', cornerName: 'bottom-right', cornerLetter: 'B' },
       { column: 0, row: 1, corner: 3, player: 1, lockedBy: 1, coordinate: 'A1', cornerName: 'bottom-left', cornerLetter: 'C' },
     ])
-    expect(exported.current.lockedShapes[0]).toMatchObject({ ...game.lockedNokominos[0], kind: 'O' })
+    expect(exported.current.lockedShapes[0]).toMatchObject({ ...game.lockedShapes[0], kind: 'O' })
     expect(exported.history.moves.map((move: { notation: string }) => move.notation)).toEqual(['A0D+', 'B0A+', 'B1B+', 'A1C+A0B0A1B1'])
     expect(exported.history.positions[4]).toMatchObject({ scores: [0, 4], newlyLockedCells: ['A0', 'B0', 'A1', 'B1'] })
     expect(exported.history.positions[3].scores).toEqual([0, 0])
@@ -87,7 +87,7 @@ describe('Local VS debug report', () => {
     const game = createVsLocalGame(() => 0)
     for (const [dx, dy] of [[1, 0], [0, 1]]) {
       for (const corner of [1, 2, 3] as const) {
-        game.placedNokominos.push({ column: dx * corner, row: dy * corner, corner, player: 1 })
+        game.placedCells.push({ column: dx * corner, row: dy * corner, corner, player: 1 })
       }
     }
     game.pendingPlacement = { column: 0, row: 0, corner: 0 }

@@ -10,7 +10,7 @@ import { clearGameSelection } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
 import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
 import { GameGrid } from './GameGrid'
-import { ClassicNokominosDialog } from './ClassicNokominosDialog'
+import { ClassicShapesDialog } from './ClassicShapesDialog'
 
 const MODE_BUTTON_CLASS = 'cartoon-press mode-menu-button w-full text-[13px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase'
 const MODE_ENTRIES = Object.entries(GAME_CONFIGS)
@@ -27,21 +27,21 @@ interface GameSessionProps {
 
 function GameModeMenu() {
   const { t } = useTranslation()
-  const [nokominosOpen, setNokominosOpen] = useState(false)
+  const [shapesOpen, setShapesOpen] = useState(false)
   return (
     <main className="poster-page app-page relative flex flex-col overflow-hidden px-5 py-5 text-[var(--canvas-foreground)]">
       <TetrominoBackground />
       <header className="relative z-10 mx-auto flex w-full max-w-[550px] shrink-0 items-start justify-between gap-3 pb-10">
         <div>
-          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Nokomino</p>
+          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{t('mainMenu.title')}</p>
           <div className="flex items-center gap-2">
             <h1 className="poster-title mt-2 text-[40px] leading-none">{t('classic.title')}</h1>
             <Button
-              aria-label="8 Nokominos"
+              aria-label={t('classic.shapesTitle')}
               className="bg-transparent text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40 font-black shadow-none hover:opacity-70 focus-visible:opacity-100"
-              onClick={() => setNokominosOpen(true)}
+              onClick={() => setShapesOpen(true)}
               size="icon"
-              title="8 Nokominos"
+              title={t('classic.shapesTitle')}
               type="button"
             >?</Button>
           </div>
@@ -78,7 +78,7 @@ function GameModeMenu() {
           </AppNavigationButton>
         </div>
       </section>
-      <ClassicNokominosDialog onOpenChange={setNokominosOpen} open={nokominosOpen} />
+      <ClassicShapesDialog onOpenChange={setShapesOpen} open={shapesOpen} />
     </main>
   )
 }
@@ -93,7 +93,7 @@ function GameSession(props: GameSessionProps) {
   const [moveCount, setMoveCount] = useState(0)
   const [pieces, setPieces] = useState<PlacedTetromino[] | null>(null)
   const [pauseOpen, setPauseOpen] = useState(false)
-  const [nokominosOpen, setNokominosOpen] = useState(false)
+  const [shapesOpen, setShapesOpen] = useState(false)
   const seed = props.requestedSeed || generatedSeed
   const config = GAME_CONFIGS[props.gameMode]
 
@@ -142,11 +142,11 @@ function GameSession(props: GameSessionProps) {
           <div className="flex items-center gap-2">
             <h1 className="poster-title text-[33px] leading-none">{t('classic.title')}</h1>
             <Button
-              aria-label="8 Nokominos"
+              aria-label={t('classic.shapesTitle')}
               className="h-auto min-w-0 border-0 bg-transparent p-0 text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40 font-black shadow-none hover:opacity-70 focus-visible:opacity-100"
-              onClick={() => setNokominosOpen(true)}
+              onClick={() => setShapesOpen(true)}
               size="icon"
-              title="8 Nokominos"
+              title={t('classic.shapesTitle')}
               type="button"
             >?</Button>
           </div>
@@ -183,7 +183,7 @@ function GameSession(props: GameSessionProps) {
             onPauseOpenChange={setPauseOpen}
             paused={pauseOpen}
             pieces={pieces}
-            suspended={nokominosOpen}
+            suspended={shapesOpen}
           />}
         {!pieces && !generationError &&
           <p className="px-5 text-center text-[11px] font-bold uppercase">{t('classic.generating')}</p>
@@ -192,7 +192,7 @@ function GameSession(props: GameSessionProps) {
           <p className="px-5 text-center text-[11px] font-bold text-[var(--coral)]" role="alert">{generationError}</p>
         }
       </div>
-      <ClassicNokominosDialog onOpenChange={setNokominosOpen} open={nokominosOpen} />
+      <ClassicShapesDialog onOpenChange={setShapesOpen} open={shapesOpen} />
     </main>
   )
 }

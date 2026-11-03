@@ -1,5 +1,5 @@
 {
-  "id": "./nokomino-pwa-v1",
+  "id": "./game-pwa-v1",
   "name": "Nokomino",
   "short_name": "Nokomino",
   "version": "0.9.17",
@@ -13,19 +13,19 @@
   "theme_color": "#F0AD61",
   "icons": [
     {
-      "src": "icons/nokomino.png",
+      "src": "icons/app-icon.png",
       "sizes": "any",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/nokomino-192.png",
+      "src": "icons/app-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icons/nokomino-512.png",
+      "src": "icons/app-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

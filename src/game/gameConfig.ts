@@ -25,7 +25,7 @@ export interface GameConfig {
   verificationFlipDurationMs?: number
   /** Number of randomly chosen cells which flip together in each batch. */
   verificationFlipBatchSize?: number
-  /** Enables the ordinary lock ripple/shake for the board's final Nokomino. Defaults to false. */
+  /** Enables the ordinary lock ripple/shake for the board's final shape. Defaults to false. */
   finalLockAnimationEnabled?: boolean
   /** Immediately rejects a lock whose four cells repeat a corner marker. Defaults to false. */
   unlockRepeatedCornerLocks?: boolean

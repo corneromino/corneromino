@@ -7,7 +7,7 @@ function combinationSetup(shapeCount: number, combinationWinCount = 2, player: V
   const directions = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]
   for (const [dx, dy] of directions.slice(0, shapeCount)) {
     for (const corner of [1, 2, 3] as const) {
-      game.placedNokominos.push({ column: 4 + dx * corner, row: 4 + dy * corner, corner, player: player === 0 ? 1 : 0 })
+      game.placedCells.push({ column: 4 + dx * corner, row: 4 + dy * corner, corner, player: player === 0 ? 1 : 0 })
     }
   }
   game.pendingPlacement = { column: 4, row: 4, corner: 0 }
@@ -27,13 +27,13 @@ describe('Local VS combination victory', () => {
     const after = finishVsTurn(before)
 
     expect(before.result).toBeNull()
-    expect(before.lockedNokominos).toEqual([])
-    expect(before.placedNokominos.every((cell) => cell.lockedBy === undefined)).toBe(true)
+    expect(before.lockedShapes).toEqual([])
+    expect(before.placedCells.every((cell) => cell.lockedBy === undefined)).toBe(true)
     expect(after.result).toEqual({ reason: 'combination', winner: player, shapeCount: 2 })
     expect(after.activePlayer).toBe(player)
     expect(after.pendingPlacement).toBeNull()
-    expect(after.lockedNokominos).toHaveLength(2)
-    expect(after.placedNokominos.filter((cell) => cell.lockedBy === player)).toHaveLength(7)
+    expect(after.lockedShapes).toHaveLength(2)
+    expect(after.placedCells.filter((cell) => cell.lockedBy === player)).toHaveLength(7)
   })
 
   it.each([
@@ -44,7 +44,7 @@ describe('Local VS combination victory', () => {
     [8, 3, true],
   ] as const)('resolves %s locks with a threshold of %s (victory: %s)', (shapeCount, threshold, victory) => {
     const game = finishVsTurn(combinationSetup(shapeCount, threshold))
-    expect(game.lockedNokominos).toHaveLength(shapeCount)
+    expect(game.lockedShapes).toHaveLength(shapeCount)
     expect(game.combinationWinCount).toBe(threshold)
     expect(game.result).toEqual(victory ? { reason: 'combination', winner: 0, shapeCount } : null)
     expect(game.activePlayer).toBe(victory ? 0 : 1)
@@ -64,8 +64,8 @@ describe('Local VS combination victory', () => {
     const before = { ...combinationSetup(8, 8), allowOverlappingCombinationWin: false }
     const after = finishVsTurn(before)
     expect(after.result).toEqual({ reason: 'combination', winner: 0, shapeCount: 8 })
-    expect(after.lockedNokominos).toHaveLength(8)
-    expect(after.placedNokominos.filter((cell) => cell.lockedBy === 0)).toHaveLength(25)
+    expect(after.lockedShapes).toHaveLength(8)
+    expect(after.placedCells.filter((cell) => cell.lockedBy === 0)).toHaveLength(25)
   })
 
   it.each([false, true])('finds the largest eligible subset in mixed captures (extra diagonal: %s)', (includeDiagonal) => {
@@ -75,21 +75,21 @@ describe('Local VS combination victory', () => {
     // count together, so a greedy first-match count would miss this combination.
     for (const [column, row, corner] of [
       [2, 3, 1], [4, 3, 2], [5, 3, 3], [2, 2, 2], [2, 1, 3], [4, 4, 1], [4, 5, 3],
-    ] as const) before.placedNokominos.push({ column, row, corner, player: 1 })
+    ] as const) before.placedCells.push({ column, row, corner, player: 1 })
     if (includeDiagonal) {
       for (const [column, row, corner] of [[2, 4, 1], [1, 5, 2], [0, 6, 3]] as const) {
-        before.placedNokominos.push({ column, row, corner, player: 1 })
+        before.placedCells.push({ column, row, corner, player: 1 })
       }
     }
     const shapeCount = includeDiagonal ? 3 : 2
     const after = finishVsTurn({ ...before, combinationWinCount: shapeCount })
-    expect(after.lockedNokominos).toHaveLength(includeDiagonal ? 5 : 4)
-    expect(after.placedNokominos.filter((cell) => cell.lockedBy === 0)).toHaveLength(includeDiagonal ? 11 : 8)
+    expect(after.lockedShapes).toHaveLength(includeDiagonal ? 5 : 4)
+    expect(after.placedCells.filter((cell) => cell.lockedBy === 0)).toHaveLength(includeDiagonal ? 11 : 8)
     expect(after.result).toEqual({ reason: 'combination', winner: 0, shapeCount })
     expect(finishVsTurn({ ...before, combinationWinCount: shapeCount + 1 }).result).toBeNull()
-    expect(finishVsTurn({ ...before, placedNokominos: [...before.placedNokominos].reverse() })).toMatchObject({
+    expect(finishVsTurn({ ...before, placedCells: [...before.placedCells].reverse() })).toMatchObject({
       result: after.result,
-      lockedNokominos: after.lockedNokominos,
+      lockedShapes: after.lockedShapes,
     })
   })
 
@@ -99,11 +99,11 @@ describe('Local VS combination victory', () => {
     // A friendly O touches the left I only, leaving just the right I eligible.
     for (const [column, row, corner] of [[0, 3, 0], [1, 3, 1], [0, 2, 2], [1, 2, 3]] as const) {
       cellKeys.push(`${column},${row}`)
-      game.placedNokominos.push({ column, row, corner, player: 0, lockedBy: 0 })
+      game.placedCells.push({ column, row, corner, player: 0, lockedBy: 0 })
     }
-    game.lockedNokominos.push({ id: 'lock:1', player: 0, cellKeys })
+    game.lockedShapes.push({ id: 'lock:1', player: 0, cellKeys })
     const after = finishVsTurn(game)
-    expect(after.lockedNokominos).toHaveLength(2)
+    expect(after.lockedShapes).toHaveLength(2)
     expect(after.result).toBeNull()
   })
 
@@ -131,8 +131,8 @@ describe('Local VS combination victory', () => {
     expect(rematch.allowOverlappingCombinationWin).toBe(false)
     expect(rematch.activePlayer).toBe(1)
     expect(rematch.result).toBeNull()
-    expect(rematch.lockedNokominos).toEqual([])
-    expect(rematch.placedNokominos).toEqual([])
+    expect(rematch.lockedShapes).toEqual([])
+    expect(rematch.placedCells).toEqual([])
     expect(selectVsCell(rematch, 4, 4).pendingPlacement).not.toBeNull()
   })
 
@@ -141,10 +141,10 @@ describe('Local VS combination victory', () => {
     game.pendingPlacement = { column: 0, row: 0, corner: 0 }
     game.pendingMoveDirection = 'diagonal'
     for (let index = 1; index < 10; index += 1) {
-      game.placedNokominos.push({ column: index, row: index, corner: index === 1 ? 1 : index === 2 ? 2 : 3, player: 1 })
+      game.placedCells.push({ column: index, row: index, corner: index === 1 ? 1 : index === 2 ? 2 : 3, player: 1 })
     }
     const after = finishVsTurn(game)
-    expect(after.lockedNokominos).toHaveLength(1)
+    expect(after.lockedShapes).toHaveLength(1)
     expect(getVsAllowedCells(after)).toEqual([])
     expect(after.result).toEqual({ reason: 'trap', winner: 0 })
   })

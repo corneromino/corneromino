@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AppNavigationButton } from '@/components/ui/app-navigation-button'
@@ -90,6 +91,7 @@ export function SandboxWorldCard(props: {
 }
 
 export function Sandbox() {
+  const { t } = useTranslation()
   const [savedWorlds, setSavedWorlds] = useState<SavedSandboxWorld[]>([])
   const [loading, setLoading] = useState(true)
   const [renameError, setRenameError] = useState('')
@@ -143,7 +145,7 @@ export function Sandbox() {
       <TetrominoBackground />
       <header className="relative z-10 mx-auto flex w-full max-w-[550px] items-center justify-between gap-3 px-5 pb-6">
         <div className="min-w-0">
-          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Nokomino</p>
+          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{t('mainMenu.title')}</p>
           <h1 className="poster-title mt-2 text-[40px] leading-none">Sandbox</h1>
         </div>
         <AppNavigationButton aria-label="Back to main menu" className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title="Back to main menu" to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>

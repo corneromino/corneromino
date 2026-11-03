@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createVsLocalGame, finishVsTurn, getVsHistoryPosition, goToVsHistory, type VsLocalPosition } from '@/features/vs/vsLocalGame'
 import { openGameDatabase } from './gameDatabase'
 import type { CascadeGameSaveState, SavedSandboxWorld, StoredGame } from './db'
+import { HISTORICAL_STORAGE, ORIGINAL_STORAGE, PREVIOUS_STORAGE } from './__fixtures__/legacyStorage'
 
 const connections: Array<{ close(): void }> = []
 beforeEach(() => {
@@ -17,8 +18,8 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-async function legacyDatabase(version = 3) {
-  const database = await openDB('corneromino', version, {
+async function legacyDatabase(version: number = ORIGINAL_STORAGE.databaseVersion) {
+  const database = await openDB(ORIGINAL_STORAGE.databaseName, version, {
     upgrade(database) {
       database.createObjectStore('games', { keyPath: 'id' })
       if (version >= 2) database.createObjectStore('sandboxWorlds', { keyPath: 'id' })
@@ -34,20 +35,56 @@ async function targetDatabase() {
   return database
 }
 
+async function previousDatabase(imported = true) {
+  const database = await openDB(PREVIOUS_STORAGE.databaseName, PREVIOUS_STORAGE.databaseVersion, { upgrade(database) {
+    database.createObjectStore('games', { keyPath: 'id' })
+    database.createObjectStore('sandboxWorlds', { keyPath: 'id' })
+    database.createObjectStore('migrations')
+  } })
+  connections.push(database)
+  if (imported) await database.put('migrations', 1, 'legacy-data-import-v1')
+  return database
+}
+
+function historicalPosition(position: VsLocalPosition, source: typeof HISTORICAL_STORAGE[number]) {
+  const { placedCells, lockedShapes, ...rest } = position
+  return { ...rest, [source.placedCellsField]: placedCells, [source.lockedShapesField]: lockedShapes }
+}
+
 async function seedGames(database: IDBPDatabase, records: StoredGame[]) {
   const transaction = database.transaction('games', 'readwrite')
   for (const record of records) await transaction.store.put(record)
   await transaction.done
 }
 
-function legacyPosition(position: VsLocalPosition) {
-  const { placedNokominos, lockedNokominos, ...rest } = position
-  return { ...rest, placedCornerominoes: placedNokominos, lockedCornerominoes: lockedNokominos }
-}
-
-describe('Nokomino startup database migration', () => {
-  it('imports all modes, VS history and screenshots before the storage API becomes available', async () => {
+describe('Game startup database migration', () => {
+  it('honors completed previous imports, including deleted games and worlds', async () => {
     const legacy = await legacyDatabase()
+    await seedGames(legacy, [{ id: 'selection:c001:deleted', state: {}, updatedAt: 99 }])
+    await legacy.put('sandboxWorlds', { id: 'deleted-world', savedAt: 99 })
+    const previous = await previousDatabase()
+    await seedGames(previous, [{ id: 'cascade:current', state: { [PREVIOUS_STORAGE.lockedShapeCountField]: 4 }, updatedAt: 10 }])
+    const database = await targetDatabase()
+    expect(await database.getAllKeys('games')).toEqual(['cascade:current'])
+    expect(await database.count('sandboxWorlds')).toBe(0)
+    expect((await database.get('games', 'cascade:current'))?.state).toEqual({ lockedShapeCount: 4 })
+  })
+
+  it('merges both previous databases if the older import never completed', async () => {
+    const legacy = await legacyDatabase()
+    const previous = await previousDatabase(false)
+    await seedGames(legacy, [
+      { id: 'selection:c001:old-only', state: {}, updatedAt: 10 },
+      { id: 'cascade:current', state: { [ORIGINAL_STORAGE.lockedShapeCountField]: 1 }, updatedAt: 20 },
+    ])
+    await seedGames(previous, [{ id: 'cascade:current', state: { [PREVIOUS_STORAGE.lockedShapeCountField]: 2 }, updatedAt: 30 }])
+    const database = await targetDatabase()
+    expect(await database.count('games')).toBe(2)
+    expect((await database.get('games', 'cascade:current'))?.state).toEqual({ lockedShapeCount: 2 })
+  })
+
+  it.each(HISTORICAL_STORAGE)('imports all modes, VS history and screenshots from $label before storage becomes available', async (source) => {
+    const legacy = source === ORIGINAL_STORAGE ? await legacyDatabase() : await previousDatabase()
     const screenshot = new Blob(['original image bytes'], { type: 'image/png' })
     const selection = {
       selectedCellKeys: ['0,0'], markers: [{ cellKey: '0,0', color: 'black' }],
@@ -56,23 +93,23 @@ describe('Nokomino startup database migration', () => {
     }
     const cascade: CascadeGameSaveState = {
       elapsedSinceFall: 52, gameState: { activePiece: { column: 2, row: 3, corner: 0 }, settledPieces: [] },
-      lockedPieces: [], lockedNokominoCount: 9, score: 120, selectedPieceKeys: [], destroyedLineCount: 3,
+      lockedPieces: [], lockedShapeCount: 9, score: 120, selectedPieceKeys: [], destroyedLineCount: 3,
     }
-    const { lockedNokominoCount, ...cascadeRest } = cascade
+    const { lockedShapeCount, ...cascadeRest } = cascade
     const baseline = createVsLocalGame(() => 0, { boardSize: 10, allowHistoryRewrite: true })
-    baseline.placedNokominos = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([column, row], corner) => ({ column, row, corner: corner as 0 | 1 | 2 | 3, player: 0, lockedBy: 0 }))
-    baseline.lockedNokominos = [{ id: 'existing:corneromino:lock', player: 0, cellKeys: ['0,0', '1,0', '0,1', '1,1'] }]
+    baseline.placedCells = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([column, row], corner) => ({ column, row, corner: corner as 0 | 1 | 2 | 3, player: 0, lockedBy: 0 }))
+    baseline.lockedShapes = [{ id: 'existing:shape:lock', player: 0, cellKeys: ['0,0', '1,0', '0,1', '1,1'] }]
     baseline.history = { index: 0, positions: [getVsHistoryPosition(baseline)] }
     const latest = finishVsTurn({ ...baseline, pendingPlacement: { column: 7, row: 7, corner: 0 } })
     const vs = { ...goToVsHistory(latest, 0), pendingPlacement: { column: 6, row: 6, corner: 1 as const } }
-    const legacyVs = { ...legacyPosition(vs), history: { ...vs.history, positions: vs.history.positions.map(legacyPosition) } }
+    const legacyVs = { ...historicalPosition(vs, source), history: { ...vs.history, positions: vs.history.positions.map((position) => historicalPosition(position, source)) } }
     const world: SavedSandboxWorld = {
-      id: 'corneromino:user-world', name: 'My Corneromino world', savedAt: 100, screenshot,
+      id: 'saved:user-world', name: 'My original world', savedAt: 100, screenshot,
       state: { cornerMarkers: [{ cellKey: '0,0', corner: 2, isOn: true }], gridOffsetX: 12, gridOffsetY: 25, zoom: 2 },
     }
     await seedGames(legacy, [
-      ...['c001', 'c002', 'c003', 'c004', 'c005', 'c006'].map((mode) => ({ id: `selection:${mode}:corneromino:seed`, state: selection, updatedAt: 456 })),
-      { id: 'cascade:current', state: { ...cascadeRest, lockedCornerominoCount: lockedNokominoCount }, updatedAt: 200 },
+      ...['c001', 'c002', 'c003', 'c004', 'c005', 'c006'].map((mode) => ({ id: `selection:${mode}:saved:seed`, state: selection, updatedAt: 456 })),
+      { id: 'cascade:current', state: { ...cascadeRest, [source.lockedShapeCountField]: lockedShapeCount }, updatedAt: 200 },
       { id: 'cascade:best-score', state: 350, updatedAt: 300 },
       { id: 'vs:local:current', state: legacyVs, updatedAt: 500 },
     ])
@@ -81,23 +118,25 @@ describe('Nokomino startup database migration', () => {
     const api = await import('./db')
     const database = await api.db
     connections.push(database)
-    expect(database.name).toBe('nokomino')
+    expect(database.name).toBe('game-data')
     expect(await database.count('games')).toBe(9)
     expect(await database.count('migrations')).toBe(1)
     const saved = await api.loadSavedGames()
     expect(saved).toHaveLength(6)
     expect(await saved[0].screenshot.text()).toBe('original image bytes')
-    expect(await api.loadGameSelection('c003', 'corneromino:seed')).toEqual(selection)
+    expect(await api.loadGameSelection('c003', 'saved:seed')).toEqual(selection)
     expect(await api.loadCascadeGameState()).toEqual(cascade)
     expect(await api.loadCascadeBestScore()).toBe(350)
     expect(await api.loadVsLocalGameState()).toEqual(vs)
     expect(await api.loadSandboxWorld(world.id)).toEqual(world)
     const storedVs = await database.get('games', 'vs:local:current')
     expect(storedVs?.updatedAt).toBe(500)
-    expect(JSON.stringify(storedVs)).not.toContain('placedCornerominoes')
-    expect(JSON.stringify(storedVs)).not.toContain('lockedCornerominoes')
+    for (const historical of HISTORICAL_STORAGE) {
+      expect(JSON.stringify(storedVs)).not.toContain(historical.placedCellsField)
+      expect(JSON.stringify(storedVs)).not.toContain(historical.lockedShapesField)
+    }
     expect((await legacy.get('games', 'vs:local:current')).state).toEqual(legacyVs)
-    expect(legacy.version).toBe(3)
+    expect(legacy.version).toBe(source.databaseVersion)
   })
 
   it('imports version-one saves and resolves legacy difficulty duplicates without changing seeds', async () => {
@@ -121,7 +160,7 @@ describe('Nokomino startup database migration', () => {
       { id: 'selection:c001:replace', state: { moveCount: 2 }, updatedAt: 30 },
       { id: 'cascade:best-score', state: 400, updatedAt: 10 },
     ])
-    const destination = await openDB('nokomino', 1, { upgrade(database) {
+    const destination = await openDB('game-data', 1, { upgrade(database) {
       database.createObjectStore('games', { keyPath: 'id' })
       database.createObjectStore('sandboxWorlds', { keyPath: 'id' })
       database.createObjectStore('migrations')
@@ -157,11 +196,11 @@ describe('Nokomino startup database migration', () => {
     await legacy.put('sandboxWorlds', { id: 'world', savedAt: 20 })
     const originalPut = IDBObjectStore.prototype.put
     const failure = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, value, key) {
-      if (this.transaction.db.name === 'nokomino' && this.name === 'sandboxWorlds') throw new DOMException('Full', 'QuotaExceededError')
+      if (this.transaction.db.name === 'game-data' && this.name === 'sandboxWorlds') throw new DOMException('Full', 'QuotaExceededError')
       return originalPut.call(this, value, key)
     })
     await expect(openGameDatabase()).rejects.toMatchObject({ name: 'QuotaExceededError' })
-    const incomplete = await openDB('nokomino')
+    const incomplete = await openDB('game-data')
     connections.push(incomplete)
     expect(await incomplete.count('games')).toBe(0)
     expect(await incomplete.count('migrations')).toBe(0)
@@ -176,6 +215,6 @@ describe('Nokomino startup database migration', () => {
     const database = await targetDatabase()
     expect(await database.count('games')).toBe(0)
     expect(await database.count('migrations')).toBe(1)
-    expect((await indexedDB.databases()).map(({ name }) => name)).toEqual(['nokomino'])
+    expect((await indexedDB.databases()).map(({ name }) => name)).toEqual(['game-data'])
   })
 })

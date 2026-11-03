@@ -21,7 +21,7 @@ const TUTORIAL_CONFIG: GameConfig = {
   tetrominoCount: 0,
 }
 
-const TUTORIAL_ALL_NOKOMINOS_CONFIG: GameConfig = {
+const TUTORIAL_ALL_SHAPES_CONFIG: GameConfig = {
   completionAnimationEnabled: false,
   finalLockAnimationEnabled: true,
   hideGameControls: true,
@@ -123,8 +123,8 @@ const TUTORIAL_SCENARIOS: Record<string, TutorialScenario> = {
       ],
     }],
   },
-  'all-nokomino': {
-    config: TUTORIAL_ALL_NOKOMINOS_CONFIG,
+  'all-shapes': {
+    config: TUTORIAL_ALL_SHAPES_CONFIG,
     disableUnlock: false,
     pieces: [{
       id: 1,
@@ -211,7 +211,7 @@ const TUTORIAL_HIGHLIGHT_AREAS: readonly { height: number; id: string; left: num
   { id: 'classic-tutorial-bottom-left', left: 1, top: 3, width: 1, height: 1 },
   { id: 'classic-tutorial-top-left', left: 1, top: 1, width: 1, height: 1 },
   { id: 'classic-tutorial-shape-example', left: 0, top: 0, width: 5, height: 5 },
-  // { id: 'classic-tutorial-all-nokominos', left: 0, top: 0, width: 5, height: 5 },
+  // { id: 'classic-tutorial-all-shapes', left: 0, top: 0, width: 5, height: 5 },
 ]
 
 function formatElapsedTime(elapsedSeconds: number) {
@@ -235,9 +235,9 @@ export function ClassicTutorial() {
 
   function handleCorrectSolution() {
     if (tutorialScenario === 't-rotations') {
-      setTutorialScenario('all-nokomino')
+      setTutorialScenario('all-shapes')
       tutorialRef.current?.moveNext()
-    } else if (tutorialScenario === 'all-nokomino') {
+    } else if (tutorialScenario === 'all-shapes') {
       tutorialRef.current?.moveNext()
     }
   }
@@ -345,14 +345,14 @@ export function ClassicTutorial() {
       element: '#classic-tutorial-board',
       nextLocked: true,
       onHighlightStarted: () => {
-        setTutorialScenario('all-nokomino')
+        setTutorialScenario('all-shapes')
         setShapeUnlockStep(false)
       },
-      popover: { description: t('tutorial.classicSteps.allNokominos'), side: 'bottom' },
+      popover: { description: t('tutorial.classicSteps.allShapes'), side: 'bottom' },
     }, {
       element: '#classic-tutorial-board',
       onHighlightStarted: () => {
-        setTutorialScenario('all-nokomino')
+        setTutorialScenario('all-shapes')
         setShapeUnlockStep(false)
       },
       popover: { description: t('tutorial.classicSteps.completed'), side: 'bottom' },

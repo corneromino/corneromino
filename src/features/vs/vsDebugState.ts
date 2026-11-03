@@ -30,15 +30,15 @@ function describePlacement(placement: VsPlacement) {
 }
 
 function describePosition(position: VsLocalPosition) {
-  const scores = getVsPlayerScores(position.placedNokominos)
+  const scores = getVsPlayerScores(position.placedCells)
   return {
     activePlayer: position.activePlayer,
     scores,
     pointDifferences: [scores[0] - scores[1], scores[1] - scores[0]],
-    placedCellCount: position.placedNokominos.length,
-    emptyCellCount: 100 - position.placedNokominos.length,
+    placedCellCount: position.placedCells.length,
+    emptyCellCount: 100 - position.placedCells.length,
     lockedCellCount: scores[0] + scores[1],
-    lockedShapeCount: position.lockedNokominos.length,
+    lockedShapeCount: position.lockedShapes.length,
     captureStreak: position.captureStreak,
     nextMoveConstraint: position.nextMoveConstraint,
     result: position.result,
@@ -52,7 +52,7 @@ export function exportVsDebugState(game: VsLocalGameState, context: VsDebugConte
   const canPlayTurn = canPlayVsTurn(game)
 
   return JSON.stringify({
-    format: 'nokomino-debug',
+    format: 'game-debug',
     version: 1,
     mode: 'vs-local',
     exportedAt,
@@ -74,8 +74,8 @@ export function exportVsDebugState(game: VsLocalGameState, context: VsDebugConte
       ...describePosition(game),
       canPlayTurn,
       canFinishTurn: canPlayTurn && game.pendingPlacement !== null,
-      placements: game.placedNokominos.map(describePlacement),
-      lockedShapes: game.lockedNokominos.map((group) => {
+      placements: game.placedCells.map(describePlacement),
+      lockedShapes: game.lockedShapes.map((group) => {
         const cells = group.cellKeys.map((key) => {
           const [x, y] = key.split(',').map(Number)
           return { x, y }
@@ -100,19 +100,19 @@ export function exportVsDebugState(game: VsLocalGameState, context: VsDebugConte
       selectedIndex: game.history.index,
       latestIndex: game.history.positions.length - 1,
       viewingPast: game.history.index < game.history.positions.length - 1,
-      baselinePlacedCellCount: game.history.positions[0]?.placedNokominos.length ?? 0,
+      baselinePlacedCellCount: game.history.positions[0]?.placedCells.length ?? 0,
       moves,
       positions: game.history.positions.map((position, historyIndex) => {
         const previous = game.history.positions[historyIndex - 1]
-        const previouslyLocked = new Set(previous?.placedNokominos.filter((cell) => cell.lockedBy !== undefined).map(formatVsCoordinate))
+        const previouslyLocked = new Set(previous?.placedCells.filter((cell) => cell.lockedBy !== undefined).map(formatVsCoordinate))
         const move = moveByIndex.get(historyIndex)
-        const placed = move ? position.placedNokominos.at(-1) : undefined
+        const placed = move ? position.placedCells.at(-1) : undefined
         return {
           historyIndex,
           selected: historyIndex === game.history.index,
           ...describePosition(position),
           move: move ? { ...move, placement: placed ? describePlacement(placed) : null } : null,
-          newlyLockedCells: previous ? position.placedNokominos
+          newlyLockedCells: previous ? position.placedCells
             .filter((cell) => cell.lockedBy !== undefined && !previouslyLocked.has(formatVsCoordinate(cell)))
             .sort((a, b) => a.row - b.row || a.column - b.column)
             .map(formatVsCoordinate) : [],

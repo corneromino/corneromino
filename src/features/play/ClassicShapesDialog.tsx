@@ -7,12 +7,12 @@ import { LOCKED_CELL_COLOR_HEX } from '@/rendering/colors'
 import { TETROMINOES, TETROMINO_KINDS, type CellId, type TetrominoKind } from '@/game/tetrominoes'
 import { GameGridCanvas } from './GameGridCanvas'
 
-interface ClassicNokominosDialogProps {
+interface ClassicShapesDialogProps {
   onOpenChange: (open: boolean) => void
   open: boolean
 }
 
-const NOKOMINO_GRID_CONFIG: GameConfig = {
+const SHAPE_GRID_CONFIG: GameConfig = {
   columns: 9,
   rows: 54,
   spread: 0,
@@ -30,13 +30,13 @@ const CORNERS_BY_CELL_ID: Record<CellId, CellCorner> = {
 }
 const UNIQUE_CORNERS: readonly CellCorner[] = ['top-left', 'top-right', 'bottom-right', 'bottom-left']
 
-interface NokominoVariant {
+interface ShapeVariant {
   cells: readonly PlacedTetromino['cells'][number][]
   id: string
   kind: TetrominoKind
 }
 
-function createNokominoVariant(kind: TetrominoKind, rotationIndex: number): NokominoVariant {
+function createShapeVariant(kind: TetrominoKind, rotationIndex: number): ShapeVariant {
   const rotation = TETROMINOES[kind].rotations[rotationIndex]!
   const minX = Math.min(...rotation.cells.map((cell) => cell.x))
   const maxX = Math.max(...rotation.cells.map((cell) => cell.x))
@@ -58,11 +58,11 @@ function createNokominoVariant(kind: TetrominoKind, rotationIndex: number): Noko
   }
 }
 
-const NOKOMINO_VARIANTS = TETROMINO_KINDS.flatMap((kind) =>
-  TETROMINOES[kind].rotations.map((_, rotationIndex) => createNokominoVariant(kind, rotationIndex)),
+const SHAPE_VARIANTS = TETROMINO_KINDS.flatMap((kind) =>
+  TETROMINOES[kind].rotations.map((_, rotationIndex) => createShapeVariant(kind, rotationIndex)),
 )
 
-const NOKOMINO_GALLERY = NOKOMINO_VARIANTS.reduce<{ lockedCellGroups: LockedCellGroup[]; pieces: PlacedTetromino[] }>((gallery, variant, index) => {
+const SHAPE_GALLERY = SHAPE_VARIANTS.reduce<{ lockedCellGroups: LockedCellGroup[]; pieces: PlacedTetromino[] }>((gallery, variant, index) => {
   const originX = (index % 2) * 5
   const originY = Math.floor(index / 2) * 5
   const cells = variant.cells.map((cell) => ({ ...cell, x: cell.x + originX, y: cell.y + originY }))
@@ -76,7 +76,7 @@ const NOKOMINO_GALLERY = NOKOMINO_VARIANTS.reduce<{ lockedCellGroups: LockedCell
 }, { lockedCellGroups: [], pieces: [] })
 
 function createRandomLockedGroups(): LockedCellGroup[] {
-  return NOKOMINO_GALLERY.lockedCellGroups.map((group) => ({
+  return SHAPE_GALLERY.lockedCellGroups.map((group) => ({
     ...group,
     color: LOCKED_CELL_COLOR_HEX[Math.floor(Math.random() * LOCKED_CELL_COLOR_HEX.length)]!,
   }))
@@ -92,7 +92,7 @@ function shuffleCorners(): CellCorner[] {
 }
 
 function createRandomGalleryPieces(): PlacedTetromino[] {
-  return NOKOMINO_GALLERY.pieces.map((piece) => {
+  return SHAPE_GALLERY.pieces.map((piece) => {
     const corners = shuffleCorners()
     return {
       ...piece,
@@ -101,7 +101,7 @@ function createRandomGalleryPieces(): PlacedTetromino[] {
   })
 }
 
-export function ClassicNokominosDialog(props: ClassicNokominosDialogProps) {
+export function ClassicShapesDialog(props: ClassicShapesDialogProps) {
   const { t } = useTranslation()
   const [lockedCellGroups, setLockedCellGroups] = useState(createRandomLockedGroups)
   const [pieces, setPieces] = useState(createRandomGalleryPieces)
@@ -119,14 +119,14 @@ export function ClassicNokominosDialog(props: ClassicNokominosDialogProps) {
   return (
     <Dialog onOpenChange={handleOpenChange} open={props.open}>
       <DialogContent aria-describedby={undefined} className="flex max-h-[calc(var(--dialog-viewport-height,var(--app-height))-2.5rem)] max-w-[430px] flex-col overflow-hidden">
-        <DialogHeader className="shrink-0"><DialogTitle>8 Nokominos</DialogTitle></DialogHeader>
+        <DialogHeader className="shrink-0"><DialogTitle>{t('classic.shapesTitle')}</DialogTitle></DialogHeader>
         <DialogDescription className="text-[15px]">
-          {t('classic.nokominosDescription')}
+          {t('classic.shapesDescription')}
         </DialogDescription>
-        <div aria-label="Locked Nokomino variants" className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-1">
-          <div className="w-full border-2 border-[#773526] bg-[#773526]" style={{ aspectRatio: `${NOKOMINO_GRID_CONFIG.columns} / ${NOKOMINO_GRID_CONFIG.rows}` }}>
+        <div aria-label={t('classic.lockedVariants')} className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-1">
+          <div className="w-full border-2 border-[#773526] bg-[#773526]" style={{ aspectRatio: `${SHAPE_GRID_CONFIG.columns} / ${SHAPE_GRID_CONFIG.rows}` }}>
             <GameGridCanvas
-              config={NOKOMINO_GRID_CONFIG}
+              config={SHAPE_GRID_CONFIG}
               interactive={false}
               lockedCellGroups={lockedCellGroups}
               markers={new Map()}

@@ -8,7 +8,7 @@ function preparedGame(player: VsPlayerId = 0, consecutiveTurnWinCount = 2): VsLo
   // between captures, without accidentally completing another shape.
   for (const row of [1, 4, 7]) {
     for (const corner of [1, 2, 3] as const) {
-      game.placedNokominos.push({ column: corner, row, corner, player: player === 0 ? 1 : 0 })
+      game.placedCells.push({ column: corner, row, corner, player: player === 0 ? 1 : 0 })
     }
   }
   return game
@@ -26,7 +26,7 @@ function quietTurn(game: VsLocalGameState, row: number): VsLocalGameState {
   const selected = selectVsCell(game, 4, row)
   expect(selected.pendingPlacement).toEqual({ column: 4, row, corner: 1 })
   const next = finishVsTurn(selected)
-  expect(next.lockedNokominos).toHaveLength(game.lockedNokominos.length)
+  expect(next.lockedShapes).toHaveLength(game.lockedShapes.length)
   return next
 }
 
@@ -54,8 +54,8 @@ describe('Local VS consecutive-turn victory', () => {
     expect(finished.captureStreak).toEqual({ player, turnCount: 2 })
     expect(finished.activePlayer).toBe(player)
     expect(finished.pendingPlacement).toBeNull()
-    expect(finished.lockedNokominos).toHaveLength(2)
-    expect(finished.placedNokominos.filter((cell) => cell.lockedBy === player)).toHaveLength(8)
+    expect(finished.lockedShapes).toHaveLength(2)
+    expect(finished.placedCells.filter((cell) => cell.lockedBy === player)).toHaveLength(8)
     expect(selectVsCell(finished, 4, 9)).toBe(finished)
     expect(finishVsTurn(finished)).toBe(finished)
     expect(toggleVsMoveDirection(finished)).toBe(finished)
@@ -116,12 +116,12 @@ describe('Local VS consecutive-turn victory', () => {
     const first = captureOnRow(preparedGame(), 1)
     const game = quietTurn(first, 2)
     const cells = [[2, 5, 0], [1, 6, 1], [2, 6, 2], [3, 6, 3]] as const
-    game.lockedNokominos.push({ id: 'old-t', player: 0, cellKeys: cells.map(([x, y]) => `${x},${y}`) })
+    game.lockedShapes.push({ id: 'old-t', player: 0, cellKeys: cells.map(([x, y]) => `${x},${y}`) })
     for (const [column, row, corner] of cells) {
-      game.placedNokominos.push({ column, row, corner, player: 0, lockedBy: 0 })
+      game.placedCells.push({ column, row, corner, player: 0, lockedBy: 0 })
     }
     const after = captureOnRow(game, 4)
-    expect(after.lockedNokominos).toHaveLength(2)
+    expect(after.lockedShapes).toHaveLength(2)
     expect(after.captureStreak).toBeNull()
     expect(after.result).toBeNull()
   })

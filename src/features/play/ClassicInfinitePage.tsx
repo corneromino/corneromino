@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { createRandomSeed } from '@/game/random'
 import { GameGrid } from './GameGrid'
-import { ClassicNokominosDialog } from './ClassicNokominosDialog'
+import { ClassicShapesDialog } from './ClassicShapesDialog'
 import { CLASSIC_INFINITE_HEALTH_SQUARE_COUNT, ClassicInfiniteHealthBar } from './ClassicInfiniteHealthBar'
 import { CLASSIC_INFINITE_CONFIG, ClassicInfiniteStream, createInfiniteSectionGenerator, type ClassicInfiniteSection } from './classicInfiniteStream'
 import type { ClassicInfiniteCellExit } from './classicInfiniteCellExit'
@@ -17,7 +17,7 @@ const PAUSE_BUTTON_CLASS = 'cartoon-press h-[42px] w-full text-[11px] font-black
 const ignoreElapsedSecondsChange = (_elapsedSeconds: number) => undefined
 const ignoreMoveCountChange = (_moveCount: number) => undefined
 const INITIAL_HEALTH = 1
-const HEALTH_PER_LOCKED_NOKOMINO = 4
+const HEALTH_PER_LOCKED_SHAPE = 4
 
 function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: ClassicInfiniteCellExit) => void; onRestart: () => void }) {
   const { t } = useTranslation()
@@ -25,7 +25,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
   const navigate = useNavigate()
   const [seed] = useState(createRandomSeed)
   const [paused, setPaused] = useState(false)
-  const [nokominosOpen, setNokominosOpen] = useState(false)
+  const [shapesOpen, setShapesOpen] = useState(false)
   const [health, setHealth] = useState(INITIAL_HEALTH)
   const [healthAnimationKey, setHealthAnimationKey] = useState(0)
   const [gameOver, setGameOver] = useState(false)
@@ -62,8 +62,8 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
 
   function resume() { setPaused(false) }
   function pause() { setPaused(true) }
-  function handleLockedNokomino() {
-    const nextHealth = Math.min(CLASSIC_INFINITE_HEALTH_SQUARE_COUNT, healthRef.current + HEALTH_PER_LOCKED_NOKOMINO)
+  function handleLockedShape() {
+    const nextHealth = Math.min(CLASSIC_INFINITE_HEALTH_SQUARE_COUNT, healthRef.current + HEALTH_PER_LOCKED_SHAPE)
     healthRef.current = nextHealth
     setHealth(nextHealth)
     setHealthAnimationKey((key) => key + 1)
@@ -83,8 +83,8 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
     }
     onCellExit?.(event)
   }
-  function handleUnlockedNokomino() {
-    decreaseHealth(HEALTH_PER_LOCKED_NOKOMINO)
+  function handleUnlockedShape() {
+    decreaseHealth(HEALTH_PER_LOCKED_SHAPE)
   }
   function quit() {
     if (location.state?.returnToClassicMenu === true) navigate(-1)
@@ -122,7 +122,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <h1 className="poster-title text-[33px] leading-none">{t('classic.title')}</h1>
-            <Button aria-label="8 Nokominos" className="h-auto min-w-0 border-0 bg-transparent p-0 text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40 font-black shadow-none hover:opacity-70 focus-visible:opacity-100" onClick={() => setNokominosOpen(true)} size="icon" title="8 Nokominos" type="button">?</Button>
+            <Button aria-label={t('classic.shapesTitle')} className="h-auto min-w-0 border-0 bg-transparent p-0 text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40 font-black shadow-none hover:opacity-70 focus-visible:opacity-100" onClick={() => setShapesOpen(true)} size="icon" title={t('classic.shapesTitle')} type="button">?</Button>
           </div>
           <Button aria-label={t('common.pause')} className="cartoon-press size-10 shrink-0 text-[var(--canvas-foreground)]" onClick={pause} size="icon" title={t('common.pause')} type="button"><Pause aria-hidden="true" /></Button>
         </div>
@@ -141,18 +141,18 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
           gameMode="infinite"
           onElapsedSecondsChange={ignoreElapsedSecondsChange}
           onCellExit={handleCellExit}
-          onLocked={handleLockedNokomino}
+          onLocked={handleLockedShape}
           onMoveCountChange={ignoreMoveCountChange}
           onNextGame={onRestart}
           onPauseOpenChange={setPaused}
           onRestart={onRestart}
-          onUnlocked={handleUnlockedNokomino}
+          onUnlocked={handleUnlockedShape}
           paused={paused || generationFailed}
           pauseDialog={pauseDialog}
           persistSelection={false}
           pieces={pieces}
           scrolling={scrolling}
-          suspended={nokominosOpen || gameOver}
+          suspended={shapesOpen || gameOver}
           exitDistortion={CLASSIC_INFINITE_EXIT_DISTORTION}
           // vhsCrt={CLASSIC_INFINITE_VHS_CRT}
         /> : <>
@@ -160,7 +160,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
           {pauseDialog}
         </>}
       </div>
-      <ClassicNokominosDialog onOpenChange={setNokominosOpen} open={nokominosOpen} />
+      <ClassicShapesDialog onOpenChange={setShapesOpen} open={shapesOpen} />
       {gameOverDialog}
     </main>
   )

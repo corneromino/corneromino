@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { PlacedTetromino } from '@/game/gameConfig'
 import { collectExitedInfiniteCells, pruneReportedInfiniteCells } from './classicInfiniteCellExit'
 
-const nokomino: PlacedTetromino = {
+const piece: PlacedTetromino = {
   id: 42,
   kind: 'I',
   cells: [
@@ -14,11 +14,11 @@ const nokomino: PlacedTetromino = {
 }
 
 describe('Classic Infinite cell exits', () => {
-  it('reports individual cells with their current state and owning Nokomino', () => {
+  it('reports individual cells with their current state and owning shape', () => {
     const reportedCellKeys = new Set<string>()
     const common = {
       lockedCellGroups: [{ id: 'locked-shape', color: '#000000', cellKeys: ['3,10'] }],
-      pieces: [nokomino],
+      pieces: [piece],
       reportedCellKeys,
       selectedCellKeys: new Set(['3,11']),
       selectedLockedGroupId: 'locked-shape',
@@ -28,11 +28,11 @@ describe('Classic Infinite cell exits', () => {
     const firstExits = collectExitedInfiniteCells({ ...common, offsetRows: 0 })
     expect(firstExits.map((event) => event.cellKey)).toEqual(['3,10', '3,11'])
     expect(firstExits[0]).toMatchObject({
-      cell: nokomino.cells[2],
-      nokomino,
-      nokominoCellKeys: ['3,8', '3,9', '3,10', '3,11'],
-      nokominoId: 42,
-      nokominoKind: 'I',
+      cell: piece.cells[2],
+      piece,
+      pieceCellKeys: ['3,8', '3,9', '3,10', '3,11'],
+      pieceId: 42,
+      pieceKind: 'I',
       locked: true,
       lockedGroupId: 'locked-shape',
       selected: true,
@@ -51,14 +51,14 @@ describe('Classic Infinite cell exits', () => {
     expect(collectExitedInfiniteCells({
       lockedCellGroups: [],
       offsetRows: -20,
-      pieces: [nokomino],
+      pieces: [piece],
       reportedCellKeys: new Set<string>(),
       selectedCellKeys: new Set<string>(),
       selectedLockedGroupId: null,
       visibleRows: 10,
     })).toEqual([])
 
-    pruneReportedInfiniteCells(reportedCellKeys, [nokomino])
+    pruneReportedInfiniteCells(reportedCellKeys, [piece])
     expect(reportedCellKeys).toEqual(new Set(['3,8', '3,9', '3,10', '3,11']))
     pruneReportedInfiniteCells(reportedCellKeys, [])
     expect(reportedCellKeys.size).toBe(0)

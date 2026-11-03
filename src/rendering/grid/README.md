@@ -6,7 +6,7 @@ Normal, Cascade and Sandbox use this renderer. Gameplay state and rules are supp
 
 - `GridSurface.ts`: repeated empty-cell texture, drawing layers, texture ownership and frame/cleanup hooks.
 - `gridGeometry.ts`: finite/infinite bounds, contain/stretch/manual sizing, cell-to-screen and screen-to-cell conversion.
-- `drawNokomino.ts`: shared body and marker drawing; modes supply colors, dimensions, borders and outlines. Marker position and drawing are separate to allow interpolated corner animation.
+- `drawMarkedCell.ts`: shared body and marker drawing; modes supply colors, dimensions, borders and outlines. Marker position and drawing are separate to allow interpolated corner animation.
 - `gridInput.ts`: canvas input registration, tap/swipe recognition, repeated horizontal steps and cancellation. Modes connect actions through callbacks.
 
 ## Configuration and coordinates

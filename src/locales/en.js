@@ -25,7 +25,7 @@ export default {
         "close": "Close"
     },
     "mainMenu": {
-        "title": "Nokomino",
+        "title": "{{appName}}",
         "classic": "Classic",
         "cascade": "Cascade",
         "versus": "VS",
@@ -48,14 +48,14 @@ export default {
             "bottomRight": "Bottom Right...",
             "bottomLeft": "Bottom Left...",
             "topLeft": "Top Left...",
-            "shapeExample": "A Nokomino has exactly four connected squares, each with a unique corner.\nSelect the four squares.",
+            "shapeExample": "A {{shapeName}} has exactly four connected squares, each with a unique corner.\nSelect the four squares.",
             "shapeExampleUnlock": "Great! Double-tap the locked shape to unlock it.",
             "shapeExampleCompleted": "Bravo !",
             "lockSelection": "Lock your selection.",
             "verifySolution": "Once all squares are locked, you can verify your solution",
-            "tRotations": "Each Nokomino has 4 rotations.\nHere are the 4 rotations of the 'T' Nokomino.\nCan you spot them ?",
+            "tRotations": "Each {{shapeName}} has 4 rotations.\nHere are the 4 rotations of the 'T' {{shapeName}}.\nCan you spot them ?",
             "tRotationsCompleted": "Super !",
-            "allNokominos": "There are 8 different nokominos. Each has 4 different rotations.",
+            "allShapes": "There are 8 different {{shapesName}}. Each has 4 different rotations.",
             "completed": "Well done ! You can close the tutorial."
         }
     },
@@ -80,7 +80,9 @@ export default {
         "errors": "{{count}} errors",
         "mistakes": "{{count}} mistakes",
         "correct": "Well Done !",
-        "nokominosDescription": "Here is the list of all possible 8 nokominos.",
+        "shapesTitle": "8 {{shapesName}}",
+        "lockedVariants": "Locked {{shapeName}} variants",
+        "shapesDescription": "Here is the list of all possible 8 {{shapesName}}.",
         "result": "Result",
         "completedBoard": "Completed game board",
         "saveGame": "Save game",

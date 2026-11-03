@@ -1,7 +1,7 @@
 import { Container, Graphics, Point, type Sprite } from 'pixi.js'
 import { GAME_COLORS } from '@/rendering/colors'
 import { VERIFICATION_FLIP_BATCH_SIZE, VERIFICATION_FLIP_DURATION_MS } from '@/game/gameConfig'
-import { drawCellBody } from './drawNokomino'
+import { drawCellBody } from './drawMarkedCell'
 import { getGridSquircleRadius } from './gridSquircle'
 import { VERIFICATION_COLORS, type VerificationRequest } from './verificationEffect'
 

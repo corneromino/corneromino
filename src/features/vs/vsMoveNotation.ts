@@ -21,13 +21,13 @@ export function getVsMoveNotations(positions: readonly VsLocalPosition[]): VsMov
   for (let historyIndex = 1; historyIndex < positions.length; historyIndex += 1) {
     const before = positions[historyIndex - 1]
     const after = positions[historyIndex]
-    const placed = after.placedNokominos.at(-1)
+    const placed = after.placedCells.at(-1)
     if (!placed || !after.nextMoveConstraint) continue
 
-    const previouslyLocked = new Set(before.placedNokominos
+    const previouslyLocked = new Set(before.placedCells
       .filter((cell) => cell.lockedBy !== undefined)
       .map(formatVsCoordinate))
-    const lockedCells = after.placedNokominos
+    const lockedCells = after.placedCells
       .filter((cell) => cell.lockedBy !== undefined && !previouslyLocked.has(formatVsCoordinate(cell)))
       .sort((a, b) => a.row - b.row || a.column - b.column)
       .map(formatVsCoordinate)
@@ -35,7 +35,7 @@ export function getVsMoveNotations(positions: readonly VsLocalPosition[]): VsMov
     const direction = after.nextMoveConstraint.direction === 'orthogonal' ? '+' : 'x'
     moves.push({
       historyIndex,
-      moveNumber: after.placedNokominos.length,
+      moveNumber: after.placedCells.length,
       notation: `${formatVsCoordinate(placed)}${VS_CORNER_LETTERS[placed.corner]}${direction}${lockedCells}`,
       player: placed.player,
     })

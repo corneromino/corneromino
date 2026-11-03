@@ -28,7 +28,7 @@ describe('SandboxCellSystem', () => {
     expect(system.hasPendingUpdates()).toBe(false)
   })
 
-  it('allows update handlers to change a nokomino on/off state', () => {
+  it('allows update handlers to change a shape on/off state', () => {
     const system = new SandboxCellSystem([
       { cellKey: '0,0', corner: 1 },
       { cellKey: '1,0', corner: 1 },

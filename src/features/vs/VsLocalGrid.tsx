@@ -149,7 +149,7 @@ export function VsLocalGrid() {
     setGame((current) => current && goToVsHistory(current, index))
     setVictoryDialogDismissed(true)
   }, [])
-  const [playerOnePoints, playerTwoPoints] = getVsPlayerScores(game?.placedNokominos ?? [])
+  const [playerOnePoints, playerTwoPoints] = getVsPlayerScores(game?.placedCells ?? [])
   const result = game?.result ?? null
   const allowHistoryRewrite = game?.allowHistoryRewrite ?? VS_LOCAL_CONFIG.allowHistoryRewrite
   const historyIndex = game?.history.index ?? 0
@@ -221,7 +221,7 @@ export function VsLocalGrid() {
     <main className="poster-page app-page flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
       <header className="mx-auto flex w-full max-w-[550px] shrink-0 flex-wrap items-end justify-between gap-x-4 gap-y-2 px-5 pb-3">
         <div>
-          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Nokomino</p>
+          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{t('mainMenu.title')}</p>
           <h1 className="poster-title mt-2 text-[33px] leading-none">VS</h1>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">

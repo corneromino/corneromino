@@ -4,10 +4,10 @@ import type { TetrominoKind } from '@/game/tetrominoes'
 export interface ClassicInfiniteCellExit {
   cell: PlacedTetrominoCell
   cellKey: string
-  nokomino: PlacedTetromino
-  nokominoCellKeys: readonly string[]
-  nokominoId: number
-  nokominoKind: TetrominoKind
+  piece: PlacedTetromino
+  pieceCellKeys: readonly string[]
+  pieceId: number
+  pieceKind: TetrominoKind
   locked: boolean
   lockedGroupId: string | null
   selected: boolean
@@ -35,11 +35,11 @@ export function collectExitedInfiniteCells(options: CollectExitedCellsOptions): 
   const lockedCells = new Map(options.lockedCellGroups.flatMap((group) => group.cellKeys.map((key) => [key, group] as const)))
   const exited: ClassicInfiniteCellExit[] = []
 
-  for (const nokomino of options.pieces) {
-    const nokominoCellKeys = nokomino.cells.map((cell) => cellKey(cell.x, cell.y))
-    for (let index = 0; index < nokomino.cells.length; index += 1) {
-      const cell = nokomino.cells[index]!
-      const key = nokominoCellKeys[index]!
+  for (const piece of options.pieces) {
+    const pieceCellKeys = piece.cells.map((cell) => cellKey(cell.x, cell.y))
+    for (let index = 0; index < piece.cells.length; index += 1) {
+      const cell = piece.cells[index]!
+      const key = pieceCellKeys[index]!
       if (options.reportedCellKeys.has(key) || cell.y + options.offsetRows < options.visibleRows) continue
 
       const lockedGroup = lockedCells.get(key)
@@ -47,10 +47,10 @@ export function collectExitedInfiniteCells(options: CollectExitedCellsOptions): 
       exited.push({
         cell,
         cellKey: key,
-        nokomino,
-        nokominoCellKeys,
-        nokominoId: nokomino.id,
-        nokominoKind: nokomino.kind,
+        piece,
+        pieceCellKeys,
+        pieceId: piece.id,
+        pieceKind: piece.kind,
         locked: lockedGroup !== undefined,
         lockedGroupId: lockedGroup?.id ?? null,
         selected: options.selectedCellKeys.has(key) || lockedGroup?.id === options.selectedLockedGroupId,

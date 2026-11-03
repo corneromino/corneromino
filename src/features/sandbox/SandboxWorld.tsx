@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Copy, FolderOpen, LogOut, MousePointer2, Move, PenLine, Save, Trash2 } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import { AppNavigationButton } from '@/components/ui/app-navigation-button'
@@ -9,6 +10,7 @@ import { SandboxWorldCard } from './Sandbox'
 import { SandboxCanvas, type SandboxCanvasHandle } from './SandboxCanvas'
 
 export function SandboxWorld() {
+  const { t } = useTranslation()
   const { worldId } = useParams()
   const canvasRef = useRef<SandboxCanvasHandle>(null)
   const [deleteEnabled, setDeleteEnabled] = useState(false)
@@ -125,7 +127,7 @@ export function SandboxWorld() {
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
       <header className="relative z-10 mx-auto flex w-full max-w-[550px] items-end justify-between gap-3 px-5 pb-6">
         <div>
-          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">Nokomino</p>
+          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{t('mainMenu.title')}</p>
           <h1 className="poster-title mt-2 text-[33px] leading-none">Sandbox</h1>
         </div>
         <div className="flex shrink-0 gap-1 sm:gap-2">

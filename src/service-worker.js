@@ -1,5 +1,5 @@
-const CACHE_PREFIX = 'nokomino-shell-'
-const LEGACY_CACHE_PREFIX = 'corneromino-shell-'
+const CACHE_PREFIX = 'game-shell-'
+const LEGACY_CACHE_PREFIXES = ['nokomino-shell-', 'corneromino-shell-']
 const CACHE_NAME = `${CACHE_PREFIX}v${__APP_VERSION__}`
 
 self.addEventListener('install', (event) => {
@@ -11,7 +11,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(Promise.all([
     self.clients.claim(),
     caches.keys().then((keys) => Promise.all(keys
-      .filter((key) => (key.startsWith(CACHE_PREFIX) || key.startsWith(LEGACY_CACHE_PREFIX)) && key !== CACHE_NAME)
+      .filter((key) => (key.startsWith(CACHE_PREFIX) || LEGACY_CACHE_PREFIXES.some((prefix) => key.startsWith(prefix))) && key !== CACHE_NAME)
       .map((key) => caches.delete(key)))),
   ]))
 })

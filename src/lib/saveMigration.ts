@@ -35,10 +35,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 const LEGACY_VS_FIELDS = {
-  placedCornerominoes: 'placedNokominos',
-  lockedCornerominoes: 'lockedNokominos',
+  placedNokominos: 'placedCells',
+  lockedNokominos: 'lockedShapes',
+  placedCornerominoes: 'placedCells',
+  lockedCornerominoes: 'lockedShapes',
 } as const
-const LEGACY_CASCADE_FIELDS = { lockedCornerominoCount: 'lockedNokominoCount' } as const
+const LEGACY_CASCADE_FIELDS = { lockedNokominoCount: 'lockedShapeCount', lockedCornerominoCount: 'lockedShapeCount' } as const
 
 function renameFields(value: Record<string, unknown>, fields: Record<string, string>): Record<string, unknown> {
   const result = { ...value }

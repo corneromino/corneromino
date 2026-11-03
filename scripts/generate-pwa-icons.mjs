@@ -74,4 +74,4 @@ function createIcon(size) {
 }
 
 mkdirSync('public/icons', { recursive: true })
-for (const size of [192, 512]) writeFileSync(`public/icons/nokomino-${size}.png`, createIcon(size))
+for (const size of [192, 512]) writeFileSync(`public/icons/app-icon-${size}.png`, createIcon(size))

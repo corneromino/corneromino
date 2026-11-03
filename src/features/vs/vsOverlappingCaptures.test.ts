@@ -26,7 +26,7 @@ function overlappingLine(shapeCount: number, dx: number, dy: number, player: VsP
     const column = 1 + dx * index
     const row = (dy < 0 ? 8 : 1) + dy * index
     if (index === 3) game.pendingPlacement = { column, row, corner: 0 }
-    else game.placedNokominos.push({ column, row, corner: corners[index], player: player === 0 ? 1 : 0 })
+    else game.placedCells.push({ column, row, corner: corners[index], player: player === 0 ? 1 : 0 })
   }
   return game
 }
@@ -37,11 +37,11 @@ describe('Local VS overlapping captures', () => {
     const original = structuredClone(before)
     const after = play(before, 5, 4, 0)
 
-    expect(after.lockedNokominos.map((shape) => [...shape.cellKeys].sort().join('|')).sort()).toEqual([
+    expect(after.lockedShapes.map((shape) => [...shape.cellKeys].sort().join('|')).sort()).toEqual([
       '3,4|4,4|5,4|6,4', '4,4|5,4|6,4|7,4',
     ])
-    expect(new Set(after.lockedNokominos.map((shape) => shape.id)).size).toBe(2)
-    expect(getVsPlayerScores(after.placedNokominos)).toEqual([5, 0])
+    expect(new Set(after.lockedShapes.map((shape) => shape.id)).size).toBe(2)
+    expect(getVsPlayerScores(after.placedCells)).toEqual([5, 0])
     expect(after.result).toEqual({ reason: 'combination', winner: 0, shapeCount: 2 })
     expect(after.captureStreak).toEqual({ player: 0, turnCount: 1 })
     expect(after.pendingPlacement).toBeNull()
@@ -57,13 +57,13 @@ describe('Local VS overlapping captures', () => {
       for (const shapeCount of [2, 3, 4]) {
         const before = overlappingLine(shapeCount, dx, dy, player)
         const after = finishVsTurn(before)
-        expect(after.lockedNokominos).toHaveLength(shapeCount)
-        expect(new Set(after.lockedNokominos.map((shape) => [...shape.cellKeys].sort().join('|'))).size).toBe(shapeCount)
-        expect(getVsPlayerScores(after.placedNokominos)[player]).toBe(shapeCount + 3)
-        expect(getVsPlayerScores(after.placedNokominos)[player === 0 ? 1 : 0]).toBe(0)
+        expect(after.lockedShapes).toHaveLength(shapeCount)
+        expect(new Set(after.lockedShapes.map((shape) => [...shape.cellKeys].sort().join('|'))).size).toBe(shapeCount)
+        expect(getVsPlayerScores(after.placedCells)[player]).toBe(shapeCount + 3)
+        expect(getVsPlayerScores(after.placedCells)[player === 0 ? 1 : 0]).toBe(0)
         expect(after.result).toEqual({ reason: 'combination', winner: player, shapeCount })
         expect(after.captureStreak).toEqual({ player, turnCount: 1 })
-        for (const shape of after.lockedNokominos) {
+        for (const shape of after.lockedShapes) {
           expect(shape.cellKeys).toContain(`${before.pendingPlacement!.column},${before.pendingPlacement!.row}`)
           expect(getTetrominoKind(shape.cellKeys.map((key) => {
             const [x, y] = key.split(',').map(Number)
@@ -77,7 +77,7 @@ describe('Local VS overlapping captures', () => {
   it('counts a double as one capturing turn when the combination threshold is higher', () => {
     const before = overlappingLine(2, 1, 0, 0, 3)
     const after = finishVsTurn(before)
-    expect(after.lockedNokominos).toHaveLength(2)
+    expect(after.lockedShapes).toHaveLength(2)
     expect(after.captureStreak).toEqual({ player: 0, turnCount: 1 })
     expect(after.activePlayer).toBe(1)
     expect(after.result).toBeNull()
@@ -89,8 +89,8 @@ describe('Local VS overlapping captures', () => {
   it('locks and scores the reported F4 double without a combination win when overlaps are disabled', () => {
     const before = reportedPosition(false)
     const after = play(before, 5, 4, 0)
-    expect(after.lockedNokominos).toHaveLength(2)
-    expect(getVsPlayerScores(after.placedNokominos)).toEqual([5, 0])
+    expect(after.lockedShapes).toHaveLength(2)
+    expect(getVsPlayerScores(after.placedCells)).toEqual([5, 0])
     expect(after.captureStreak).toEqual({ player: 0, turnCount: 1 })
     expect(after.activePlayer).toBe(1)
     expect(after.result).toBeNull()
@@ -108,8 +108,8 @@ describe('Local VS overlapping captures', () => {
       for (const shapeCount of [2, 3, 4]) {
         const before = { ...overlappingLine(shapeCount, dx, dy, player, 2), allowOverlappingCombinationWin: false }
         const after = finishVsTurn(before)
-        expect(after.lockedNokominos).toHaveLength(shapeCount)
-        expect(getVsPlayerScores(after.placedNokominos)[player]).toBe(shapeCount + 3)
+        expect(after.lockedShapes).toHaveLength(shapeCount)
+        expect(getVsPlayerScores(after.placedCells)[player]).toBe(shapeCount + 3)
         // With seven cells, the two outer windows share only the new center;
         // the two middle windows still lock but cannot increase the win count.
         expect(after.result).toEqual(shapeCount === 4 ? { reason: 'combination', winner: player, shapeCount: 2 } : null)
@@ -122,7 +122,7 @@ describe('Local VS overlapping captures', () => {
     const before = { ...overlappingLine(2, 1, 0), allowOverlappingCombinationWin: false }
     const after = finishVsTurn({ ...before, captureStreak: { player: 0, turnCount: 1 } })
     expect(after.result).toEqual({ reason: 'consecutive-turns', winner: 0, turnCount: 2 })
-    expect(after.lockedNokominos).toHaveLength(2)
+    expect(after.lockedShapes).toHaveLength(2)
   })
 
   it.each(['points', 'draw'] as const)('falls through to the %s trap rule when an overlapping combination is disabled', (trapResolution) => {
@@ -133,13 +133,13 @@ describe('Local VS overlapping captures', () => {
       for (let column = 0; column < 10; column++) {
         if (column !== pending.column && row !== pending.row) continue
         if (column === pending.column && row === pending.row) continue
-        if (before.placedNokominos.some((cell) => cell.column === column && cell.row === row)) continue
-        before.placedNokominos.push({ column, row, corner: 0, player: 1 })
+        if (before.placedCells.some((cell) => cell.column === column && cell.row === row)) continue
+        before.placedCells.push({ column, row, corner: 0, player: 1 })
       }
     }
     const after = finishVsTurn(before)
-    expect(after.lockedNokominos).toHaveLength(2)
-    expect(getVsPlayerScores(after.placedNokominos)).toEqual([5, 0])
+    expect(after.lockedShapes).toHaveLength(2)
+    expect(getVsPlayerScores(after.placedCells)).toEqual([5, 0])
     expect(after.result).toEqual({ reason: 'trap', winner: trapResolution === 'points' ? 0 : null })
   })
 
@@ -147,27 +147,27 @@ describe('Local VS overlapping captures', () => {
     const before = reportedPosition()
     const after = play(before, 5, 4, 0)
     const past = goToVsHistory(after, 4)
-    expect(past.lockedNokominos).toEqual([])
-    expect(getVsPlayerScores(past.placedNokominos)).toEqual([0, 0])
+    expect(past.lockedShapes).toEqual([])
+    expect(getVsPlayerScores(past.placedCells)).toEqual([0, 0])
     expect(goToVsHistory(past, 5)).toEqual(after)
 
     const rewritten = play(past, 5, 4, 1)
     expect(rewritten.result).toBeNull()
-    expect(rewritten.lockedNokominos).toEqual([])
+    expect(rewritten.lockedShapes).toEqual([])
     expect(getVsMoveNotations(rewritten.history.positions).at(-1)?.notation).toBe('F4A+')
-    expect(getVsPlayerScores(after.placedNokominos)).toEqual([5, 0])
+    expect(getVsPlayerScores(after.placedCells)).toEqual([5, 0])
   })
 
   it('excludes shapes that do not contain the new cell and never reuses a previously locked cell', () => {
     const before = overlappingLine(3, 1, 0)
     const latest = { ...before.pendingPlacement!, player: before.activePlayer }
     // Lock an endpoint: only its window is disqualified; the other two still count.
-    before.placedNokominos[0].lockedBy = 1
-    const shapes = findValidatedVsShapes([...before.placedNokominos, latest], latest, [])
+    before.placedCells[0].lockedBy = 1
+    const shapes = findValidatedVsShapes([...before.placedCells, latest], latest, [])
     expect(shapes).toHaveLength(2)
     expect(shapes.flat()).not.toContain('1,1')
 
     const distant = { column: 9, row: 9, corner: 0, player: 0 } as const
-    expect(findValidatedVsShapes([...before.placedNokominos, latest, distant], distant, [])).toEqual([])
+    expect(findValidatedVsShapes([...before.placedCells, latest, distant], distant, [])).toEqual([])
   })
 })

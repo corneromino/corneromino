@@ -4,7 +4,7 @@ import { advanceCascadeGame, createCascadeGame, dropCascadePiece, getCascadeLand
 describe('Cascade game', () => {
   const gridSize = { columns: 2, rows: 3 }
 
-  it('spawns a random nokomino at the top of the grid', () => {
+  it('spawns a random shape at the top of the grid', () => {
     const nextState = advanceCascadeGame(createCascadeGame(), gridSize, () => 0.6)
 
     expect(nextState.activePiece).toEqual({ column: 1, corner: 2, row: 0 })
@@ -17,7 +17,7 @@ describe('Cascade game', () => {
     expect(state.upcomingCorners).toEqual([3, 2, 1])
   })
 
-  it('moves the active nokomino down one cell', () => {
+  it('moves the active shape down one cell', () => {
     const nextState = advanceCascadeGame({ activePiece: { column: 0, corner: 1, row: 0 }, settledPieces: [] }, gridSize)
 
     expect(nextState.activePiece).toEqual({ column: 0, corner: 1, row: 1 })
@@ -79,7 +79,7 @@ describe('Cascade game', () => {
     expect(next.cornerBag).toEqual(state.cornerBag!.slice(0, -1))
   })
 
-  it('stacks a nokomino when it reaches the floor or another piece', () => {
+  it('stacks a shape when it reaches the floor or another piece', () => {
     const onFloor = advanceCascadeGame({ activePiece: { column: 0, corner: 1, row: 2 }, settledPieces: [] }, gridSize)
     const onPiece = advanceCascadeGame({
       activePiece: { column: 1, corner: 0, row: 0 },
@@ -93,7 +93,7 @@ describe('Cascade game', () => {
     })
   })
 
-  it('moves the active nokomino horizontally without crossing board edges or settled pieces', () => {
+  it('moves the active shape horizontally without crossing board edges or settled pieces', () => {
     const state: CascadeGameState = {
       activePiece: { column: 1, corner: 0 as const, row: 1 },
       settledPieces: [{ column: 0, corner: 2 as const, row: 1 }],
@@ -104,7 +104,7 @@ describe('Cascade game', () => {
     expect(moveCascadePiece({ ...state, settledPieces: [] }, gridSize, -1).activePiece?.column).toBe(0)
   })
 
-  it('hard drops the active nokomino onto the floor or a settled piece', () => {
+  it('hard drops the active shape onto the floor or a settled piece', () => {
     const onFloor = dropCascadePiece({ activePiece: { column: 0, corner: 1, row: 0 }, settledPieces: [] }, gridSize)
     const onPiece = dropCascadePiece({
       activePiece: { column: 1, corner: 0, row: 0 },
@@ -115,7 +115,7 @@ describe('Cascade game', () => {
     expect(onPiece.settledPieces.at(-1)).toEqual({ column: 1, corner: 0, row: 1 })
   })
 
-  it('keeps upcoming corners while no nokomino is falling', () => {
+  it('keeps upcoming corners while no shape is falling', () => {
     const state: CascadeGameState = {
       activePiece: { column: 0, corner: 1 as const, row: 2 },
       nextCornerIndex: 4,
@@ -127,7 +127,7 @@ describe('Cascade game', () => {
     expect(dropCascadePiece(state, gridSize).upcomingCorners).toEqual([0, 3, 2])
   })
 
-  it('finds the lowest open landing cell for the active nokomino', () => {
+  it('finds the lowest open landing cell for the active shape', () => {
     expect(getCascadeLandingRow({ activePiece: { column: 0, corner: 1, row: 0 }, settledPieces: [] }, gridSize)).toBe(2)
     expect(getCascadeLandingRow({
       activePiece: { column: 0, corner: 1, row: 0 },

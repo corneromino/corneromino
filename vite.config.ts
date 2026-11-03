@@ -3,7 +3,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { readFileSync } from 'node:fs'
 import { defineConfig, type Plugin } from 'vite'
 
-const manifest = JSON.parse(readFileSync(new URL('./public/manifest.json', import.meta.url), 'utf8')) as { version?: unknown }
+const manifest = JSON.parse(readFileSync(new URL('./public/manifest.json', import.meta.url), 'utf8')) as { name: string; version?: unknown }
 if (typeof manifest.version !== 'string' || manifest.version.length === 0) {
   throw new Error('public/manifest.json must have a non-empty string version.')
 }
@@ -13,7 +13,11 @@ const generatedServiceWorker = serviceWorkerSource.replaceAll('__APP_VERSION__',
 
 function versionedServiceWorker(): Plugin {
   return {
-    name: 'nokomino-versioned-service-worker',
+    name: 'game-versioned-service-worker',
+    transformIndexHtml(html) {
+      const title = manifest.name.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!)
+      return html.replace('%APP_NAME%', title)
+    },
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
         if (new URL(request.url ?? '/', 'http://localhost').pathname !== '/sw.js') return next()

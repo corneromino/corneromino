@@ -23,8 +23,8 @@ vi.mock('./GameGridCanvas', () => ({
   GameGridCanvas: (props: ComponentProps<typeof GameGridCanvas>) => {
     canvasMock.props = props
     useImperativeHandle(props.ref, () => ({ captureBoard: canvasMock.captureBoard, resetView: () => undefined }), [])
-    const nokomino = props.pieces[0]
-    const cell = nokomino?.cells[0]
+    const piece = props.pieces[0]
+    const cell = piece?.cells[0]
     const key = cell ? `${cell.x},${cell.y}` : ''
     const lockedGroup = props.lockedCellGroups.find((group) => group.cellKeys.includes(key))
     return <div>
@@ -36,10 +36,10 @@ vi.mock('./GameGridCanvas', () => ({
       {cell && <button onClick={() => props.onCellExit?.({
         cell,
         cellKey: key,
-        nokomino,
-        nokominoCellKeys: nokomino.cells.map(({ x, y }) => `${x},${y}`),
-        nokominoId: nokomino.id,
-        nokominoKind: nokomino.kind,
+        piece,
+        pieceCellKeys: piece.cells.map(({ x, y }) => `${x},${y}`),
+        pieceId: piece.id,
+        pieceKind: piece.kind,
         locked: lockedGroup !== undefined,
         lockedGroupId: lockedGroup?.id ?? null,
         selected: props.selectedCellKeys.has(key) || lockedGroup?.id === props.selectedLockedGroupId,
@@ -286,7 +286,7 @@ describe('Classic locking modes', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Exit first cell' }))
     expect(board().selected).toEqual(firstSquare.slice(0, 2))
     expect(onCellExit).toHaveBeenCalledWith(expect.objectContaining({
-      cellKey: firstSquare[0], locked: false, selected: true, nokominoId: pieces[0].id,
+      cellKey: firstSquare[0], locked: false, selected: true, pieceId: pieces[0].id,
     }))
   })
 
