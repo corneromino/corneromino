@@ -71,7 +71,7 @@ export default {
         "verify": "Vérifier",
         "revealBoard": "Afficher à nouveau la grille",
         "errors": "{{count}} erreurs",
-        "mistakes": "{{count}} erreurs",
+        "mistakes": "{{count}} répétitions",
         "correct": "Bien joué !",
         "shapesTitle": "8 {{shapesName}}",
         "lockedVariants": "Variantes verrouillées de {{shapeName}}",

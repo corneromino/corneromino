@@ -78,7 +78,7 @@ export default {
         "verify": "Verify",
         "revealBoard": "Show the board again",
         "errors": "{{count}} errors",
-        "mistakes": "{{count}} mistakes",
+        "mistakes": "{{count}} repetitions",
         "correct": "Well Done !",
         "shapesTitle": "8 {{shapesName}}",
         "lockedVariants": "Locked {{shapeName}} variants",

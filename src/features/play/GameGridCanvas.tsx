@@ -69,6 +69,8 @@ export const NOTE_OUTLINE_THICKNESS_RATIO = 0.1
 export const NOTE_OUTLINE_BEAT_FREQUENCY_HZ = 1.5
 const NOTE_OUTLINE_MIN_ALPHA = 0.35
 const NOTE_OUTLINE_COLOR = 0xffffff
+/** Transparent render space for selected cells, capped below the game header. */
+const TOP_SELECTION_OVERFLOW_PX = 20
 
 function drawNoteOutline(graphics: Graphics, width: number, height: number) {
   const thickness = Math.max(1, Math.min(width, height) * NOTE_OUTLINE_THICKNESS_RATIO)
@@ -149,10 +151,26 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     let verificationPhase: 'animating' | 'finished' | 'notified' | 'restoring' = 'animating'
     let verificationId: number | undefined
 
+    function boardSize() {
+      return {
+        height: Math.max(1, app.screen.height - TOP_SELECTION_OVERFLOW_PX),
+        width: app.screen.width,
+      }
+    }
+
+    function pointerToCell(event: PointerEvent) {
+      const rect = app.canvas.getBoundingClientRect()
+      const { width } = boardSize()
+      return surface!.screenToCell(
+        (event.clientX - rect.left) * width / rect.width,
+        (event.clientY - rect.top) * app.screen.height / rect.height - TOP_SELECTION_OVERFLOW_PX,
+      )
+    }
+
     function updateViewport() {
       if (!surface) return
       const { columns, rows } = propsRef.current.config
-      const { width, height } = app.screen
+      const { width, height } = boardSize()
       const scrolling = propsRef.current.scrolling
       // Keep post-processing tied to the screen, not the long recycled world.
       app.stage.filterArea = scrolling || vhsCrtEffect ? app.screen : undefined
@@ -168,6 +186,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       // shake is active. Keep those sprites on the replacement zoom texture
       // before Pixi renders again; GridSurface releases the old one on update.
       for (const tile of emptyCellSprites.values()) tile.texture = surface.texture
+      surface.root.position.set(0, TOP_SELECTION_OVERFLOW_PX)
       board.position.set(view.offsetX, view.offsetY)
       board.scale.set(view.zoom)
       lockedShine.setBounds(columns * cellSize, (scrolling?.visibleRows ?? rows) * cellSize, cellSize)
@@ -235,7 +254,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     }
 
     function resize() {
-      const { width, height } = app.screen
+      const { width, height } = boardSize()
       const cellSize = Math.min(width / propsRef.current.config.columns, height / propsRef.current.config.rows)
       if (previousSize.cellSize > 0) {
         // Keep the same board location at the viewport center on orientation/size changes.
@@ -266,9 +285,9 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       if (current.scrolling) pruneReportedInfiniteCells(reportedExitedCellKeys, current.pieces)
       updateViewport()
       // Draw in fitted-board coordinates; navigation only transforms the container.
-      const cellWidth = surface!.metrics.cellWidth / view.zoom
-      const cellHeight = surface!.metrics.cellHeight / view.zoom
-      const cellSize = Math.min(cellWidth, cellHeight)
+        const cellWidth = surface!.metrics.cellWidth / view.zoom
+        const cellHeight = surface!.metrics.cellHeight / view.zoom
+        const cellSize = Math.min(cellWidth, cellHeight)
       const pieceMap = createPieceMap(current.pieces)
       const lockedCellMap = createLockedCellMap(current.lockedCellGroups)
       const nextLockedCellKeys = new Set(lockedCellMap.keys())
@@ -283,10 +302,23 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         child.destroy({ children: true })
       }
       cellShakeLayers = new Map()
-      emptyCellSprites = new Map()
-      noteOutlines = []
+        emptyCellSprites = new Map()
+        noteOutlines = []
 
-      const firstRow = current.scrolling?.firstRow ?? 0
+        // The classic frame belongs to the transformed board so it pans and
+        // zooms with the cells instead of remaining fixed in the DOM.
+        if (!current.scrolling) {
+          const frameWidth = cellSize * CELL_BORDER_RATIO
+          const boardWidth = current.config.columns * cellWidth
+          const boardHeight = current.config.rows * cellHeight
+          const boardOutline = new Graphics()
+          boardOutline.rect(frameWidth / 2, frameWidth / 2, boardWidth - frameWidth, boardHeight - frameWidth)
+            .stroke({ color: BOARD_COLOR, width: frameWidth })
+          boardOutline.zIndex = -1
+          board.addChild(boardOutline)
+        }
+
+        const firstRow = current.scrolling?.firstRow ?? 0
       for (let y = firstRow; y < firstRow + current.config.rows; y += 1) {
         for (let x = 0; x < current.config.columns; x += 1) {
           const key = cellKey(x, y)
@@ -346,12 +378,11 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
 
           const borderSize = cellSize * CELL_BORDER_RATIO
           const radius = getGridSquircleRadius(cellWidth, cellHeight)
-          const outerColor = selected ? CELL_COLOR : BOARD_COLOR
           const fillColor = selected ? BOARD_COLOR : lockedGroup ? lockedColorToNumber(lockedGroup.color) : CELL_COLOR
           const cellGraphic = new Graphics();
           drawCellBody(cellGraphic, 0, 0, cellWidth, cellHeight, {
             fillColor,
-            borderColor: outerColor,
+            borderColor: selected ? fillColor : BOARD_COLOR,
             borderSize,
             borderRadius: radius
           });
@@ -604,7 +635,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         // Input styling belongs to the React host so it follows interactive
         // changes, including when a saved board finishes loading.
         app, container: stableContainer, canvasClassName: 'size-full',
-        init: { background: BOARD_COLOR, preserveDrawingBuffer: true },
+        init: { backgroundAlpha: 0, preserveDrawingBuffer: true },
         onDestroy: destroy,
         onError: () => setStartupFailed(true),
         onReady: () => {
@@ -612,9 +643,9 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           appRef.current = app
           boardRef.current = board
           surface = new GridSurface(app, propsRef.current.scrolling ? { infinite: true } : { infinite: false, columns: propsRef.current.config.columns, rows: propsRef.current.config.rows }, {
-            width: app.screen.width, height: app.screen.height,
-            cellSize: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows), fit: 'stretch',
-          }, { cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR, borderSize: Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows) * CELL_BORDER_RATIO, borderRadius: getGridSquircleRadius(Math.min(app.screen.width / propsRef.current.config.columns, app.screen.height / propsRef.current.config.rows)), gap: 0 })
+            ...boardSize(),
+            cellSize: Math.min(app.screen.width / propsRef.current.config.columns, boardSize().height / propsRef.current.config.rows), fit: 'stretch',
+          }, { cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR, borderSize: Math.min(app.screen.width / propsRef.current.config.columns, boardSize().height / propsRef.current.config.rows) * CELL_BORDER_RATIO, borderRadius: getGridSquircleRadius(Math.min(app.screen.width / propsRef.current.config.columns, boardSize().height / propsRef.current.config.rows)), gap: 0 })
           surface.layers.pieces.addChild(board)
           app.stage.addChild(surface.root)
           resetViewRef.current = () => {
@@ -629,7 +660,8 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
             try {
               view = { zoom: 1, offsetX: 0, offsetY: 0 }
               updateViewport()
-              return app.renderer.extract.canvas({ target: surface!.root, frame: new Rectangle(0, 0, app.screen.width, app.screen.height) }) as HTMLCanvasElement
+              const { height, width } = boardSize()
+              return app.renderer.extract.canvas({ target: surface!.root, frame: new Rectangle(0, 0, width, height) }) as HTMLCanvasElement
             } finally {
               view = savedView
               updateViewport()
@@ -639,16 +671,16 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           const navigation = propsRef.current.scrolling || propsRef.current.config.navigationEnabled === false ? null : createGridNavigation(app.canvas, {
             minZoom: 1, maxZoom: 4,
             getView: () => view,
-            getSize: () => app.screen,
+            getSize: boardSize,
             setView: (next) => { view = next; updateViewport() },
             onNavigate: () => { stopViewportEffects(); propsRef.current.onNavigate?.() },
-            onTap: (originalEvent) => handleCellTap({ ...surface!.pointerToCell(originalEvent), originalEvent }),
+            onTap: (originalEvent) => handleCellTap({ ...pointerToCell(originalEvent), originalEvent }),
           })
           navigationRef.current = navigation
           detachInput = attachGridInput(app.canvas, {
             enabled: () => propsRef.current.interactive !== false,
             gestures: navigation === null,
-            cellAt: (event) => surface!.pointerToCell(event),
+            cellAt: pointerToCell,
             callbacks: navigation?.callbacks ?? { onCellTap: handleCellTap },
           })
           app.ticker.add(update)
@@ -684,5 +716,9 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     return () => host?.destroy()
   }, [props.config.columns, props.config.rows, props.config.navigationEnabled])
 
-  return <div className={props.interactive === false ? 'pointer-events-none size-full overflow-hidden' : 'size-full overflow-hidden touch-none'} ref={containerRef}>{startupFailed && <CanvasStartupError />}</div>
+  return <div className="relative size-full overflow-visible">
+    <div className={props.interactive === false ? 'pointer-events-none absolute inset-x-0 overflow-hidden' : 'absolute inset-x-0 overflow-hidden touch-none'} ref={containerRef} style={{ height: `calc(100% + ${TOP_SELECTION_OVERFLOW_PX}px)`, top: `-${TOP_SELECTION_OVERFLOW_PX}px` }}>
+      {startupFailed && <CanvasStartupError />}
+    </div>
+  </div>
 })

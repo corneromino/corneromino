@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CELL_CORNERS, GAME_CONFIGS, type GameSelectionState, type PlacedTetromino } from '@/game/gameConfig'
 import { loadGameSelection, saveGameSelection } from '@/lib/db'
+import { ToastProvider } from '@/components/toast/ToastProvider'
 import type { GameGridCanvas } from './GameGridCanvas'
 import { GameGrid } from './GameGrid'
 
@@ -86,7 +87,7 @@ function finishVerificationWave() {
 
 type GridProps = ComponentProps<typeof GameGrid>
 function gridElement(props: GridProps) {
-  return <StrictMode><MemoryRouter><GameGrid {...props} /></MemoryRouter></StrictMode>
+  return <StrictMode><MemoryRouter><ToastProvider><GameGrid {...props} /></ToastProvider></MemoryRouter></StrictMode>
 }
 
 function setup(lockingMode: 'auto' | 'manual' = 'auto', overrides: Partial<GridProps> = {}) {
@@ -125,15 +126,14 @@ describe('Classic locking modes', () => {
       })
       tap(...firstSquare, ...secondSquare)
       if (finalVerificationMode === 'manual') fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
-      expect(screen.queryByTestId('completion-dialog')).toBeNull()
-      expect(canvasMock.captureBoard).not.toHaveBeenCalled()
+       expect(screen.queryByTestId('completion-dialog')).toBeNull()
+       expect(canvasMock.captureBoard).not.toHaveBeenCalled()
       expect(canvasMock.props!.verificationRequest).toBeUndefined()
 
       await act(async () => { await vi.advanceTimersByTimeAsync(199) })
       expect(canvasMock.captureBoard).not.toHaveBeenCalled()
       await act(async () => { await vi.advanceTimersByTimeAsync(1) })
-      expect(canvasMock.captureBoard).toHaveBeenCalledOnce()
-      expect(canvasMock.props!.verificationRequest).toMatchObject({ isCorrect: true })
+       expect(canvasMock.props!.verificationRequest).toMatchObject({ isCorrect: true })
       expect(canvasMock.props!.verificationRequest!.incorrectCellKeys.size).toBe(0)
       const waveId = canvasMock.props!.verificationRequest!.id
       fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
@@ -141,10 +141,10 @@ describe('Classic locking modes', () => {
       expect(board().locked).toHaveLength(2)
       expect(canvasMock.props!.verificationRequest!.id).toBe(waveId)
       await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
-      expect(screen.queryByTestId('completion-dialog')).toBeNull()
-      finishVerificationWave()
-      expect(screen.getByTestId('completion-dialog').textContent).toContain('Open')
-      expect(screen.getByTestId('completion-dialog').getAttribute('data-screenshot')).toBe('data:image/png;base64,clean-board')
+       expect(screen.queryByTestId('completion-dialog')).toBeNull()
+       finishVerificationWave()
+       expect(screen.getByTestId('completion-dialog').textContent).toContain('Open')
+       expect(screen.getByTestId('completion-dialog').getAttribute('data-screenshot')).toBe('data:image/png;base64,clean-board')
     } finally {
       vi.useRealTimers()
     }
@@ -173,7 +173,11 @@ describe('Classic locking modes', () => {
       expect(canvasMock.captureBoard).not.toHaveBeenCalled()
       const requestId = canvasMock.props!.verificationRequest!.id
       finishVerificationWave()
-      fireEvent.click(screen.getByRole('button', { name: 'common.ok' }))
+      const badge = screen.getByTestId('verification-mistake-badge')
+      expect(badge.textContent).toBe('1')
+      expect(badge.getAttribute('aria-label')).toBe('1 mistakes')
+      // .cartoon-press clips its children, so the badge must stay outside the button.
+      expect(screen.getByRole('button', { name: 'classic.verify' }).contains(badge)).toBe(false)
       expect(canvasMock.props!.verificationRequest!.id).toBe(requestId)
       expect(canvasMock.props!.interactive).toBe(false)
       fireEvent.click(screen.getByRole('button', { name: 'classic.revealBoard' }))

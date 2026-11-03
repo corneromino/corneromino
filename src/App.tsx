@@ -15,6 +15,7 @@ import { CascadeMenu } from '@/features/cascade/CascadeMenu'
 import { VsLocalGrid } from '@/features/vs/VsLocalGrid'
 import { VsMenu } from '@/features/vs/VsMenu'
 import { Settings } from '@/features/settings/Settings'
+import { ToastProvider } from '@/components/toast'
 
 const APP_ROUTES = [
   { path: '/', element: <MainMenu />, handle: { menu: true } },
@@ -51,7 +52,7 @@ function App() {
 
   return (
     <HashRouter>
-      <AppRoutes />
+      <ToastProvider><AppRoutes /></ToastProvider>
     </HashRouter>
   )
 }
