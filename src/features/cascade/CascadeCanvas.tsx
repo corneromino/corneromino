@@ -134,7 +134,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
     const renderedPieces = new Map<string, RenderedPiece>()
     const selectedPieceKeys = new Set(props.initialState?.selectedPieceKeys ?? [])
     const lockedPieces = props.initialState?.lockedPieces
-      ?? (props.initialState?.lockedPieceColors ?? []).map((piece) => ({ ...piece, groupId: `legacy:${piece.cellKey}` }))
+      ?? []
     const lockedPieceColors = new Map(lockedPieces.map((piece) => [piece.cellKey, piece.color]))
     const lockedPieceGroupIds = new Map(lockedPieces.map((piece) => [piece.cellKey, piece.groupId]))
     let destroyedLineCount = props.initialState?.destroyedLineCount ?? 0
@@ -164,7 +164,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
         elapsedSinceFall,
         gameState,
         lockedShapeCount,
-        lockedPieces: [...lockedPieceColors].map(([cellKey, color]) => ({ cellKey, color, groupId: lockedPieceGroupIds.get(cellKey) ?? `legacy:${cellKey}` })),
+        lockedPieces: [...lockedPieceColors].map(([cellKey, color]) => ({ cellKey, color, groupId: lockedPieceGroupIds.get(cellKey) ?? `cell:${cellKey}` })),
         score,
         selectedPieceKeys: [...selectedPieceKeys],
       }
@@ -210,7 +210,7 @@ export const CascadeCanvas = forwardRef<CascadeCanvasHandle, CascadeCanvasProps>
       lockedPieces: [...lockedPieceColors].map(([cellKey, color]) => ({
         cellKey,
         color: `#${color.toString(16).padStart(6, '0')}`,
-        groupId: lockedPieceGroupIds.get(cellKey) ?? `legacy:${cellKey}`,
+        groupId: lockedPieceGroupIds.get(cellKey) ?? `cell:${cellKey}`,
       })),
       lockedShapeCount,
       score,

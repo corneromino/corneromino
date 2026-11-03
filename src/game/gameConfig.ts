@@ -123,30 +123,6 @@ export type ClassicGameMode = keyof typeof GAME_CONFIGS
 export type GameMode = ClassicGameMode | 'infinite'
 export const GAME_MODES = Object.keys(GAME_CONFIGS) as ClassicGameMode[]
 
-/** Database-only migration map for saves made with pre-permanent difficulty keys. */
-export const LEGACY_GAME_MODE_IDS = {
-  '?': 'c001',
-  'super-easy': 'c002',
-  easy: 'c003',
-  medium: 'c004',
-  hard: 'c005',
-  'super-hard': 'c006',
-} as const satisfies Record<string, ClassicGameMode>
-
-/** Keeps migrated saves generating the board layout their old mode key produced. */
-const LEGACY_GAME_MODE_SEED_KEYS: Partial<Record<ClassicGameMode, string>> = {
-  c001: '?',
-  c002: 'super-easy',
-  c003: 'easy',
-  c004: 'medium',
-  c005: 'hard',
-  c006: 'super-hard',
-}
-
-export function getGameModeSeedKey(gameMode: ClassicGameMode): string {
-  return LEGACY_GAME_MODE_SEED_KEYS[gameMode] ?? gameMode
-}
-
 export function isGameMode(value: string | null): value is ClassicGameMode {
   return value !== null && value in GAME_CONFIGS
 }

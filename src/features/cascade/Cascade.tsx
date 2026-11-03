@@ -115,7 +115,7 @@ export function Cascade(props: { startNew?: boolean }) {
       setInitialState(state)
       setStats({
         destroyedLineCount: state?.destroyedLineCount ?? 0,
-        lockedShapeCount: state?.lockedShapeCount ?? state?.lockedPieces.length ?? state?.lockedPieceColors?.length ?? 0,
+        lockedShapeCount: state?.lockedShapeCount ?? state?.lockedPieces.length ?? 0,
         score: state?.score ?? 0,
         upcomingCorners: state?.gameState.upcomingCorners ?? [],
       })

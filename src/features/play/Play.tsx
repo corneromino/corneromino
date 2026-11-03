@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { AppNavigationButton } from '@/components/ui/app-navigation-button'
 import { Button } from '@/components/ui/button'
 import { createRandomSeed, createSeededRandom } from '@/game/random'
-import { GAME_CONFIGS, getGameModeSeedKey, isGameMode, type ClassicGameMode, type PlacedTetromino } from '@/game/gameConfig'
+import { GAME_CONFIGS, isGameMode, type ClassicGameMode, type PlacedTetromino } from '@/game/gameConfig'
 import { clearGameSelection } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
 import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
@@ -116,7 +116,7 @@ function GameSession(props: GameSessionProps) {
     setPieces(null)
 
     void generateTetrominoPlacementsV2(config, {
-      random: createSeededRandom(`${getGameModeSeedKey(props.gameMode)}:${seed}`),
+      random: createSeededRandom(`${props.gameMode}:${seed}`),
       yieldEvery: 250,
     })
       .then((generatedPieces) => {

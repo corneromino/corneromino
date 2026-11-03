@@ -1,7 +1,6 @@
 import { openGameDatabase } from './gameDatabase'
-import { migrateLegacyGameState } from './saveMigration'
 import { isGameMode, type CellMarker, type ClassicGameMode, type GameMode, type GameSelectionState, type LockedCellGroup } from '@/game/gameConfig'
-import { isVsLocalBoardSize, isVsTrapResolution, isVsWinCount, VS_LOCAL_CONFIG, VS_LOCAL_DEFAULT_BOARD_SIZE } from '@/features/vs/vsLocalConfig'
+import { isVsLocalBoardSize, isVsTrapResolution, isVsWinCount,  } from '@/features/vs/vsLocalConfig'
 import { getVsAllowedCells, getVsHistoryPosition, getVsPlayerScores, type VsCaptureStreak, type VsGameResult, type VsLocalGameState, type VsLocalPosition, type VsMoveHistory } from '@/features/vs/vsLocalGame'
 
 export interface StoredGame {
@@ -10,7 +9,6 @@ export interface StoredGame {
   state: unknown
 }
 
-export { migrateLegacyClassicSaveRecords } from './saveMigration'
 
 export interface SavedGame {
   gameId: string
@@ -46,18 +44,12 @@ export interface CascadeGameSaveState {
     generatedCornerRun?: { corner: 0 | 1 | 2 | 3; length: number }
   }
   lockedPieces: Array<{ cellKey: string; color: number; groupId: string }>
-  /** Backwards compatibility for Cascade saves created before lock groups existed. */
-  lockedPieceColors?: Array<{ cellKey: string; color: number }>
   lockedShapeCount?: number
   score?: number
   selectedPieceKeys: string[]
 }
 
 export type VsLocalGameSaveState = VsLocalGameState
-
-type OptionalLegacyVsFields = 'allowHistoryRewrite' | 'allowOverlappingCombinationWin' | 'history' | 'captureStreak' | 'combinationWinCount' | 'consecutiveTurnWinCount' | 'result' | 'nextMoveConstraint' | 'pendingMoveDirection' | 'selectedCellKeys' | 'trapResolution'
-type LegacyVsLocalGameSaveState = Omit<VsLocalGameSaveState, OptionalLegacyVsFields>
-  & Partial<Pick<VsLocalGameSaveState, OptionalLegacyVsFields>>
 
 export const db = openGameDatabase()
 
@@ -116,13 +108,13 @@ function isVsGameResult(value: unknown): value is VsGameResult {
   }
 }
 
-function isVsLocalPosition(value: unknown): value is Pick<LegacyVsLocalGameSaveState, keyof VsLocalPosition> {
+function isVsLocalPosition(value: unknown): value is VsLocalPosition {
   return typeof value === 'object'
     && value !== null
     && 'activePlayer' in value && isVsPlayer(value.activePlayer)
-    && (!('captureStreak' in value) || value.captureStreak === null || isVsCaptureStreak(value.captureStreak))
-    && (!('result' in value) || value.result === null || isVsGameResult(value.result))
-    && (!('nextMoveConstraint' in value) || value.nextMoveConstraint === null || isVsMoveConstraint(value.nextMoveConstraint))
+    && 'captureStreak' in value && (value.captureStreak === null || isVsCaptureStreak(value.captureStreak))
+    && 'result' in value && (value.result === null || isVsGameResult(value.result))
+    && 'nextMoveConstraint' in value && (value.nextMoveConstraint === null || isVsMoveConstraint(value.nextMoveConstraint))
     && 'placedCells' in value && Array.isArray(value.placedCells) && value.placedCells.every((placement) => (
       isVsPlacement(placement)
       && 'player' in placement && isVsPlayer(placement.player)
@@ -146,16 +138,17 @@ function isVsMoveHistory(value: unknown): value is VsMoveHistory {
       && 'captureStreak' in position && 'nextMoveConstraint' in position && 'result' in position)
 }
 
-function isVsLocalGameSaveState(value: unknown): value is LegacyVsLocalGameSaveState {
+function isVsLocalGameSaveState(value: unknown): value is VsLocalGameSaveState {
   return isVsLocalPosition(value)
-    && (!('allowHistoryRewrite' in value) || typeof value.allowHistoryRewrite === 'boolean')
-    && (!('allowOverlappingCombinationWin' in value) || typeof value.allowOverlappingCombinationWin === 'boolean')
-    && (!('history' in value) || isVsMoveHistory(value.history))
-    && (!('combinationWinCount' in value) || isVsWinCount(value.combinationWinCount))
-    && (!('consecutiveTurnWinCount' in value) || isVsWinCount(value.consecutiveTurnWinCount))
-    && (!('trapResolution' in value) || isVsTrapResolution(value.trapResolution))
-    && (!('pendingMoveDirection' in value) || isVsMoveDirection(value.pendingMoveDirection))
-    && (!('selectedCellKeys' in value) || (Array.isArray(value.selectedCellKeys)
+    && 'boardSize' in value && isVsLocalBoardSize(value.boardSize)
+    && ('allowHistoryRewrite' in value && typeof value.allowHistoryRewrite === 'boolean')
+    && ('allowOverlappingCombinationWin' in value && typeof value.allowOverlappingCombinationWin === 'boolean')
+    && ('history' in value && isVsMoveHistory(value.history))
+    && ('combinationWinCount' in value && isVsWinCount(value.combinationWinCount))
+    && ('consecutiveTurnWinCount' in value && isVsWinCount(value.consecutiveTurnWinCount))
+    && ('trapResolution' in value && isVsTrapResolution(value.trapResolution))
+    && ('pendingMoveDirection' in value && isVsMoveDirection(value.pendingMoveDirection))
+    && ('selectedCellKeys' in value && (Array.isArray(value.selectedCellKeys)
       && value.selectedCellKeys.every((cellKey) => typeof cellKey === 'string')
       && new Set(value.selectedCellKeys).size === value.selectedCellKeys.length))
     && 'pendingPlacement' in value && (value.pendingPlacement === null || isVsPlacement(value.pendingPlacement))
@@ -238,10 +231,7 @@ function isCascadeGameSaveState(value: unknown): value is CascadeGameSaveState {
     && (!('lockedPieces' in value) || (Array.isArray(value.lockedPieces) && value.lockedPieces.every((piece) => (
       typeof piece === 'object' && piece !== null && 'cellKey' in piece && typeof piece.cellKey === 'string' && 'color' in piece && typeof piece.color === 'number' && 'groupId' in piece && typeof piece.groupId === 'string'
     ))))
-    && (!('lockedPieceColors' in value) || (Array.isArray(value.lockedPieceColors) && value.lockedPieceColors.every((piece) => (
-      typeof piece === 'object' && piece !== null && 'cellKey' in piece && typeof piece.cellKey === 'string' && 'color' in piece && typeof piece.color === 'number'
-    ))))
-    && ('lockedPieces' in value || 'lockedPieceColors' in value)
+    && 'lockedPieces' in value
     && (!('lockedShapeCount' in value) || (typeof value.lockedShapeCount === 'number' && value.lockedShapeCount >= 0))
     && (!('score' in value) || (typeof value.score === 'number' && value.score >= 0))
     && 'selectedPieceKeys' in value && Array.isArray(value.selectedPieceKeys) && value.selectedPieceKeys.every((cellKey) => typeof cellKey === 'string')
@@ -278,7 +268,6 @@ function isGameSelectionState(state: unknown): state is {
   isCompleted?: boolean
   lockedCellGroups?: LockedCellGroup[]
   markers?: CellMarker[]
-  markedCellKeys?: string[]
   moveCount?: number
   savedAt?: number | null
   selectedCellKeys: string[]
@@ -292,7 +281,6 @@ function isGameSelectionState(state: unknown): state is {
     (!('elapsedSeconds' in state) || (typeof state.elapsedSeconds === 'number' && state.elapsedSeconds >= 0)) &&
     (!('lockedCellGroups' in state) || (Array.isArray(state.lockedCellGroups) && state.lockedCellGroups.every(isLockedCellGroup))) &&
     (!('markers' in state) || (Array.isArray(state.markers) && state.markers.every(isCellMarker))) &&
-    (!('markedCellKeys' in state) || (Array.isArray(state.markedCellKeys) && state.markedCellKeys.every((cellKey) => typeof cellKey === 'string'))) &&
     (!('gameGridScreenshot' in state) || state.gameGridScreenshot === null || state.gameGridScreenshot instanceof Blob) &&
     (!('isCompleted' in state) || typeof state.isCompleted === 'boolean') &&
     (!('moveCount' in state) || (typeof state.moveCount === 'number' && state.moveCount >= 0)) &&
@@ -315,9 +303,7 @@ export async function loadGameSelection(gameMode: GameMode, gameId: string): Pro
     lockedCellGroups: 'lockedCellGroups' in storedGame.state ? storedGame.state.lockedCellGroups : [],
     markers: 'markers' in storedGame.state && Array.isArray(storedGame.state.markers)
       ? storedGame.state.markers
-      : 'markedCellKeys' in storedGame.state && Array.isArray(storedGame.state.markedCellKeys)
-        ? storedGame.state.markedCellKeys.map((cellKey: string) => ({ cellKey, color: 'black' as const }))
-        : [],
+      : [],
     moveCount: 'moveCount' in storedGame.state && typeof storedGame.state.moveCount === 'number' ? storedGame.state.moveCount : 0,
     savedAt: 'savedAt' in storedGame.state && typeof storedGame.state.savedAt === 'number' ? storedGame.state.savedAt : null,
     selectedCellKeys: storedGame.state.selectedCellKeys,
@@ -364,7 +350,7 @@ export async function deleteSavedGame(gameMode: GameMode, gameId: string): Promi
 
 export async function loadCascadeGameState(): Promise<CascadeGameSaveState | null> {
   const storedState = await (await db).get('games', CASCADE_STORAGE_KEY)
-  const state = migrateLegacyGameState(CASCADE_STORAGE_KEY, storedState?.state)
+  const state = storedState?.state
   return isCascadeGameSaveState(state) ? state : null
 }
 
@@ -378,33 +364,9 @@ export async function clearCascadeGameState(): Promise<void> {
 
 export async function loadVsLocalGameState(): Promise<VsLocalGameSaveState | null> {
   const record = await (await db).get('games', VS_LOCAL_STORAGE_KEY)
-  const storedState = { state: migrateLegacyGameState(VS_LOCAL_STORAGE_KEY, record?.state) }
+  const storedState = { state: record?.state }
   if (!isVsLocalGameSaveState(storedState.state)) return null
-  const position: VsLocalPosition = {
-    activePlayer: storedState.state.activePlayer,
-    // Earlier saves cannot reconstruct a capture streak from locked groups alone.
-    captureStreak: storedState.state.captureStreak ?? null,
-    lockedShapes: storedState.state.lockedShapes,
-    nextMoveConstraint: storedState.state.nextMoveConstraint ?? null,
-    placedCells: storedState.state.placedCells,
-    // Older saves have no turn history from which to infer a combination victory.
-    result: storedState.state.result ?? null,
-  }
-  const state: VsLocalGameSaveState = {
-    ...storedState.state,
-    ...position,
-    allowHistoryRewrite: storedState.state.allowHistoryRewrite ?? VS_LOCAL_CONFIG.allowHistoryRewrite,
-    // Earlier matches counted overlapping captures; preserve their rules and results.
-    allowOverlappingCombinationWin: storedState.state.allowOverlappingCombinationWin ?? true,
-    boardSize: isVsLocalBoardSize(storedState.state.boardSize) ? storedState.state.boardSize : VS_LOCAL_DEFAULT_BOARD_SIZE,
-    combinationWinCount: storedState.state.combinationWinCount ?? VS_LOCAL_CONFIG.combinationWinCount,
-    consecutiveTurnWinCount: storedState.state.consecutiveTurnWinCount ?? VS_LOCAL_CONFIG.consecutiveTurnWinCount,
-    // Old saves lack the per-turn direction choices needed to rebuild earlier positions.
-    history: storedState.state.history ?? { positions: [position], index: 0 },
-    pendingMoveDirection: storedState.state.pendingMoveDirection ?? 'orthogonal',
-    selectedCellKeys: storedState.state.selectedCellKeys ?? [],
-    trapResolution: storedState.state.trapResolution ?? VS_LOCAL_CONFIG.trapResolution,
-  }
+  const state = storedState.state
   return hasValidVsResult(state) && hasValidVsHistory(state) ? state : null
 }
 

@@ -141,21 +141,11 @@ export function getVsHistoryPosition(state: VsLocalPosition): VsLocalPosition {
 /** Refresh unused saved matches from code defaults; started matches keep their recorded rules. */
 export function resumeVsLocalGame(savedGame: VsLocalGameState | null): VsLocalGameState {
   if (!savedGame) return createVsLocalGame()
-  let migratedSelection = Array.isArray(savedGame.selectedCellKeys) ? savedGame : { ...savedGame, selectedCellKeys: [] }
-  const pending = migratedSelection.pendingPlacement
-  if (pending && migratedSelection.selectedCellKeys.includes(cellKey(pending.column, pending.row))) {
-    // Older drafts allowed long-press selection of the pending cell.
-    migratedSelection = { ...migratedSelection, selectedCellKeys: migratedSelection.selectedCellKeys.filter((key) => key !== cellKey(pending.column, pending.row)) }
-  }
-  const unstarted = migratedSelection.history.positions.length === 1
-    && migratedSelection.placedCells.length === 0
-    && migratedSelection.pendingPlacement === null
-    && migratedSelection.result === null
-  if (isVsLocalBoardSize(migratedSelection.boardSize)) {
-    return unstarted ? { ...migratedSelection, ...VS_LOCAL_CONFIG } : migratedSelection
-  }
-  const migratedGame: VsLocalGameState = { ...migratedSelection, boardSize: VS_LOCAL_DEFAULT_BOARD_SIZE }
-  return unstarted ? { ...migratedGame, ...VS_LOCAL_CONFIG } : migratedGame
+  const unstarted = savedGame.history.positions.length === 1
+    && savedGame.placedCells.length === 0
+    && savedGame.pendingPlacement === null
+    && savedGame.result === null
+  return unstarted ? { ...savedGame, ...VS_LOCAL_CONFIG } : savedGame
 }
 
 export function canPlayVsTurn(state: VsLocalGameState): boolean {

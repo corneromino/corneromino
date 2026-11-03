@@ -74,18 +74,7 @@ export function advanceCascadeGame(
     const maximumRunLength = Number.isFinite(maxConsecutiveSameCorner)
       ? Math.max(1, Math.floor(maxConsecutiveSameCorner))
       : Infinity
-    const legacyGeneratedCorners = upcomingCorners
-    const legacyLastCorner = legacyGeneratedCorners.at(-1)
-    let legacyRunLength = 0
-    if (legacyLastCorner !== undefined) {
-      for (let index = legacyGeneratedCorners.length - 1; index >= 0 && legacyGeneratedCorners[index] === legacyLastCorner; index -= 1) {
-        legacyRunLength += 1
-      }
-    }
     let generatedCornerRun = state.generatedCornerRun
-      ?? (legacyLastCorner === undefined
-        ? undefined
-        : { corner: legacyLastCorner, length: legacyRunLength })
     const difficulty = Number.isNaN(cornerDifficulty) ? 0.25 : Math.max(0, Math.min(1, cornerDifficulty))
     function generateCorner(): CascadeCorner {
       let corner: CascadeCorner

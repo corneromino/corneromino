@@ -10,9 +10,9 @@ vi.mock('./gameDatabase', () => ({
   }),
 }))
 
-import { clearVsLocalGameState, db, loadVsLocalGameState, migrateLegacyClassicSaveRecords, saveVsLocalGameState, type VsLocalGameSaveState } from './db'
+import { clearVsLocalGameState, db, loadVsLocalGameState, saveVsLocalGameState, type VsLocalGameSaveState } from './db'
 import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsHistoryPosition, goToVsHistory, selectVsCell, toggleVsMoveDirection } from '@/features/vs/vsLocalGame'
-import { VS_LOCAL_CONFIG, type VsTrapResolution } from '@/features/vs/vsLocalConfig'
+import type { VsTrapResolution } from '@/features/vs/vsLocalConfig'
 
 function finishedVsGame() {
   const game = createVsLocalGame(() => 1, { combinationWinCount: 3 })
@@ -89,7 +89,7 @@ describe('Local VS persistence', () => {
     await expect(loadVsLocalGameState()).resolves.toBeNull()
   })
 
-  it('restores Local VS saves created before move directions were added', async () => {
+  it('rejects incomplete save schemas', async () => {
     await (await db).put('games', {
       id: 'vs:local:current',
       updatedAt: Date.now(),
@@ -101,16 +101,7 @@ describe('Local VS persistence', () => {
       },
     })
 
-    await expect(loadVsLocalGameState()).resolves.toMatchObject({
-      allowOverlappingCombinationWin: true,
-      captureStreak: null,
-      combinationWinCount: VS_LOCAL_CONFIG.combinationWinCount,
-      consecutiveTurnWinCount: VS_LOCAL_CONFIG.consecutiveTurnWinCount,
-      nextMoveConstraint: null,
-      pendingMoveDirection: 'orthogonal',
-      result: null,
-      trapResolution: VS_LOCAL_CONFIG.trapResolution,
-    })
+    await expect(loadVsLocalGameState()).resolves.toBeNull()
   })
 
   it('clears the current Local VS match before a new game', async () => {
@@ -152,29 +143,7 @@ describe('Local VS persistence', () => {
     expect(goToVsHistory(restored!, 1)).toEqual(finished)
   })
 
-  it('preserves an overlapping victory and its history when migrating a save without the overlap option', async () => {
-    const game = createVsLocalGame(() => 0, { allowOverlappingCombinationWin: true })
-    for (const [column, corner] of [[3, 1], [4, 2], [6, 3], [7, 1]] as const) {
-      game.placedCells.push({ column, row: 4, corner, player: 1 })
-    }
-    const finished = finishVsTurn({ ...game, pendingPlacement: { column: 5, row: 4, corner: 0 } })
-    expect(finished.result).toEqual({ reason: 'combination', winner: 0, shapeCount: 2 })
-    const { allowOverlappingCombinationWin: _overlap, ...legacy } = finished
-    await (await db).put('games', { id: 'vs:local:current', state: legacy, updatedAt: Date.now() })
-    await expect(loadVsLocalGameState()).resolves.toEqual(finished)
-  })
 
-  it('does not infer a victory from historical locks in a save predating victory rules', async () => {
-    const { combinationWinCount: _threshold, consecutiveTurnWinCount: _turnThreshold, captureStreak: _streak, result: _result, history: _history, ...legacy } = finishedVsGame()
-    await (await db).put('games', { id: 'vs:local:current', state: legacy, updatedAt: Date.now() })
-    await expect(loadVsLocalGameState()).resolves.toMatchObject({
-      ...legacy,
-      captureStreak: null,
-      combinationWinCount: VS_LOCAL_CONFIG.combinationWinCount,
-      consecutiveTurnWinCount: VS_LOCAL_CONFIG.consecutiveTurnWinCount,
-      result: null,
-    })
-  })
 
   it.each([
     { allowOverlappingCombinationWin: 'false' },
@@ -194,15 +163,6 @@ describe('Local VS persistence', () => {
     await expect(loadVsLocalGameState()).resolves.toBeNull()
   })
 
-  it('preserves earlier combination victories while initializing the new streak fields', async () => {
-    const { consecutiveTurnWinCount: _threshold, captureStreak: _streak, history: _history, ...legacy } = finishedVsGame()
-    await (await db).put('games', { id: 'vs:local:current', state: legacy, updatedAt: Date.now() })
-    await expect(loadVsLocalGameState()).resolves.toMatchObject({
-      ...legacy,
-      captureStreak: null,
-      consecutiveTurnWinCount: VS_LOCAL_CONFIG.consecutiveTurnWinCount,
-    })
-  })
 
   it('resumes an ongoing three-turn streak and persists the resulting victory', async () => {
     let game = createVsLocalGame(() => 0, { consecutiveTurnWinCount: 3 })
@@ -285,11 +245,6 @@ describe('Local VS persistence', () => {
     await expect(loadVsLocalGameState()).resolves.toEqual(game)
   })
 
-  it('adds the default trap rule to older saves without changing their result', async () => {
-    const { trapResolution: _rule, ...legacy } = finishedVsGame()
-    await (await db).put('games', { id: 'vs:local:current', state: legacy, updatedAt: Date.now() })
-    await expect(loadVsLocalGameState()).resolves.toEqual({ ...legacy, trapResolution: VS_LOCAL_CONFIG.trapResolution })
-  })
 
   it('restores the full future, current history position, and draft after a reload', async () => {
     const latest = finishedVsGame()
@@ -321,30 +276,7 @@ describe('Local VS persistence', () => {
     expect(canPlayVsTurn(goToVsHistory(restored!, 2))).toBe(true)
   })
 
-  it('starts legacy history at the saved board and records subsequent turns', async () => {
-    const latest = finishVsTurn(selectVsCell(createVsLocalGame(() => 0), 4, 4))
-    const { history: _history, allowHistoryRewrite: _rewrite, ...legacy } = latest
-    await (await db).put('games', { id: 'vs:local:current', state: legacy, updatedAt: Date.now() })
-    const restored = await loadVsLocalGameState()
-    expect(restored).toEqual({
-      ...legacy,
-      allowHistoryRewrite: VS_LOCAL_CONFIG.allowHistoryRewrite,
-      history: { positions: [getVsHistoryPosition(latest)], index: 0 },
-    })
-    const continued = finishVsTurn(selectVsCell(restored!, 4, 5))
-    expect(continued.history.positions).toHaveLength(2)
-    expect(continued.placedCells).toHaveLength(2)
-    expect(goToVsHistory(continued, 0).placedCells).toEqual(latest.placedCells)
-  })
 
-  it('preserves a finished result when migrating a pre-history save', async () => {
-    const latest = trappedVsGame('draw')
-    const { history: _history, allowHistoryRewrite: _rewrite, ...legacy } = latest
-    await (await db).put('games', { id: 'vs:local:current', state: legacy, updatedAt: Date.now() })
-    const restored = await loadVsLocalGameState()
-    expect(restored?.history.positions).toEqual([getVsHistoryPosition(latest)])
-    expect(restored?.result).toEqual({ reason: 'trap', winner: null })
-  })
 
   it.each([
     { allowHistoryRewrite: 'yes' },
@@ -406,27 +338,5 @@ describe('Local VS persistence', () => {
     const state = { ...trappedVsGame('points'), ...overrides }
     await (await db).put('games', { id: 'vs:local:current', state, updatedAt: Date.now() })
     await expect(loadVsLocalGameState()).resolves.toBeNull()
-  })
-})
-
-describe('Classic save-key migration', () => {
-  it('renames legacy difficulty keys while retaining saved state', () => {
-    const legacy = { id: 'selection:easy:shared:seed', updatedAt: 10, state: { selectedCellKeys: ['0,0'] } }
-    const other = { id: 'cascade:current', updatedAt: 11, state: {} }
-
-    expect(migrateLegacyClassicSaveRecords([legacy, other])).toEqual({
-      deleteIds: ['selection:easy:shared:seed'],
-      putRecords: [{ ...legacy, id: 'selection:c003:shared:seed' }],
-    })
-  })
-
-  it('keeps the newer permanent-key record when both forms exist', () => {
-    const legacy = { id: 'selection:hard:seed', updatedAt: 10, state: { selectedCellKeys: ['0,0'] } }
-    const permanent = { id: 'selection:c005:seed', updatedAt: 11, state: { selectedCellKeys: ['1,1'] } }
-
-    expect(migrateLegacyClassicSaveRecords([legacy, permanent])).toEqual({
-      deleteIds: ['selection:hard:seed'],
-      putRecords: [],
-    })
   })
 })

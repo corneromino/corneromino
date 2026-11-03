@@ -162,9 +162,9 @@ describe('Local VS manual claims', () => {
     expect(finished.placedCells.at(-1)?.lockedBy).toBeUndefined()
   })
 
-  it('removes the old pending-cell selection when resuming a long-press-era draft', () => {
+  it('resumes a current draft without changing its selection', () => {
     const game = withSharedCellCombination()
-    const saved = { ...game, selectedCellKeys: [...game.selectedCellKeys, '4,4'] }
+    const saved = structuredClone(game)
     const before = structuredClone(saved)
     const resumed = resumeVsLocalGame(saved)
     expect(resumed).toEqual(game)
