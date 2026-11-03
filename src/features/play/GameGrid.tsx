@@ -116,9 +116,9 @@ export function GameGrid(props: GameGridProps) {
   const lockedCellMap = createLockedCellMap(lockedCellGroups)
   const canLockSelectedCells = canLockCells(selectedCellKeys)
   const canValidate = !props.scrolling && cellMap.size > 0 && [...cellMap.keys()].every((cellKey) => lockedCellMap.has(cellKey))
-  const verificationMistakeCount = validationResult && !validationResult.isCorrect
-    ? lockedCellGroups.length - validationResult.validLockCount
-    : 0
+  // const verificationMistakeCount = validationResult && !validationResult.isCorrect
+    // ? lockedCellGroups.length - validationResult.validLockCount
+    // : 0
   const verificationLabel = t('classic.verify')
   const visibleRows = props.scrolling?.visibleRows ?? props.config.rows
   const boardStyle = {
