@@ -64,14 +64,20 @@ function swipe(viewport: HTMLElement, dx: number, dy = 0, cancel = false) {
   end(viewport, { clientX: 180 + dx, clientY: 200 + dy, pointerId: 1 })
 }
 
-it('presents four blank level cards in one accessible chapter at a time', () => {
+it('presents four ordered level cards in one accessible chapter at a time', () => {
   setup()
   expect(screen.getByRole('heading', { name: 'Chapter 1 The Beginning' })).toBeTruthy()
   const cards = screen.getAllByRole('listitem')
   expect(cards).toHaveLength(4)
   expect(cards.map((card) => card.getAttribute('aria-label'))).toEqual(['Level 1', 'Level 2', 'Level 3', 'Level 4'])
-  expect(cards.every((card) => card.textContent === '')).toBe(true)
+  expect(cards.map((card) => card.textContent)).toEqual(['1', '2', '3', '4'])
   expect(screen.queryByRole('button')).toBeNull()
+})
+
+it('numbers levels continuously across chapters', () => {
+  const viewport = setup()
+  swipe(viewport, -150)
+  expect(screen.getAllByRole('listitem').map((card) => card.textContent)).toEqual(['5', '6', '7', '8'])
 })
 
 it('advances one chapter per swipe, supports reverse swipes, and stops at both ends', () => {

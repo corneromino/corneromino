@@ -3,7 +3,6 @@ import { animate, domAnimation, LazyMotion, m, useMotionValue, useReducedMotion 
 import { useTranslation } from 'react-i18next'
 import { CareerChapter } from './CareerChapter'
 import type { CareerChapter as Chapter } from './careerChapters'
-import './career.css'
 
 interface Gesture {
   pointerId: number
@@ -119,7 +118,7 @@ export function CareerChapterCarousel({ chapters }: { chapters: readonly Chapter
         aria-describedby={helpId}
         aria-label={t('classic.career')}
         aria-roledescription={t('career.carousel')}
-        className="career-carousel"
+        className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 touch-pan-y overflow-hidden select-none cursor-grab [-webkit-tap-highlight-color:transparent] active:cursor-grabbing focus-visible:rounded-[var(--ios-radius)] focus-visible:outline-2 focus-visible:outline-[var(--outline-color)] focus-visible:outline-offset-[-2px]"
         onKeyDown={handleKeyDown}
         onLostPointerCapture={handlePointerCancel}
         onPointerCancel={handlePointerCancel}
@@ -131,10 +130,10 @@ export function CareerChapterCarousel({ chapters }: { chapters: readonly Chapter
         tabIndex={0}
       >
         <p className="sr-only" id={helpId}>{t('career.navigationHint')}</p>
-        <m.div className="career-chapter-track" style={{ x }}>
+        <m.div className="flex size-full" style={{ x }}>
           {chapters.map((chapter, chapterIndex) => (
-            <div aria-hidden={chapterIndex !== index} className="career-chapter-slide" inert={chapterIndex !== index} key={chapter.id}>
-              <CareerChapter chapter={chapter} number={chapterIndex + 1} />
+            <div aria-hidden={chapterIndex !== index} className="h-full min-w-0 basis-full shrink-0" inert={chapterIndex !== index} key={chapter.id}>
+              <CareerChapter chapter={chapter} number={chapterIndex + 1} startLevel={chapterIndex * 4 + 1} />
             </div>
           ))}
         </m.div>

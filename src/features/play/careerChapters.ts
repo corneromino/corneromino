@@ -47,7 +47,7 @@ export const chapters: readonly CareerChapter[] = [
   },
 ]
 
-export function getCareerChapterLayout(chapter: CareerChapter) {
+export function getCareerChapterLayout(chapter: CareerChapter, startLevel = 1) {
   if (new Set(chapter.levelOrder).size !== 4) {
     throw new Error(`Chapter "${chapter.id}" must use each cell ID once in levelOrder.`)
   }
@@ -68,7 +68,7 @@ export function getCareerChapterLayout(chapter: CareerChapter) {
     cells: chapter.levelOrder.map((id, index) => ({
       ...normalized.find((cell) => cell.id === id)!,
       color: chapter.colors[id],
-      level: index + 1,
+      level: startLevel + index,
     })),
   }
 }
