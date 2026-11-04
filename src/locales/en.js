@@ -91,6 +91,20 @@ export default {
         "saveGame": "Save game",
         "savePrompt": "Save this game to continue it later?"
     },
+    "career": {
+        "chapter": "Chapter {{number}}",
+        "levels": "Chapter levels",
+        "level": "Level {{number}}",
+        "carousel": "carousel",
+        "navigationHint": "Swipe or drag left and right to explore chapters. You can also use the left and right arrow keys.",
+        "position": "Chapter {{number}} of {{total}}: {{title}}",
+        "chapters": {
+            "the-beginning": "The Beginning",
+            "a-new-perspective": "A New Perspective",
+            "finding-balance": "Finding Balance",
+            "a-different-turn": "A Different Turn"
+        }
+    },
     "cascade": {
         "title": "Cascade",
         "newGame": "New game",

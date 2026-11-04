@@ -84,6 +84,20 @@ export default {
         "saveGame": "Sauvegarder la partie",
         "savePrompt": "Sauvegarder cette partie pour la reprendre plus tard ?"
     },
+    "career": {
+        "chapter": "Chapitre {{number}}",
+        "levels": "Niveaux du chapitre",
+        "level": "Niveau {{number}}",
+        "carousel": "carrousel",
+        "navigationHint": "Balayez ou faites glisser vers la gauche ou la droite pour parcourir les chapitres. Vous pouvez aussi utiliser les flèches gauche et droite du clavier.",
+        "position": "Chapitre {{number}} sur {{total}} : {{title}}",
+        "chapters": {
+            "the-beginning": "Le commencement",
+            "a-new-perspective": "Une nouvelle perspective",
+            "finding-balance": "Trouver l’équilibre",
+            "a-different-turn": "Un autre tournant"
+        }
+    },
     "cascade": {
         "title": "Cascade",
         "newGame": "Nouvelle partie",

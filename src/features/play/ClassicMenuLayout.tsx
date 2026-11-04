@@ -25,7 +25,7 @@ export function ClassicMenuLayout({ children, menu }: ClassicMenuLayoutProps) {
         <div>
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{t('mainMenu.title')}</p>
           <div className="flex items-center gap-2">
-            <h1 className="poster-title mt-2 text-[40px] leading-none">{t('classic.title')}</h1>
+            <h1 className="poster-title mt-2 text-[40px] leading-none max-[380px]:text-[30px]">{t('classic.title')}</h1>
             <Button
               aria-label={t('classic.shapesTitle')}
               className="bg-transparent text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40 font-black shadow-none hover:opacity-70 focus-visible:opacity-100"
