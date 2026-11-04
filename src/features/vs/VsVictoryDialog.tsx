@@ -38,7 +38,7 @@ export function VsVictoryDialog({ onNewGame, onOpenChange, open, result }: VsVic
         </DialogHeader>
         <DialogFooter>
           <Button
-            className="cartoon-press cartoon-press--green  text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase"
+            className="cartoon-press cartoon-press--green text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase"
             onClick={onNewGame}
             size="lg"
             type="button"
@@ -46,7 +46,7 @@ export function VsVictoryDialog({ onNewGame, onOpenChange, open, result }: VsVic
             {t('versusGame.newMatch')}
           </Button>
           <DialogClose asChild>
-            <Button className="cartoon-press  text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">
+            <Button className="cartoon-press text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">
               {t('versusGame.viewBoard')}
             </Button>
           </DialogClose>

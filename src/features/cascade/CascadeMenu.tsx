@@ -40,7 +40,7 @@ export function CascadeMenu() {
       </header>
       <section className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col gap-4 overflow-hidden px-1 pb-1">
         <Button
-          className="cartoon-press h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+          className="cartoon-press w-full h-[70px] text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
           onClick={() => navigate('/cascade/game/new', { state: { returnToCascadeMenu: true } })}
           size="lg"
           type="button"
@@ -49,7 +49,7 @@ export function CascadeMenu() {
         </Button>
         <div className="relative shrink-0">
           <Button
-            className="cartoon-press h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+            className="cartoon-press w-full h-[70px] text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
             disabled={hasSavedGame !== true}
             onClick={() => navigate('/cascade/game/continue', { state: { returnToCascadeMenu: true } })}
             size="lg"

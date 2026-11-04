@@ -8,11 +8,10 @@ import { ClassicShapesDialog } from './ClassicShapesDialog'
 
 interface ClassicMenuLayoutProps {
   children: ReactNode
-  flushBottom?: boolean
   menu: 'career' | 'modes'
 }
 
-export function ClassicMenuLayout({ children, flushBottom = false, menu }: ClassicMenuLayoutProps) {
+export function ClassicMenuLayout({ children, menu }: ClassicMenuLayoutProps) {
   const { t } = useTranslation()
   const [shapesOpen, setShapesOpen] = useState(false)
   const isCareer = menu === 'career'
@@ -20,7 +19,7 @@ export function ClassicMenuLayout({ children, flushBottom = false, menu }: Class
   const switchLabel = t(isCareer ? 'classic.openModes' : 'classic.openCareer')
 
   return (
-    <main className={`poster-page app-page relative flex flex-col overflow-hidden px-5 pt-5 text-[var(--canvas-foreground)] ${flushBottom ? '' : 'pb-5'}`}>
+    <main className="poster-page app-page relative flex flex-col overflow-hidden px-5 py-5 text-[var(--canvas-foreground)]">
       <TetrominoBackground />
       <header className="relative z-10 mx-auto flex w-full max-w-[550px] shrink-0 items-start justify-between gap-3 pb-10">
         <div>
