@@ -88,7 +88,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
   }
   function quit() {
     if (location.state?.returnToClassicMenu === true) navigate(-1)
-    else navigate('/play', { replace: true })
+    else navigate('/play/modes', { replace: true })
   }
 
   const pauseDialog = (

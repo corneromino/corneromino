@@ -39,7 +39,7 @@ export function MainMenu() {
           <AppNavigationButton
             className="cartoon-press classic-menu-button w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
             size="lg"
-            to="/play"
+            to="/play/levels"
           >
             <span>{t('mainMenu.classic')}</span>
             <img alt="" aria-hidden="true" className="classic-menu-graphic -rotate-12 scale-125" src={classicGraphic} />

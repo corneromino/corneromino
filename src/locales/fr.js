@@ -59,6 +59,9 @@ export default {
     },
     "classic": {
         "title": "Classic",
+        "career": "Carrière",
+        "openCareer": "Ouvrir les niveaux de carrière",
+        "openModes": "Ouvrir les modes Classic",
         "infinite": "Infini",
         "infiniteGenerationFailed": "Impossible de générer la section suivante. Recommencez pour réessayer.",
         "moves_one": "{{count}} coup",

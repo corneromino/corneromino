@@ -365,7 +365,7 @@ export function ClassicTutorial() {
       onClose: () => {
         if (returnToClassicGame) navigate(-1)
         else if (returnToMainMenu) navigate('/', { replace: true })
-        else navigate('/play', { replace: true })
+        else navigate('/play/levels', { replace: true })
       },
     })
     tutorialRef.current = tutorial

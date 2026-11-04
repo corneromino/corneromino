@@ -268,7 +268,7 @@ export function GameGrid(props: GameGridProps) {
       if (location.state && typeof location.state === 'object' && 'returnToClassicMenu' in location.state && location.state.returnToClassicMenu === true) {
         navigate(-1)
       } else {
-        navigate('/play', { replace: true })
+        navigate('/play/modes', { replace: true })
       }
     }
   }

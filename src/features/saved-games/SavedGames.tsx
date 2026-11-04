@@ -162,7 +162,7 @@ export function SavedGames() {
             <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{t('mainMenu.title')}</p>
             <h1 className="poster-title mt-2 whitespace-nowrap text-[33px] leading-none">{t('savedGames.title')}</h1>
           </div>
-          <AppNavigationButton aria-label={t('savedGames.backToClassic')} className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('savedGames.backToClassic')} to="/play"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
+          <AppNavigationButton aria-label={t('savedGames.backToClassic')} className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('savedGames.backToClassic')} to="/play/modes"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
         </div>
 
         <Button className="cartoon-press mt-6 h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => setLoadDialogOpen(true)} size="sm" type="button">

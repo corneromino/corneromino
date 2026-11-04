@@ -4,6 +4,8 @@ import { MenuPageTransition } from '@/components/MenuPageTransition'
 import { isGameMode } from '@/game/gameConfig'
 import { observeDialogViewport } from '@/lib/dialogViewport'
 import { Play } from '@/features/play/Play'
+import { ClassicCareerMenu } from '@/features/play/ClassicCareerMenu'
+import { ClassicModesMenu } from '@/features/play/ClassicModesMenu'
 import { ClassicTutorial } from '@/features/play/ClassicTutorial'
 import { ClassicInfinitePage } from '@/features/play/ClassicInfinitePage'
 import { MainMenu } from '@/features/main-menu/MainMenu'
@@ -20,6 +22,8 @@ import { ToastProvider } from '@/components/toast'
 const APP_ROUTES = [
   { path: '/', element: <MainMenu />, handle: { menu: true } },
   { path: '/play', element: <Play />, handle: { menu: true } },
+  { path: '/play/levels', element: <ClassicCareerMenu />, handle: { menu: true } },
+  { path: '/play/modes', element: <ClassicModesMenu />, handle: { menu: true } },
   { path: '/play/tutorial', element: <ClassicTutorial /> },
   { path: '/play/infinite', element: <ClassicInfinitePage /> },
   { path: '/sandbox', element: <Sandbox />, handle: { menu: true } },

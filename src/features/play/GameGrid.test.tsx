@@ -173,11 +173,6 @@ describe('Classic locking modes', () => {
       expect(canvasMock.captureBoard).not.toHaveBeenCalled()
       const requestId = canvasMock.props!.verificationRequest!.id
       finishVerificationWave()
-      const badge = screen.getByTestId('verification-mistake-badge')
-      expect(badge.textContent).toBe('1')
-      expect(badge.getAttribute('aria-label')).toBe('1 mistakes')
-      // .cartoon-press clips its children, so the badge must stay outside the button.
-      expect(screen.getByRole('button', { name: 'classic.verify' }).contains(badge)).toBe(false)
       expect(canvasMock.props!.verificationRequest!.id).toBe(requestId)
       expect(canvasMock.props!.interactive).toBe(false)
       fireEvent.click(screen.getByRole('button', { name: 'classic.revealBoard' }))

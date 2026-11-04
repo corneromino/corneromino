@@ -1,19 +1,15 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Pause } from 'lucide-react'
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Pause } from 'lucide-react'
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { AppNavigationButton } from '@/components/ui/app-navigation-button'
 import { Button } from '@/components/ui/button'
 import { createRandomSeed, createSeededRandom } from '@/game/random'
 import { GAME_CONFIGS, isGameMode, type ClassicGameMode, type PlacedTetromino } from '@/game/gameConfig'
 import { clearGameSelection } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
-import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
 import { GameGrid } from './GameGrid'
 import { ClassicShapesDialog } from './ClassicShapesDialog'
 
-const MODE_BUTTON_CLASS = 'cartoon-press mode-menu-button w-full text-[13px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase'
-const MODE_ENTRIES = Object.entries(GAME_CONFIGS)
 function formatElapsedTime(elapsedSeconds: number) {
   const minutes = Math.floor(elapsedSeconds / 60).toString().padStart(2, '0')
   const seconds = (elapsedSeconds % 60).toString().padStart(2, '0')
@@ -23,64 +19,6 @@ function formatElapsedTime(elapsedSeconds: number) {
 interface GameSessionProps {
   gameMode: ClassicGameMode
   requestedSeed: string | null
-}
-
-function GameModeMenu() {
-  const { t } = useTranslation()
-  const [shapesOpen, setShapesOpen] = useState(false)
-  return (
-    <main className="poster-page app-page relative flex flex-col overflow-hidden px-5 py-5 text-[var(--canvas-foreground)]">
-      <TetrominoBackground />
-      <header className="relative z-10 mx-auto flex w-full max-w-[550px] shrink-0 items-start justify-between gap-3 pb-10">
-        <div>
-          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{t('mainMenu.title')}</p>
-          <div className="flex items-center gap-2">
-            <h1 className="poster-title mt-2 text-[40px] leading-none">{t('classic.title')}</h1>
-            <Button
-              aria-label={t('classic.shapesTitle')}
-              className="bg-transparent text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40 font-black shadow-none hover:opacity-70 focus-visible:opacity-100"
-              onClick={() => setShapesOpen(true)}
-              size="icon"
-              title={t('classic.shapesTitle')}
-              type="button"
-            >?</Button>
-          </div>
-        </div>
-        <AppNavigationButton aria-label={t('common.backToMainMenu')} className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
-      </header>
-      <section className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col px-1 pb-1">
-        <div aria-label={t('classic.title')} className="flex min-h-0 w-full flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain">
-          {MODE_ENTRIES.map(([mode, config]) => (
-            <AppNavigationButton
-              className={MODE_BUTTON_CLASS}
-              key={mode}
-              navigationOptions={{ state: { returnToClassicMenu: true } }}
-              size="lg"
-              to={`/play?mode=${mode}`}
-            >
-              {t(config.title)}
-            </AppNavigationButton>
-          ))}
-          <AppNavigationButton
-            className={MODE_BUTTON_CLASS}
-            navigationOptions={{ state: { returnToClassicMenu: true } }}
-            size="lg"
-            to="/play/infinite">{t('classic.infinite')}
-          </AppNavigationButton>
-        </div>
-        <div className="flex w-full shrink-0 flex-col pt-3">
-          <AppNavigationButton
-            className="cartoon-press mode-menu-button w-full !border-[var(--canvas-foreground)] !bg-[var(--coral)] text-[11px] font-black tracking-[0.2em] !text-[var(--paper)] uppercase hover:!bg-[#b73a2c]"
-            size="lg"
-            to="/saved"
-          >
-            {t('classic.saved')}
-          </AppNavigationButton>
-        </div>
-      </section>
-      <ClassicShapesDialog onOpenChange={setShapesOpen} open={shapesOpen} />
-    </main>
-  )
 }
 
 function GameSession(props: GameSessionProps) {
@@ -202,9 +140,7 @@ export function Play() {
   const gameMode = searchParams.get('mode')
   const requestedSeed = searchParams.get('seed')
 
-  if (!isGameMode(gameMode)) {
-    return <GameModeMenu />
-  }
+  if (!isGameMode(gameMode)) return <Navigate replace to="/play/levels" />
 
   return <GameSession gameMode={gameMode} key={`${gameMode}:${requestedSeed ?? 'new'}`} requestedSeed={requestedSeed} />
 }
