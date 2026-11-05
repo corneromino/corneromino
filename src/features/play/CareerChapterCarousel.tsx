@@ -16,6 +16,7 @@ interface Gesture {
 function createDecorativePath(chapterCount: number) {
   const chapterWidth = 1_000
   const height = 1_000
+  const width = chapterCount * chapterWidth
   let seed = 0x6d2b79f5
   const random = () => {
     seed |= 0
@@ -24,17 +25,26 @@ function createDecorativePath(chapterCount: number) {
     value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value
     return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296
   }
-  const points = [{ x: -80, y: Math.round(220 + random() * 560) }]
-  let previousY = points[0].y
-  for (let index = 0; index < chapterCount; index += 1) {
-    // A bounded random walk keeps the decoration organic without producing
-    // steep climbs between neighbouring chapters.
-    previousY = Math.round(Math.max(160, Math.min(840, previousY + (random() - 0.5) * 360)))
-    points.push({ x: (index + 1) * chapterWidth, y: previousY })
-  }
-  points.push({ x: chapterCount * chapterWidth + 80, y: previousY })
+  const startX = -80
+  const endX = width + 80
+  const jitterX = () => (random() - 0.5) * width * 0.025
+  const jitterY = () => (random() - 0.5) * 55
+  // These landmarks deliberately follow the reference silhouette: two broad
+  // waves, a lower U-turn that briefly doubles back, then a final wave.
+  const points = [
+    { x: startX, y: 700 },
+    { x: width * 0.09 + jitterX(), y: 190 + jitterY() },
+    { x: width * 0.32 + jitterX(), y: 570 + jitterY() },
+    { x: width * 0.5 + jitterX(), y: 100 + jitterY() },
+    { x: width * 0.61 + jitterX(), y: 270 + jitterY() },
+    { x: width * 0.52 + jitterX(), y: 720 + jitterY() },
+    { x: width * 0.68 + jitterX(), y: 860 + jitterY() },
+    { x: width * 0.8 + jitterX(), y: 300 + jitterY() },
+    { x: width * 0.96 + jitterX(), y: 180 + jitterY() },
+    { x: endX, y: 560 },
+  ]
 
-  const tangentStrength = 0.6
+  const tangentStrength = 0.5
   let path = `M ${points[0].x} ${points[0].y}`
   for (let index = 0; index < points.length - 1; index += 1) {
     const previous = points[Math.max(0, index - 1)]
@@ -48,7 +58,7 @@ function createDecorativePath(chapterCount: number) {
     path += ` C ${control1X} ${control1Y}, ${control2X} ${control2Y}, ${end.x} ${end.y}`
   }
 
-  return { height, path, width: chapterCount * chapterWidth }
+  return { height, path, width }
 }
 
 export function CareerChapterCarousel({ chapters }: { chapters: readonly Chapter[] }) {
