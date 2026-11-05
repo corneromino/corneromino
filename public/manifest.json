@@ -2,7 +2,7 @@
   "id": "./game-pwa-v1",
   "name": "Nokomino",
   "short_name": "Nokomino",
-  "version": "0.12.1",
+  "version": "0.12.2",
   "description": "A tetromino deduction puzzle game.",
   "lang": "en",
   "start_url": "./#/",
