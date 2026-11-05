@@ -20,7 +20,7 @@ export function ClassicMenuLayout({ children, menu }: ClassicMenuLayoutProps) {
 
   return (
     <main className="poster-page app-page relative flex flex-col overflow-hidden px-5 py-5 text-[var(--canvas-foreground)]">
-      <TetrominoBackground />
+      {/* <TetrominoBackground /> */}
       <header className="relative z-10 mx-auto flex w-full max-w-[550px] shrink-0 items-start justify-between gap-3 pb-10">
         <div>
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{t('mainMenu.title')}</p>
