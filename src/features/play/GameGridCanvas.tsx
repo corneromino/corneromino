@@ -72,6 +72,9 @@ const NOTE_OUTLINE_COLOR = 0xffffff
 /** Transparent render space for selected cells, capped below the game header. */
 const TOP_SELECTION_OVERFLOW_PX = 20
 const SELECTED_CELL_SCALE = 0.85
+/** Dense boards can zoom until a cell reaches this comfortable interaction size. */
+const NAVIGATION_TARGET_CELL_SIZE_PX = 160
+const MINIMUM_MAX_ZOOM = 4
 
 function drawNoteOutline(graphics: Graphics, width: number, height: number) {
   const thickness = Math.max(1, Math.min(width, height) * NOTE_OUTLINE_THICKNESS_RATIO)
@@ -157,6 +160,13 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         height: Math.max(1, app.screen.height - TOP_SELECTION_OVERFLOW_PX),
         width: app.screen.width,
       }
+    }
+
+    function maximumZoom() {
+      const { columns, rows } = propsRef.current.config
+      const { width, height } = boardSize()
+      const fittedCellSize = Math.min(width / columns, height / rows)
+      return Math.max(MINIMUM_MAX_ZOOM, NAVIGATION_TARGET_CELL_SIZE_PX / fittedCellSize)
     }
 
     function pointerToCell(event: PointerEvent) {
@@ -670,7 +680,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
             }
           }
           const navigation = propsRef.current.scrolling || propsRef.current.config.navigationEnabled === false ? null : createGridNavigation(app.canvas, {
-            minZoom: 1, maxZoom: 4,
+            minZoom: 1, maxZoom: maximumZoom,
             getView: () => view,
             getSize: boardSize,
             setView: (next) => { view = next; updateViewport() },

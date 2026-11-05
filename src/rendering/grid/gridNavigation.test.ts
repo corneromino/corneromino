@@ -68,6 +68,29 @@ describe('shared grid navigation', () => {
     expect(test.view().zoom).toBe(4)
   })
 
+  it('uses the current maximum zoom when the board or viewport changes', () => {
+    const captures = new Set<number>()
+    const canvas = Object.assign(new EventTarget(), {
+      setPointerCapture: (id: number) => captures.add(id), hasPointerCapture: (id: number) => captures.has(id), releasePointerCapture: (id: number) => captures.delete(id),
+      getBoundingClientRect: () => ({ left: 0, top: 0, width: 300, height: 300 }),
+    }) as unknown as HTMLCanvasElement
+    let maxZoom = 4
+    let view: GridView = { zoom: 1, offsetX: 0, offsetY: 0 }
+    const navigation = createGridNavigation(canvas, {
+      minZoom: 1, maxZoom: () => maxZoom, getView: () => view, getSize: () => ({ width: 300, height: 300 }),
+      setView: (next) => { view = next }, onTap: vi.fn(),
+    })
+    const detach = attachGridInput(canvas, { gestures: false, cellAt: () => ({ column: 0, row: 0 }), callbacks: navigation.callbacks })
+    const wheel = () => canvas.dispatchEvent(Object.assign(new Event('wheel', { cancelable: true }), { deltaY: -100, clientX: 150, clientY: 150 }))
+
+    for (let i = 0; i < 50; i++) wheel()
+    expect(view.zoom).toBe(4)
+    maxZoom = 8
+    for (let i = 0; i < 50; i++) wheel()
+    expect(view.zoom).toBe(8)
+    detach()
+  })
+
   it('pinches around the moving midpoint and lets the remaining finger pan without a tap', () => {
     const test = setup()
     test.send('pointerdown', 100, 150, 1)

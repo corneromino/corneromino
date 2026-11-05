@@ -6,6 +6,7 @@ import { observeDialogViewport } from '@/lib/dialogViewport'
 import { Play } from '@/features/play/Play'
 import { ClassicCareerMenu } from '@/features/play/ClassicCareerMenu'
 import { ClassicModesMenu } from '@/features/play/ClassicModesMenu'
+import { ClassicCreatePage } from '@/features/play/ClassicCreatePage'
 import { ClassicTutorial } from '@/features/play/ClassicTutorial'
 import { ClassicInfinitePage } from '@/features/play/ClassicInfinitePage'
 import { MainMenu } from '@/features/main-menu/MainMenu'
@@ -24,6 +25,7 @@ const APP_ROUTES = [
   { path: '/play', element: <Play />, handle: { menu: true } },
   { path: '/play/levels', element: <ClassicCareerMenu />, handle: { menu: true } },
   { path: '/play/modes', element: <ClassicModesMenu />, handle: { menu: true } },
+  { path: '/play/create', element: <ClassicCreatePage /> },
   { path: '/play/tutorial', element: <ClassicTutorial /> },
   { path: '/play/infinite', element: <ClassicInfinitePage /> },
   { path: '/sandbox', element: <Sandbox />, handle: { menu: true } },

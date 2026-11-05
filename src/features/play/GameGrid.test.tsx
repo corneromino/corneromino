@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { StrictMode, useImperativeHandle, type ComponentProps } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CELL_CORNERS, GAME_CONFIGS, type GameSelectionState, type PlacedTetromino } from '@/game/gameConfig'
 import { loadGameSelection, saveGameSelection } from '@/lib/db'
@@ -17,7 +17,12 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, valu
   if (key === 'classic.mistakes') return `${values?.count} mistakes`
   return key
 } }) }))
-vi.mock('./ClassicPauseDialog', () => ({ ClassicPauseDialog: () => null }))
+vi.mock('./ClassicPauseDialog', () => ({
+  ClassicPauseDialog: ({ onQuitWithoutSaving, onSaveAndQuit, open }: { onQuitWithoutSaving: () => void; onSaveAndQuit: () => void; open: boolean }) => open ? <>
+    <button onClick={onSaveAndQuit}>Save and quit</button>
+    <button onClick={onQuitWithoutSaving}>Quit without saving</button>
+  </> : null,
+}))
 vi.mock('./CorrectGameDialog', () => ({ CorrectGameDialog: ({ onOpenChange, open, screenshot }: { onOpenChange: (open: boolean) => void; open: boolean; screenshot: string | null }) => open ? <output data-testid="completion-dialog" data-screenshot={screenshot}>Open<button onClick={() => onOpenChange(false)}>Cancel completion</button></output> : null }))
 // Exercise the real React interaction state; only replace the Pixi drawing surface.
 vi.mock('./GameGridCanvas', () => ({
@@ -73,6 +78,11 @@ function board() {
   return JSON.parse(screen.getByTestId('board-state').textContent!) as {
     locked: GameSelectionState['lockedCellGroups']; selected: string[]; markers: string[]; selectedLockedGroupId: string | null
   }
+}
+
+function CurrentPath() {
+  const location = useLocation()
+  return <output data-testid="current-path">{`${location.pathname}${location.search}`}</output>
 }
 
 function tap(...keys: string[]) {
@@ -546,5 +556,37 @@ describe('Classic locking modes', () => {
     await waitFor(() => expect(saveGameSelection).toHaveBeenLastCalledWith('c003', 'locking-test', expect.objectContaining({
       selectedCellKeys: [], lockedCellGroups: [], moveCount: 1,
     })))
+  })
+
+  it.each(['Save and quit', 'Quit without saving'])('returns directly to Modes after %s, even with a duplicate seedless history entry', async (actionLabel) => {
+    render(
+      <MemoryRouter
+        initialEntries={[
+          '/play/modes',
+          '/play?mode=c003',
+          { pathname: '/play', search: '?mode=c003&seed=fresh-game', state: { returnToClassicMenu: true } },
+        ]}
+        initialIndex={2}
+      >
+        <ToastProvider>
+          <GameGrid
+            config={{ ...GAME_CONFIGS.c003, finalVerificationMode: 'manual' }}
+            gameId="fresh-game"
+            gameMode="c003"
+            onElapsedSecondsChange={vi.fn()}
+            onMoveCountChange={vi.fn()}
+            onNextGame={vi.fn()}
+            onPauseOpenChange={vi.fn()}
+            paused
+            persistSelection={false}
+            pieces={pieces}
+          />
+        </ToastProvider>
+        <CurrentPath />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: actionLabel }))
+    await waitFor(() => expect(screen.getByTestId('current-path').textContent).toBe('/play/modes'))
   })
 })

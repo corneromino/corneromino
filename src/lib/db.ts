@@ -14,6 +14,7 @@ export interface StoredGame {
 export interface SavedGame {
   gameId: string
   gameMode: ClassicGameMode
+  isCustom: boolean
   savedAt: number
   screenshot: Blob
 }
@@ -24,6 +25,8 @@ export interface ClassicGameDefinition {
   gameMode: ClassicGameMode
   pieces: readonly PlacedTetromino[]
   seed: string
+  /** Custom boards open in normal Classic gameplay but are authored separately. */
+  source?: 'custom'
   version: 1
 }
 
@@ -385,6 +388,7 @@ function isClassicGameDefinition(value: unknown): value is ClassicGameDefinition
   const pieces = definition.pieces
   if (definition.version !== 1 || typeof definition.gameMode !== 'string' || !isGameMode(definition.gameMode)
     || typeof definition.seed !== 'string' || definition.seed.length === 0
+    || (definition.source !== undefined && definition.source !== 'custom')
     || !isGameConfig(config)
     || !Array.isArray(pieces) || pieces.length !== config.tetrominoCount) return false
 
@@ -425,6 +429,11 @@ export async function loadClassicGameDefinition(gameMode: ClassicGameMode, seed:
 
 export async function loadSavedGames(): Promise<SavedGame[]> {
   const storedGames = await (await db).getAll('games')
+  const definitions = new Map<string, ClassicGameDefinition>()
+  for (const storedGame of storedGames) {
+    if (!isClassicGameDefinition(storedGame.state)) continue
+    definitions.set(classicDefinitionStorageKey(storedGame.state.gameMode, storedGame.state.seed), storedGame.state)
+  }
 
   return storedGames.flatMap((storedGame) => {
     if (!isGameSelectionState(storedGame.state) || !storedGame.state.gameGridScreenshot || !storedGame.state.savedAt) {
@@ -439,6 +448,7 @@ export async function loadSavedGames(): Promise<SavedGame[]> {
     return [{
       gameId: gameIdParts.join(':'),
       gameMode,
+      isCustom: definitions.get(classicDefinitionStorageKey(gameMode, gameIdParts.join(':')))?.source === 'custom',
       savedAt: storedGame.state.savedAt,
       screenshot: storedGame.state.gameGridScreenshot,
     }]

@@ -25,7 +25,7 @@ function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => 
   const [screenshotUrl, setScreenshotUrl] = useState('')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const gamePath = `/play?mode=${props.game.gameMode}&seed=${encodeURIComponent(props.game.gameId)}`
-  const gameMode = t(GAME_CONFIGS[props.game.gameMode].title)
+  const gameMode = props.game.isCustom ? t('classic.custom') : t(GAME_CONFIGS[props.game.gameMode].title)
   const savedAt = formatSavedAt(props.game.savedAt, i18n.resolvedLanguage ?? i18n.language)
 
   function deleteGame() {
@@ -56,7 +56,7 @@ function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => 
       >
         {screenshotUrl && <img alt={t('savedGames.savedBoard')} className="h-auto w-28 shrink-0 self-start" src={screenshotUrl} />}
       </AppNavigationButton>
-      <div className="flex min-w-0 flex-1 flex-col justify-between py-1">
+      <div className="flex min-w-0 flex-1 self-stretch flex-col justify-between py-1">
         <AppNavigationButton className="h-auto justify-start p-0 text-left whitespace-normal hover:bg-transparent" to={gamePath} variant="ghost">
           <div>
             <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{savedAt}</p>

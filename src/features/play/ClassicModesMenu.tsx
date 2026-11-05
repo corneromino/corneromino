@@ -1,4 +1,6 @@
+import type { PointerEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import { AppNavigationButton } from '@/components/ui/app-navigation-button'
 import { DepthButton, DEPTH_BUTTON_COLORS } from '@/components/ui/depth-surface'
 import { GAME_CONFIGS } from '@/game/gameConfig'
@@ -9,6 +11,18 @@ const MODE_ENTRIES = Object.entries(GAME_CONFIGS)
 
 export function ClassicModesMenu() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+
+  function navigateToCreate() {
+    navigate('/play/create', { state: { returnToClassicMenu: true } })
+  }
+
+  function openCreate(event: PointerEvent<HTMLButtonElement>) {
+    if (event.pointerType !== 'touch') return
+    event.preventDefault()
+    navigateToCreate()
+  }
+
   return (
     <ClassicMenuLayout menu="modes">
       <section className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col px-1 pb-1">
@@ -28,6 +42,8 @@ export function ClassicModesMenu() {
             {...DEPTH_BUTTON_COLORS.blue}
             borderColor="var(--canvas-foreground)"
             className="mode-menu-button h-10 flex-1 rounded-md px-6 text-[11px] font-black tracking-[0.2em] text-black uppercase"
+            onClick={navigateToCreate}
+            onPointerUp={openCreate}
           >
             {t('classic.create')}
           </DepthButton>

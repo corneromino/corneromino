@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Check, Eraser, Lock, Pencil, RotateCcw, Unlock } from 'lucide-react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { DEPTH_BUTTON_COLORS } from '@/components/ui/depth-surface'
@@ -83,7 +83,6 @@ interface VerificationRun extends VerificationRequest {
 export function GameGrid(props: GameGridProps) {
   const { t } = useTranslation()
   const toast = useToast()
-  const location = useLocation()
   const navigate = useNavigate()
   const [showCellIds, setShowCellIds] = useState(false)
   const [selectedCellKeys, setSelectedCellKeys] = useState<Set<string>>(() => new Set())
@@ -269,13 +268,9 @@ export function GameGrid(props: GameGridProps) {
         }
       }
     } finally {
-      // Return through the menu entry so browser/mobile Back leaves Classic
-      // instead of reopening this saved puzzle.
-      if (location.state && typeof location.state === 'object' && 'returnToClassicMenu' in location.state && location.state.returnToClassicMenu === true) {
-        navigate(-1)
-      } else {
-        navigate('/play/modes', { replace: true })
-      }
+      // Replacing the active game route avoids returning to a seedless game
+      // history entry, which would otherwise generate another fresh board.
+      navigate('/play/modes', { replace: true })
     }
   }
 

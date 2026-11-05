@@ -14,7 +14,8 @@ interface GridNavigationOptions {
   setView: (view: GridView) => void
   getSize: () => Size
   minZoom: number
-  maxZoom: number
+  /** May vary with board/viewport size while the canvas remains mounted. */
+  maxZoom: number | (() => number)
   threshold?: number
   onTap: (event: PointerEvent) => void
   onNavigate?: () => void
@@ -75,7 +76,8 @@ export function createGridNavigation(canvas: HTMLCanvasElement, options: GridNav
   }
 
   function zoomAt(zoom: number, center: Point, anchor: Point) {
-    zoom = Math.min(options.maxZoom, Math.max(options.minZoom, zoom))
+    const maxZoom = typeof options.maxZoom === 'function' ? options.maxZoom() : options.maxZoom
+    zoom = Math.min(maxZoom, Math.max(options.minZoom, zoom))
     options.setView({ zoom, offsetX: center.x - anchor.x * zoom, offsetY: center.y - anchor.y * zoom })
   }
 
