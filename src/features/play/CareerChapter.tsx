@@ -26,9 +26,9 @@ export function CareerChapter({ chapter, number, startLevel }: CareerChapterProp
       className="relative flex h-full min-h-0 flex-col px-3 pt-3 pb-6 text-center max-h-[500px]:pt-0 max-h-[500px]:pb-2"
     >
       {/* <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[var(--chapter-background)] opacity-20" style={{ '--chapter-background': chapter.backgroundColor } as CSSProperties} /> */}
-      <h2 className="relative z-10 mb-[clamp(12px,3vh,24px)] flex shrink-0 flex-col items-center gap-2 text-[var(--canvas-foreground)] leading-[1.15] font-black max-h-[500px]:mb-2 max-h-[500px]:gap-1" id={headingId}>
-        <span className="text-[18px] tracking-[0.12em] uppercase max-h-[500px]:text-[13px]">{t('career.chapter', { number })}</span>{' '}
-        <span className="text-[30px] max-h-[500px]:text-[18px]">{t(`career.chapters.${chapter.id}`, { defaultValue: chapter.title })}</span>
+      <h2 className="relative z-10 mb-[clamp(12px,3vh,24px)] flex shrink-0 flex-col items-center gap-2 text-black leading-[1.15] font-black [-webkit-text-stroke:2px_var(--paper)] [paint-order:stroke_fill] max-h-[500px]:mb-2 max-h-[500px]:gap-1" id={headingId}>
+        <span className="text-[20px] tracking-[0.12em] uppercase max-h-[500px]:text-[13px]">{t('career.chapter', { number })}</span>{' '}
+        <span className="text-[35px] max-h-[500px]:text-[18px]">{t(`career.chapters.${chapter.id}`, { defaultValue: chapter.title })}</span>
       </h2>
       <div className="relative z-10 grid min-h-0 flex-1 place-items-center [container-type:size]">
         <ol

@@ -13,10 +13,16 @@ interface Gesture {
   axis: 'x' | 'y' | null
 }
 
+const CAREER_PATH_HEIGHT = 1_000
+const CAREER_PATH_CHAPTER_WIDTH = 1_000
+const CAREER_PATH_SEGMENT_WIDTH = 450
+const CAREER_PATH_TENSION = 1.2
+
 function createDecorativePath(chapterCount: number) {
-  const chapterWidth = 1_000
-  const height = 1_000
-  const width = chapterCount * chapterWidth
+  const width = chapterCount * CAREER_PATH_CHAPTER_WIDTH
+  const startX = -80
+  const endX = width + 80
+  const segmentCount = Math.max(1, Math.ceil((endX - startX) / CAREER_PATH_SEGMENT_WIDTH))
   let seed = 0x6d2b79f5
   const random = () => {
     seed |= 0
@@ -25,40 +31,37 @@ function createDecorativePath(chapterCount: number) {
     value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value
     return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296
   }
-  const startX = -80
-  const endX = width + 80
-  const jitterX = () => (random() - 0.5) * width * 0.025
-  const jitterY = () => (random() - 0.5) * 55
-  // These landmarks deliberately follow the reference silhouette: two broad
-  // waves, a lower U-turn that briefly doubles back, then a final wave.
-  const points = [
-    { x: startX, y: 700 },
-    { x: width * 0.09 + jitterX(), y: 190 + jitterY() },
-    { x: width * 0.32 + jitterX(), y: 570 + jitterY() },
-    { x: width * 0.5 + jitterX(), y: 100 + jitterY() },
-    { x: width * 0.61 + jitterX(), y: 270 + jitterY() },
-    { x: width * 0.52 + jitterX(), y: 720 + jitterY() },
-    { x: width * 0.68 + jitterX(), y: 860 + jitterY() },
-    { x: width * 0.8 + jitterX(), y: 300 + jitterY() },
-    { x: width * 0.96 + jitterX(), y: 180 + jitterY() },
-    { x: endX, y: 560 },
-  ]
+  // This sequence is derived from the supplied route's broad crests, lower
+  // sweep, and leftward return. It repeats at a fixed physical width, so new
+  // chapters extend the route rather than stretching its existing curves.
+  const routeHeights = [700, 240, 520, 130, 290, 680, 820, 340, 200, 520, 700]
+  const points = Array.from({ length: segmentCount + 1 }, (_, index) => {
+    const isEndpoint = index === 0 || index === segmentCount
+    const routeIndex = index % (routeHeights.length - 1)
+    const isBacktrack = routeIndex === 5
+    const baseX = index === segmentCount ? endX : startX + index * CAREER_PATH_SEGMENT_WIDTH
+    const xJitter = isEndpoint ? 0 : (random() - 0.5) * 30
+    const yJitter = isEndpoint ? 0 : (random() - 0.5) * 30
+    return {
+      x: baseX - (isBacktrack ? CAREER_PATH_SEGMENT_WIDTH * 1.35 : 0) + xJitter,
+      y: Math.max(70, Math.min(CAREER_PATH_HEIGHT - 70, routeHeights[routeIndex] + yJitter)),
+    }
+  })
 
-  const tangentStrength = 0.5
   let path = `M ${points[0].x} ${points[0].y}`
   for (let index = 0; index < points.length - 1; index += 1) {
     const previous = points[Math.max(0, index - 1)]
     const start = points[index]
     const end = points[index + 1]
     const next = points[Math.min(points.length - 1, index + 2)]
-    const control1X = start.x + (end.x - previous.x) * tangentStrength / 6
-    const control1Y = start.y + (end.y - previous.y) * tangentStrength / 6
-    const control2X = end.x - (next.x - start.x) * tangentStrength / 6
-    const control2Y = end.y - (next.y - start.y) * tangentStrength / 6
+    const control1X = start.x + (end.x - previous.x) * CAREER_PATH_TENSION / 6
+    const control1Y = start.y + (end.y - previous.y) * CAREER_PATH_TENSION / 6
+    const control2X = end.x - (next.x - start.x) * CAREER_PATH_TENSION / 6
+    const control2Y = end.y - (next.y - start.y) * CAREER_PATH_TENSION / 6
     path += ` C ${control1X} ${control1Y}, ${control2X} ${control2Y}, ${end.x} ${end.y}`
   }
 
-  return { height, path, width }
+  return { path, viewBox: `0 0 ${width} ${CAREER_PATH_HEIGHT}` }
 }
 
 export function CareerChapterCarousel({ chapters }: { chapters: readonly Chapter[] }) {
@@ -226,7 +229,7 @@ export function CareerChapterCarousel({ chapters }: { chapters: readonly Chapter
             className="pointer-events-none absolute inset-0 z-0 size-full overflow-hidden"
             focusable="false"
             preserveAspectRatio="none"
-            viewBox={`0 0 ${decorativePath.width} ${decorativePath.height}`}
+            viewBox={decorativePath.viewBox}
           >
             <path
               d={decorativePath.path}

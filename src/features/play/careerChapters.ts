@@ -1,9 +1,9 @@
 import { TETROMINOES, type CellId, type TetrominoKind } from '@/game/tetrominoes'
 import { LOCKED_CELL_COLOR_HEX } from '@/rendering/colors'
 
-export const CAREER_PATH_THICKNESS_PX = 6
-export const CAREER_PATH_DASH_LENGTH_PX = 14
-export const CAREER_PATH_DASH_GAP_PX = 10
+export const CAREER_PATH_THICKNESS_PX = 5
+export const CAREER_PATH_DASH_LENGTH_PX = 20
+export const CAREER_PATH_DASH_GAP_PX = 20
 
 export interface CareerChapter {
   id: string
@@ -63,6 +63,62 @@ export const chapters: readonly CareerChapter[] = [
   },
   {
     id: "a-different-turn",
+    title: "A Different Turn",
+    shape: "S",
+    rotation: 3,
+    levelOrder: ["b", "a", "d", "c"],
+    colors: {
+      a: LOCKED_CELL_COLOR_HEX[4],
+      b: "var(--paper)",
+      c: "var(--paper)",
+      d: LOCKED_CELL_COLOR_HEX[4],
+    },
+    backgroundColor: LOCKED_CELL_COLOR_HEX[4],
+  },
+    {
+    id: "a-different-turn2",
+    title: "A Different Turn",
+    shape: "S",
+    rotation: 3,
+    levelOrder: ["b", "a", "d", "c"],
+    colors: {
+      a: LOCKED_CELL_COLOR_HEX[4],
+      b: "var(--paper)",
+      c: "var(--paper)",
+      d: LOCKED_CELL_COLOR_HEX[4],
+    },
+    backgroundColor: LOCKED_CELL_COLOR_HEX[4],
+  },
+    {
+    id: "a-different-turn3",
+    title: "A Different Turn",
+    shape: "S",
+    rotation: 3,
+    levelOrder: ["b", "a", "d", "c"],
+    colors: {
+      a: LOCKED_CELL_COLOR_HEX[4],
+      b: "var(--paper)",
+      c: "var(--paper)",
+      d: LOCKED_CELL_COLOR_HEX[4],
+    },
+    backgroundColor: LOCKED_CELL_COLOR_HEX[4],
+  },
+    {
+    id: "a-different-turn4",
+    title: "A Different Turn",
+    shape: "S",
+    rotation: 3,
+    levelOrder: ["b", "a", "d", "c"],
+    colors: {
+      a: LOCKED_CELL_COLOR_HEX[4],
+      b: "var(--paper)",
+      c: "var(--paper)",
+      d: LOCKED_CELL_COLOR_HEX[4],
+    },
+    backgroundColor: LOCKED_CELL_COLOR_HEX[4],
+  },
+    {
+    id: "a-different-turn5-test",
     title: "A Different Turn",
     shape: "S",
     rotation: 3,
