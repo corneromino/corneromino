@@ -69,6 +69,7 @@ export function CareerChapterCarousel({ chapters }: { chapters: readonly Chapter
   const [index, setIndex] = useState(0)
   const indexRef = useRef(0)
   const viewportRef = useRef<HTMLDivElement>(null)
+  const trackRef = useRef<HTMLDivElement>(null)
   const widthRef = useRef(0)
   const gestureRef = useRef<Gesture | null>(null)
   const ignoredPointerIdRef = useRef<number | null>(null)
@@ -141,9 +142,12 @@ export function CareerChapterCarousel({ chapters }: { chapters: readonly Chapter
     indexRef.current = target
     setIndex(target)
     animationRef.current?.stop()
-    animationRef.current = animate(x, -target * widthRef.current, reduceMotion
+    const targetX = -target * widthRef.current
+    // Animate the element's transform directly, allowing Motion to delegate
+    // the release animation to the browser's accelerated transform path.
+    animationRef.current = trackRef.current ? animate(trackRef.current, { x: targetX }, reduceMotion
       ? { duration: 0 }
-      : { type: 'spring', stiffness: 320, damping: 34 })
+      : { type: 'spring', stiffness: 320, damping: 34 }) : animate(x, targetX, { duration: 0 })
   }
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
@@ -223,7 +227,7 @@ export function CareerChapterCarousel({ chapters }: { chapters: readonly Chapter
         tabIndex={0}
       >
         <p className="sr-only" id={helpId}>{t('career.navigationHint')}</p>
-        <m.div className="relative flex h-full shrink-0" style={{ width: `${chapters.length * 100}%`, x }}>
+        <m.div className="relative flex h-full shrink-0" ref={trackRef} style={{ width: `${chapters.length * 100}%`, x }}>
           <svg
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 z-0 size-full overflow-hidden"
