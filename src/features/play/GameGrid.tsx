@@ -10,7 +10,7 @@ import { isTetrominoShape } from '@/game/tetrominoes'
 import { clearGameSelection, loadGameSelection, saveClassicGameDefinition, saveGameSelection, type ClassicGameDefinition } from '@/lib/db'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/components/toast'
-import { LOCKED_CELL_COLOR_HEX } from '@/rendering/colors'
+import { chooseLockColor } from '@/game/lockingColor'
 import { ClassicPauseDialog } from './ClassicPauseDialog'
 import { CorrectGameDialog } from './CorrectGameDialog'
 import { GameGridCanvas, type GameGridCanvasHandle, type ScrollingGridViewport } from './GameGridCanvas'
@@ -393,22 +393,7 @@ export function GameGrid(props: GameGridProps) {
     lastLockedTapRef.current = null
 
     const cellKeys = [...selection]
-    const neighboringColors = new Set<string>()
-
-    for (const cellKey of cellKeys) {
-      const [x, y] = cellKey.split(',').map(Number)
-      for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
-        for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
-          if (offsetX === 0 && offsetY === 0) continue
-          const neighboringGroup = lockedCellMap.get(`${x + offsetX},${y + offsetY}`)
-          if (neighboringGroup) neighboringColors.add(neighboringGroup.color.toLowerCase())
-        }
-      }
-    }
-
-    const availableColors = LOCKED_CELL_COLOR_HEX.filter((color) => !neighboringColors.has(color))
-    const colorPool = availableColors.length > 0 ? availableColors : LOCKED_CELL_COLOR_HEX
-    const color = colorPool[Math.floor(Math.random() * colorPool.length)]
+    const color = chooseLockColor(cellKeys, lockedCellGroups)
     const nextMoveCount = moveCount + 1
     setLockedCellGroups((groups) => [...groups, { cellKeys, color, id: crypto.randomUUID() }])
     setIsCompleted(false)

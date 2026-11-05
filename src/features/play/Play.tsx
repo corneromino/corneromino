@@ -34,6 +34,7 @@ function GameSession(props: GameSessionProps) {
   const [shapesOpen, setShapesOpen] = useState(false)
   const seed = props.requestedSeed || generatedSeed
   const modeConfig = GAME_CONFIGS[props.gameMode]
+  const gameTitle = gameDefinition?.source === 'custom' && gameDefinition.customName ? gameDefinition.customName : t(modeConfig.title)
 
   function nextGame() {
     navigate(`/play?mode=${props.gameMode}&seed=${encodeURIComponent(createRandomSeed())}`)
@@ -111,7 +112,7 @@ function GameSession(props: GameSessionProps) {
         </div>
         <div className="flex items-center justify-between gap-4">
           <div className="poster-kicker flex items-center gap-3 text-[11px] text-[var(--muted-text-color)]">
-            <p>{t(modeConfig.title)}</p>
+            <p>{gameTitle}</p>
             <span aria-hidden="true">/</span>
             <p>{moveCount} moves</p>
           </div>

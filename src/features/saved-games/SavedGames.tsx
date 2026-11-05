@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Copy, Trash2 } from 'lucide-react'
+import { ArrowLeft, Copy, Pencil, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppNavigationButton } from '@/components/ui/app-navigation-button'
@@ -22,10 +22,12 @@ function formatSavedAt(savedAt: number, language: string): string {
 
 function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => void }) {
   const { i18n, t } = useTranslation()
+  const navigate = useNavigate()
   const [screenshotUrl, setScreenshotUrl] = useState('')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const gamePath = `/play?mode=${props.game.gameMode}&seed=${encodeURIComponent(props.game.gameId)}`
   const gameMode = props.game.isCustom ? t('classic.custom') : t(GAME_CONFIGS[props.game.gameMode].title)
+  const gameTitle = props.game.isCustom && props.game.name ? `${gameMode}: ${props.game.name}` : gameMode
   const savedAt = formatSavedAt(props.game.savedAt, i18n.resolvedLanguage ?? i18n.language)
 
   function deleteGame() {
@@ -35,6 +37,10 @@ function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => 
 
   function copySeed() {
     void navigator.clipboard.writeText(`${props.game.gameMode}:${props.game.gameId}`)
+  }
+
+  function editBoard() {
+    navigate('/play/create', { state: { editGame: { gameId: props.game.gameId, gameMode: props.game.gameMode, isCustom: props.game.isCustom, name: props.game.name } } })
   }
 
   useEffect(() => {
@@ -60,7 +66,7 @@ function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => 
         <AppNavigationButton className="h-auto justify-start p-0 text-left whitespace-normal hover:bg-transparent" to={gamePath} variant="ghost">
           <div>
             <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{savedAt}</p>
-            <h2 className="mt-1 text-[22px] font-black uppercase">{gameMode}</h2>
+            <h2 className="mt-1 text-[22px] font-black uppercase">{gameTitle}</h2>
           </div>
         </AppNavigationButton>
         <div className="flex min-w-0 items-center gap-2">
@@ -78,6 +84,16 @@ function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => 
             type="button"
           >
             <Copy aria-hidden="true" />
+          </Button>
+          <Button
+            aria-label={t('classic.editBoard')}
+            className="size-9 shrink-0 text-[var(--canvas-foreground)]"
+            onClick={editBoard}
+            size="icon"
+            title={t('classic.editBoard')}
+            type="button"
+          >
+            <Pencil aria-hidden="true" />
           </Button>
           <Button
             aria-label={t('savedGames.deleteSavedGame', { mode: gameMode })}

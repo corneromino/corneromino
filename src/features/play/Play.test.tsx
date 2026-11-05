@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { GAME_CONFIGS, type PlacedTetromino } from '@/game/gameConfig'
@@ -32,8 +32,8 @@ const pieces: readonly PlacedTetromino[] = [{
   kind: 'O',
 }]
 
-function renderPlay(seed: string) {
-  return render(<MemoryRouter initialEntries={[`/play?mode=c001&seed=${seed}`]}><Play /></MemoryRouter>)
+function renderPlay(seed: string, gameMode = 'c001') {
+  return render(<MemoryRouter initialEntries={[`/play?mode=${gameMode}&seed=${seed}`]}><Play /></MemoryRouter>)
 }
 
 beforeEach(() => {
@@ -42,6 +42,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  cleanup()
   vi.restoreAllMocks()
 })
 
@@ -54,6 +55,23 @@ it('loads a stored board definition without running the seed generator', async (
   await waitFor(() => expect(screen.getByTestId('game-grid').textContent).toBe('1'))
   expect(generateTetrominoPlacementsV2).not.toHaveBeenCalled()
   expect(gameGridProps.current?.gameDefinition).toEqual(definition)
+})
+
+it('shows a custom board name instead of its original difficulty title', async () => {
+  vi.mocked(loadClassicGameDefinition).mockResolvedValue({
+    config: { ...GAME_CONFIGS.c003 },
+    customName: 'My saved board',
+    gameMode: 'c003',
+    pieces,
+    seed: 'custom-board',
+    source: 'custom',
+    version: 1,
+  })
+
+  renderPlay('custom-board', 'c003')
+
+  await waitFor(() => expect(screen.getByText('My saved board')).toBeTruthy())
+  expect(screen.queryByText('difficulty.medium')).toBeNull()
 })
 
 it('uses the seed generator for a legacy save with no board definition', async () => {

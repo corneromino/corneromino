@@ -15,6 +15,7 @@ export interface SavedGame {
   gameId: string
   gameMode: ClassicGameMode
   isCustom: boolean
+  name: string | null
   savedAt: number
   screenshot: Blob
 }
@@ -27,6 +28,8 @@ export interface ClassicGameDefinition {
   seed: string
   /** Custom boards open in normal Classic gameplay but are authored separately. */
   source?: 'custom'
+  /** User-facing title for a custom board. */
+  customName?: string
   version: 1
 }
 
@@ -351,6 +354,7 @@ function isPlacedTetromino(piece: unknown, config: GameConfig, occupiedCells: Se
   if (typeof piece !== 'object' || piece === null) return false
   const storedPiece = piece as Record<string, unknown>
   if (!isPositiveInteger(storedPiece.id) || ids.has(storedPiece.id)) return false
+  if (storedPiece.color !== undefined && typeof storedPiece.color !== 'string') return false
   if (!isTetrominoKind(storedPiece.kind)) return false
   if (!Array.isArray(storedPiece.cells) || storedPiece.cells.length !== 4) return false
 
@@ -389,6 +393,7 @@ function isClassicGameDefinition(value: unknown): value is ClassicGameDefinition
   if (definition.version !== 1 || typeof definition.gameMode !== 'string' || !isGameMode(definition.gameMode)
     || typeof definition.seed !== 'string' || definition.seed.length === 0
     || (definition.source !== undefined && definition.source !== 'custom')
+    || (definition.customName !== undefined && (typeof definition.customName !== 'string' || definition.customName.trim().length === 0))
     || !isGameConfig(config)
     || !Array.isArray(pieces) || pieces.length !== config.tetrominoCount) return false
 
@@ -445,10 +450,12 @@ export async function loadSavedGames(): Promise<SavedGame[]> {
       return []
     }
 
+    const definition = definitions.get(classicDefinitionStorageKey(gameMode, gameIdParts.join(':')))
     return [{
       gameId: gameIdParts.join(':'),
       gameMode,
-      isCustom: definitions.get(classicDefinitionStorageKey(gameMode, gameIdParts.join(':')))?.source === 'custom',
+      isCustom: definition?.source === 'custom',
+      name: definition?.source === 'custom' ? definition.customName ?? null : null,
       savedAt: storedGame.state.savedAt,
       screenshot: storedGame.state.gameGridScreenshot,
     }]

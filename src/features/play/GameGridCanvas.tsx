@@ -37,8 +37,12 @@ interface GameGridCanvasProps {
   onToggle: (cellKey: string, timeStamp: number) => void
   onNavigate?: () => void
   pieces: readonly PlacedTetromino[]
+  /** Unconfirmed authored cells. These deliberately have no corner marker. */
+  temporaryCellKeys?: readonly string[]
   selectedCellKeys: ReadonlySet<string>
   selectedLockedGroupId: string | null
+  /** Create mode uses colors to distinguish authored shapes; gameplay does not. */
+  showAuthoredPieceColors?: boolean
   showCellIds: boolean
   scrolling?: ScrollingGridViewport
   onCellExit?: (event: ClassicInfiniteCellExit) => void
@@ -53,7 +57,8 @@ interface GameGridCanvasProps {
 }
 
 export interface GameGridCanvasHandle {
-  captureBoard: () => HTMLCanvasElement | null
+  /** Gameplay previews omit editor-only authored colors and unfinished cells. */
+  captureBoard: (options?: { gameplayPreview?: boolean }) => HTMLCanvasElement | null
   resetView: () => void
 }
 
@@ -114,7 +119,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
   const resetViewRef = useRef<() => void>(() => undefined)
   propsRef.current = props
 
-  useImperativeHandle(ref, () => ({ captureBoard: () => captureRef.current(), resetView: () => resetViewRef.current() }), [])
+  useImperativeHandle(ref, () => ({ captureBoard: (options) => captureRef.current(options), resetView: () => resetViewRef.current() }), [])
 
   useEffect(() => {
     if (props.interactive === false) navigationRef.current?.reset()
@@ -122,7 +127,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
 
   useEffect(() => {
     drawRef.current()
-  }, [props.config, props.exitDistortion, props.lockedCellGroups, props.markers, props.pieces, props.selectedCellKeys, props.selectedLockedGroupId, props.showCellIds, props.scrolling, props.vhsCrt, props.verificationRequest])
+  }, [props.config, props.exitDistortion, props.lockedCellGroups, props.markers, props.pieces, props.selectedCellKeys, props.selectedLockedGroupId, props.showAuthoredPieceColors, props.showCellIds, props.scrolling, props.temporaryCellKeys, props.vhsCrt, props.verificationRequest])
 
   useEffect(() => {
     const container = containerRef.current
@@ -154,6 +159,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     let verificationAnimation: GridVerificationWave | GridVerificationFlip | undefined
     let verificationPhase: 'animating' | 'finished' | 'notified' | 'restoring' = 'animating'
     let verificationId: number | undefined
+    let capturingGameplayPreview = false
 
     function boardSize() {
       return {
@@ -300,6 +306,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         const cellHeight = surface!.metrics.cellHeight / view.zoom
         const cellSize = Math.min(cellWidth, cellHeight)
       const pieceMap = createPieceMap(current.pieces)
+      const temporaryCellKeys = new Set(capturingGameplayPreview ? [] : current.temporaryCellKeys)
       const lockedCellMap = createLockedCellMap(current.lockedCellGroups)
       const nextLockedCellKeys = new Set(lockedCellMap.keys())
       const isBoardFullyLocked = !current.scrolling && pieceMap.size > 0 && [...pieceMap.keys()].every((key) => lockedCellMap.has(key))
@@ -334,6 +341,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
         for (let x = 0; x < current.config.columns; x += 1) {
           const key = cellKey(x, y)
           const piece = pieceMap.get(key)
+          const temporary = temporaryCellKeys.has(key)
           const cell = piece?.cells.find((item) => item.x === x && item.y === y)
           const lockedGroup = lockedCellMap.get(key)
           const selected = current.selectedCellKeys.has(key) || lockedGroup?.id === current.selectedLockedGroupId
@@ -349,7 +357,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           cellContainer.zIndex = selected ? 1 : 0
           cellContainer.position.set(x * cellWidth, y * cellHeight)
 
-          if (!cell && !lockedGroup && !selected && !current.markers.has(key)) {
+          if (!cell && !temporary && !lockedGroup && !selected && !current.markers.has(key)) {
             // The repeated texture draws empty cells. A hidden tile is used
             // only when a nearby lock effect shakes this individual cell.
             const tile = new Sprite(surface!.texture)
@@ -389,7 +397,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
 
           const borderSize = cellSize * CELL_BORDER_RATIO
           const radius = getGridSquircleRadius(cellWidth, cellHeight)
-          const fillColor = selected ? BOARD_COLOR : lockedGroup ? lockedColorToNumber(lockedGroup.color) : CELL_COLOR
+          const fillColor = selected ? BOARD_COLOR : lockedGroup ? lockedColorToNumber(lockedGroup.color) : temporary ? OUTLINE_COLOR : !capturingGameplayPreview && current.showAuthoredPieceColors && piece?.color ? lockedColorToNumber(piece.color) : CELL_COLOR
           const cellGraphic = new Graphics();
           drawCellBody(cellGraphic, 0, 0, cellWidth, cellHeight, {
             fillColor,
@@ -665,17 +673,19 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
             view = { zoom: 1, offsetX: 0, offsetY: 0 }
             updateViewport()
           }
-          captureRef.current = () => {
+          captureRef.current = (options) => {
             const savedView = view
+            capturingGameplayPreview = options?.gameplayPreview === true
             verificationAnimation?.hide()
             try {
               view = { zoom: 1, offsetX: 0, offsetY: 0 }
-              updateViewport()
+              draw()
               const { height, width } = boardSize()
               return app.renderer.extract.canvas({ target: surface!.root, frame: new Rectangle(0, 0, width, height) }) as HTMLCanvasElement
             } finally {
+              capturingGameplayPreview = false
               view = savedView
-              updateViewport()
+              draw()
               verificationAnimation?.render()
             }
           }

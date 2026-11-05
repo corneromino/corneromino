@@ -138,6 +138,8 @@ export interface PlacedTetrominoCell {
 }
 
 export interface PlacedTetromino {
+  /** Authored boards retain their color before any player locks are made. */
+  color?: string
   id: number
   kind: TetrominoKind
   cells: readonly PlacedTetrominoCell[]
