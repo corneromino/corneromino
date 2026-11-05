@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { AppNavigationButton } from '@/components/ui/app-navigation-button'
+import { DepthButton, DEPTH_BUTTON_COLORS } from '@/components/ui/depth-surface'
 import { GAME_CONFIGS } from '@/game/gameConfig'
 import { ClassicMenuLayout } from './ClassicMenuLayout'
 
@@ -19,10 +20,17 @@ export function ClassicModesMenu() {
           ))}
           <AppNavigationButton className={MODE_BUTTON_CLASS} navigationOptions={{ state: { returnToClassicMenu: true } }} size="lg" to="/play/infinite">{t('classic.infinite')}</AppNavigationButton>
         </div>
-        <div className="flex w-full shrink-0 flex-col pt-3">
-          <AppNavigationButton borderColor="var(--canvas-foreground)" className="mode-menu-button w-full text-[11px] font-black tracking-[0.2em] text-[var(--paper)] uppercase" color="var(--coral)" hoverColor="#b73a2c" size="lg" to="/saved">
+        <div className="flex w-full shrink-0 gap-3 pt-3">
+          <AppNavigationButton borderColor="var(--canvas-foreground)" className="mode-menu-button flex-1 text-[11px] font-black tracking-[0.2em] text-[var(--paper)] uppercase" color="var(--coral)" hoverColor="#b73a2c" size="lg" to="/saved">
             {t('classic.saved')}
           </AppNavigationButton>
+          <DepthButton
+            {...DEPTH_BUTTON_COLORS.blue}
+            borderColor="var(--canvas-foreground)"
+            className="mode-menu-button h-10 flex-1 rounded-md px-6 text-[11px] font-black tracking-[0.2em] text-black uppercase"
+          >
+            {t('classic.create')}
+          </DepthButton>
         </div>
       </section>
     </ClassicMenuLayout>

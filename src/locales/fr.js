@@ -67,6 +67,7 @@ export default {
         "moves_one": "{{count}} coup",
         "moves_other": "{{count}} coups",
         "saved": "Sauvegardes",
+        "create": "Créer",
         "generating": "Génération de la partie…",
         "gameOver": "PERDU",
         "paused": "En pause",

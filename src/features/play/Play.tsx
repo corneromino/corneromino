@@ -4,8 +4,8 @@ import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-route
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { createRandomSeed, createSeededRandom } from '@/game/random'
-import { GAME_CONFIGS, isGameMode, type ClassicGameMode, type PlacedTetromino } from '@/game/gameConfig'
-import { clearGameSelection } from '@/lib/db'
+import { GAME_CONFIGS, isGameMode, type ClassicGameMode } from '@/game/gameConfig'
+import { clearGameSelection, loadClassicGameDefinition, type ClassicGameDefinition } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
 import { GameGrid } from './GameGrid'
 import { ClassicShapesDialog } from './ClassicShapesDialog'
@@ -29,11 +29,11 @@ function GameSession(props: GameSessionProps) {
   const [generationError, setGenerationError] = useState<string | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [moveCount, setMoveCount] = useState(0)
-  const [pieces, setPieces] = useState<PlacedTetromino[] | null>(null)
+  const [gameDefinition, setGameDefinition] = useState<ClassicGameDefinition | null>(null)
   const [pauseOpen, setPauseOpen] = useState(false)
   const [shapesOpen, setShapesOpen] = useState(false)
   const seed = props.requestedSeed || generatedSeed
-  const config = GAME_CONFIGS[props.gameMode]
+  const modeConfig = GAME_CONFIGS[props.gameMode]
 
   function nextGame() {
     navigate(`/play?mode=${props.gameMode}&seed=${encodeURIComponent(createRandomSeed())}`)
@@ -51,16 +51,26 @@ function GameSession(props: GameSessionProps) {
     setGenerationError(null)
     setElapsedSeconds(0)
     setMoveCount(0)
-    setPieces(null)
+    setGameDefinition(null)
 
-    void generateTetrominoPlacementsV2(config, {
-      random: createSeededRandom(`${props.gameMode}:${seed}`),
-      yieldEvery: 250,
-    })
-      .then((generatedPieces) => {
-        if (active) {
-          setPieces(generatedPieces)
-        }
+    void loadClassicGameDefinition(props.gameMode, seed)
+      .catch(() => null)
+      .then(async (savedDefinition) => {
+        if (savedDefinition) return savedDefinition
+        const pieces = await generateTetrominoPlacementsV2(modeConfig, {
+          random: createSeededRandom(`${props.gameMode}:${seed}`),
+          yieldEvery: 250,
+        })
+        return {
+          config: { ...modeConfig },
+          gameMode: props.gameMode,
+          pieces,
+          seed,
+          version: 1,
+        } satisfies ClassicGameDefinition
+      })
+      .then((definition) => {
+        if (active) setGameDefinition(definition)
       })
       .catch((error: unknown) => {
         if (active) {
@@ -71,7 +81,7 @@ function GameSession(props: GameSessionProps) {
     return () => {
       active = false
     }
-  }, [config, props.gameMode, seed])
+  }, [modeConfig, props.gameMode, seed])
 
   return (
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
@@ -101,7 +111,7 @@ function GameSession(props: GameSessionProps) {
         </div>
         <div className="flex items-center justify-between gap-4">
           <div className="poster-kicker flex items-center gap-3 text-[11px] text-[var(--muted-text-color)]">
-            <p>{t(config.title)}</p>
+            <p>{t(modeConfig.title)}</p>
             <span aria-hidden="true">/</span>
             <p>{moveCount} moves</p>
           </div>
@@ -110,21 +120,22 @@ function GameSession(props: GameSessionProps) {
       </header>
 
       <div className="relative z-10 min-h-0 flex-1">
-        {pieces &&
+        {gameDefinition &&
           <GameGrid
-            config={config}
+            config={gameDefinition.config}
+            gameDefinition={gameDefinition}
             gameId={seed}
             gameMode={props.gameMode}
-            key={`${props.gameMode}:${seed}`}
+            key={`${props.gameMode}:${seed}:${gameDefinition.version}`}
             onElapsedSecondsChange={setElapsedSeconds}
             onMoveCountChange={setMoveCount}
             onNextGame={nextGame}
             onPauseOpenChange={setPauseOpen}
             paused={pauseOpen}
-            pieces={pieces}
+            pieces={gameDefinition.pieces}
             suspended={shapesOpen}
           />}
-        {!pieces && !generationError &&
+        {!gameDefinition && !generationError &&
           <p className="px-5 text-center text-[11px] font-bold uppercase">{t('classic.generating')}</p>
         }
         {generationError &&

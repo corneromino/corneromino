@@ -8,7 +8,7 @@ import { ClassicTutorial } from './ClassicTutorial'
 
 const canvasMock = vi.hoisted(() => ({ props: undefined as ComponentProps<typeof GameGridCanvas> | undefined }))
 
-vi.mock('@/lib/db', () => ({ loadGameSelection: vi.fn(), saveGameSelection: vi.fn(), clearGameSelection: vi.fn() }))
+vi.mock('@/lib/db', () => ({ loadGameSelection: vi.fn(), saveClassicGameDefinition: vi.fn(), saveGameSelection: vi.fn(), clearGameSelection: vi.fn() }))
 vi.mock('react-i18next', () => {
   const t = (key: string) => key
   return { useTranslation: () => ({ t }) }

@@ -74,6 +74,7 @@ export default {
         "moves_one": "{{count}} move",
         "moves_other": "{{count}} moves",
         "saved": "Saved",
+        "create": "Create",
         "generating": "Generating game…",
         "gameOver": "GAME OVER",
         "paused": "Paused",

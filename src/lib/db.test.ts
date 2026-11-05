@@ -10,7 +10,7 @@ vi.mock('./gameDatabase', () => ({
   }),
 }))
 
-import { clearVsLocalGameState, db, loadVsLocalGameState, saveVsLocalGameState, type VsLocalGameSaveState } from './db'
+import { clearVsLocalGameState, db, loadClassicGameDefinition, loadVsLocalGameState, saveClassicGameDefinition, saveGameSelection, saveVsLocalGameState, type ClassicGameDefinition, type VsLocalGameSaveState } from './db'
 import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsHistoryPosition, goToVsHistory, selectVsCell, toggleVsMoveDirection } from '@/features/vs/vsLocalGame'
 import type { VsTrapResolution } from '@/features/vs/vsLocalConfig'
 
@@ -39,6 +39,65 @@ function trappedVsGame(trapResolution: VsTrapResolution, capture = true, opponen
   }
   return finishVsTurn(game)
 }
+
+function classicDefinition(): ClassicGameDefinition {
+  return {
+    config: { columns: 4, lockingMode: 'auto', rows: 4, spread: 0, tetrominoCount: 1 },
+    gameMode: 'c001',
+    pieces: [{
+      cells: [
+        { cellId: 'a', corner: 'top-left', x: 1, y: 1 },
+        { cellId: 'b', corner: 'top-right', x: 2, y: 1 },
+        { cellId: 'c', corner: 'bottom-right', x: 1, y: 2 },
+        { cellId: 'd', corner: 'bottom-left', x: 2, y: 2 },
+      ],
+      id: 1,
+      kind: 'O',
+    }],
+    seed: 'classic-definition-seed',
+    version: 1,
+  }
+}
+
+describe('Classic game definitions', () => {
+  beforeEach(() => records.clear())
+
+  it('stores the immutable board separately from player progress', async () => {
+    const definition = classicDefinition()
+    await saveClassicGameDefinition(definition)
+    await saveGameSelection('c001', definition.seed, {
+      elapsedSeconds: 12,
+      gameGridScreenshot: null,
+      isCompleted: false,
+      lockedCellGroups: [],
+      markers: [],
+      moveCount: 4,
+      savedAt: 123,
+      selectedCellKeys: ['1,1'],
+    })
+
+    await expect(loadClassicGameDefinition('c001', definition.seed)).resolves.toEqual(definition)
+    expect(records.get(`definition:c001:${definition.seed}`)?.state).toEqual(definition)
+    expect(records.get(`selection:c001:${definition.seed}`)?.state).not.toHaveProperty('pieces')
+  })
+
+  it('does not create a definition while reading a legacy progress-only save', async () => {
+    await saveGameSelection('c001', 'legacy-seed', {
+      elapsedSeconds: 12,
+      gameGridScreenshot: null,
+      isCompleted: false,
+      lockedCellGroups: [],
+      markers: [],
+      moveCount: 4,
+      savedAt: 123,
+      selectedCellKeys: ['1,1'],
+    })
+    const recordCount = records.size
+
+    await expect(loadClassicGameDefinition('c001', 'legacy-seed')).resolves.toBeNull()
+    expect(records.size).toBe(recordCount)
+  })
+})
 
 describe('Local VS persistence', () => {
   beforeEach(() => records.clear())

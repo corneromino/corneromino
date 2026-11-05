@@ -1,5 +1,6 @@
 import { openGameDatabase } from './gameDatabase'
-import { isGameMode, type CellMarker, type ClassicGameMode, type GameMode, type GameSelectionState, type LockedCellGroup } from '@/game/gameConfig'
+import { CELL_CORNERS, isGameMode, type CellMarker, type CellCorner, type ClassicGameMode, type GameConfig, type GameMode, type GameSelectionState, type LockedCellGroup, type PlacedTetromino } from '@/game/gameConfig'
+import { TETROMINOES, TETROMINO_KINDS, type CellId, type TetrominoKind } from '@/game/tetrominoes'
 import { isVsLocalBoardSize, isVsTrapResolution, isVsWinCount,  } from '@/features/vs/vsLocalConfig'
 import { getVsAllowedCells, getVsHistoryPosition, getVsPlayerScores, type VsCaptureStreak, type VsGameResult, type VsLocalGameState, type VsLocalPosition, type VsMoveHistory } from '@/features/vs/vsLocalGame'
 
@@ -15,6 +16,15 @@ export interface SavedGame {
   gameMode: ClassicGameMode
   savedAt: number
   screenshot: Blob
+}
+
+/** Immutable, versioned board data kept separately from player progress. */
+export interface ClassicGameDefinition {
+  config: GameConfig
+  gameMode: ClassicGameMode
+  pieces: readonly PlacedTetromino[]
+  seed: string
+  version: 1
 }
 
 export interface SandboxWorldState {
@@ -55,6 +65,10 @@ export const db = openGameDatabase()
 
 function selectionStorageKey(gameMode: GameMode, gameId: string): string {
   return `selection:${gameMode}:${gameId}`
+}
+
+function classicDefinitionStorageKey(gameMode: ClassicGameMode, seed: string): string {
+  return `definition:${gameMode}:${seed}`
 }
 
 const CASCADE_STORAGE_KEY = 'cascade:current'
@@ -288,6 +302,97 @@ function isGameSelectionState(state: unknown): state is {
   )
 }
 
+function isCellCorner(value: unknown): value is CellCorner {
+  return typeof value === 'string' && CELL_CORNERS.includes(value as CellCorner)
+}
+
+function isCellId(value: unknown): value is CellId {
+  return value === 'a' || value === 'b' || value === 'c' || value === 'd'
+}
+
+function isTetrominoKind(value: unknown): value is TetrominoKind {
+  return typeof value === 'string' && TETROMINO_KINDS.includes(value as TetrominoKind)
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1
+}
+
+function isNonNegativeNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+}
+
+function isGameConfig(value: unknown): value is GameConfig {
+  if (typeof value !== 'object' || value === null) return false
+  const config = value as Record<string, unknown>
+  if (!isPositiveInteger(config.columns) || !isPositiveInteger(config.rows)) return false
+  if (typeof config.spread !== 'number' || !Number.isFinite(config.spread) || config.spread < 0 || config.spread > 1) return false
+  if (!isNonNegativeInteger(config.tetrominoCount)) return false
+  if (config.lockingMode !== 'manual' && config.lockingMode !== 'auto') return false
+  if (config.finalVerificationMode !== undefined && config.finalVerificationMode !== 'manual' && config.finalVerificationMode !== 'auto') return false
+  if (config.completionAnimationEnabled !== undefined && typeof config.completionAnimationEnabled !== 'boolean') return false
+  if (config.verificationEffect !== undefined && config.verificationEffect !== 'wave' && config.verificationEffect !== 'flip') return false
+  if (config.verificationFlipDurationMs !== undefined && !isNonNegativeNumber(config.verificationFlipDurationMs)) return false
+  if (config.verificationFlipBatchSize !== undefined && !isPositiveInteger(config.verificationFlipBatchSize)) return false
+  if (config.finalLockAnimationEnabled !== undefined && typeof config.finalLockAnimationEnabled !== 'boolean') return false
+  if (config.unlockRepeatedCornerLocks !== undefined && typeof config.unlockRepeatedCornerLocks !== 'boolean') return false
+  if (config.completionScreenshotDelayMs !== undefined && !isNonNegativeNumber(config.completionScreenshotDelayMs)) return false
+  return config.navigationEnabled === undefined || typeof config.navigationEnabled === 'boolean'
+}
+
+function isPlacedTetromino(piece: unknown, config: GameConfig, occupiedCells: Set<string>, ids: Set<number>): piece is PlacedTetromino {
+  if (typeof piece !== 'object' || piece === null) return false
+  const storedPiece = piece as Record<string, unknown>
+  if (!isPositiveInteger(storedPiece.id) || ids.has(storedPiece.id)) return false
+  if (!isTetrominoKind(storedPiece.kind)) return false
+  if (!Array.isArray(storedPiece.cells) || storedPiece.cells.length !== 4) return false
+
+  const cells = storedPiece.cells
+  const cellIds = new Set<CellId>()
+  const placedCells: Array<{ cellId: CellId; corner: CellCorner; x: number; y: number }> = []
+  for (const cell of cells) {
+    if (typeof cell !== 'object' || cell === null) return false
+    const storedCell = cell as Record<string, unknown>
+    if (!isCellId(storedCell.cellId) || cellIds.has(storedCell.cellId)
+      || !isCellCorner(storedCell.corner)
+      || !isNonNegativeInteger(storedCell.x) || storedCell.x >= config.columns
+      || !isNonNegativeInteger(storedCell.y) || storedCell.y >= config.rows) return false
+    const key = `${storedCell.x},${storedCell.y}`
+    if (occupiedCells.has(key)) return false
+    cellIds.add(storedCell.cellId)
+    occupiedCells.add(key)
+    placedCells.push({ cellId: storedCell.cellId, corner: storedCell.corner, x: storedCell.x, y: storedCell.y })
+  }
+
+  const minX = Math.min(...placedCells.map((cell) => cell.x))
+  const minY = Math.min(...placedCells.map((cell) => cell.y))
+  const matchesKnownRotation = TETROMINOES[storedPiece.kind].rotations.some((rotation) => rotation.cells.every((expectedCell) => (
+    placedCells.some((cell) => cell.cellId === expectedCell.id && cell.x === minX + expectedCell.x && cell.y === minY + expectedCell.y)
+  )))
+  if (!matchesKnownRotation) return false
+  ids.add(storedPiece.id)
+  return true
+}
+
+function isClassicGameDefinition(value: unknown): value is ClassicGameDefinition {
+  if (typeof value !== 'object' || value === null) return false
+  const definition = value as Record<string, unknown>
+  const config = definition.config
+  const pieces = definition.pieces
+  if (definition.version !== 1 || typeof definition.gameMode !== 'string' || !isGameMode(definition.gameMode)
+    || typeof definition.seed !== 'string' || definition.seed.length === 0
+    || !isGameConfig(config)
+    || !Array.isArray(pieces) || pieces.length !== config.tetrominoCount) return false
+
+  const occupiedCells = new Set<string>()
+  const ids = new Set<number>()
+  return pieces.every((piece) => isPlacedTetromino(piece, config, occupiedCells, ids))
+}
+
 export async function loadGameSelection(gameMode: GameMode, gameId: string): Promise<GameSelectionState> {
   const storedGame = await (await db).get('games', selectionStorageKey(gameMode, gameId))
   if (!storedGame || !isGameSelectionState(storedGame.state)) {
@@ -308,6 +413,14 @@ export async function loadGameSelection(gameMode: GameMode, gameId: string): Pro
     savedAt: 'savedAt' in storedGame.state && typeof storedGame.state.savedAt === 'number' ? storedGame.state.savedAt : null,
     selectedCellKeys: storedGame.state.selectedCellKeys,
   }
+}
+
+/** Loads the immutable original board. Missing definitions intentionally return null for legacy seed-based saves. */
+export async function loadClassicGameDefinition(gameMode: ClassicGameMode, seed: string): Promise<ClassicGameDefinition | null> {
+  const storedGame = await (await db).get('games', classicDefinitionStorageKey(gameMode, seed))
+  if (!storedGame || !isClassicGameDefinition(storedGame.state)) return null
+  const definition = storedGame.state
+  return definition.gameMode === gameMode && definition.seed === seed ? definition : null
 }
 
 export async function loadSavedGames(): Promise<SavedGame[]> {
@@ -340,12 +453,29 @@ export async function saveGameSelection(gameMode: GameMode, gameId: string, sele
   })
 }
 
+/** Saves board data independently of selection, lock, marker, and timer progress. */
+export async function saveClassicGameDefinition(definition: ClassicGameDefinition): Promise<void> {
+  if (!isClassicGameDefinition(definition)) throw new Error('Cannot save an invalid Classic game definition.')
+  await (await db).put('games', {
+    id: classicDefinitionStorageKey(definition.gameMode, definition.seed),
+    updatedAt: Date.now(),
+    state: definition,
+  })
+}
+
+export async function clearClassicGameDefinition(gameMode: ClassicGameMode, seed: string): Promise<void> {
+  await (await db).delete('games', classicDefinitionStorageKey(gameMode, seed))
+}
+
 export async function clearGameSelection(gameMode: GameMode, gameId: string): Promise<void> {
   await (await db).delete('games', selectionStorageKey(gameMode, gameId))
 }
 
 export async function deleteSavedGame(gameMode: GameMode, gameId: string): Promise<void> {
-  await clearGameSelection(gameMode, gameId)
+  await Promise.all([
+    clearGameSelection(gameMode, gameId),
+    isGameMode(gameMode) ? clearClassicGameDefinition(gameMode, gameId) : Promise.resolve(),
+  ])
 }
 
 export async function loadCascadeGameState(): Promise<CascadeGameSaveState | null> {

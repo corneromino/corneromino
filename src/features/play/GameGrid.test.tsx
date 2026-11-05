@@ -11,7 +11,7 @@ import { GameGrid } from './GameGrid'
 
 const canvasMock = vi.hoisted(() => ({ captureBoard: vi.fn(), props: undefined as ComponentProps<typeof GameGridCanvas> | undefined }))
 
-vi.mock('@/lib/db', () => ({ loadGameSelection: vi.fn(), saveGameSelection: vi.fn().mockResolvedValue(undefined), clearGameSelection: vi.fn() }))
+vi.mock('@/lib/db', () => ({ loadGameSelection: vi.fn(), saveClassicGameDefinition: vi.fn().mockResolvedValue(undefined), saveGameSelection: vi.fn().mockResolvedValue(undefined), clearGameSelection: vi.fn() }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: { count?: number }) => {
   if (key === 'classic.errors') return `${values?.count} errors`
   if (key === 'classic.mistakes') return `${values?.count} mistakes`

@@ -7,7 +7,7 @@ import { DEPTH_BUTTON_COLORS } from '@/components/ui/depth-surface'
 import type { CellMarkerColor, GameConfig, GameMode, GameSelectionState, LockedCellGroup, PlacedTetromino } from '@/game/gameConfig'
 import { CLASSIC_VERIFICATION_EFFECT } from '@/game/gameConfig'
 import { isTetrominoShape } from '@/game/tetrominoes'
-import { clearGameSelection, loadGameSelection, saveGameSelection } from '@/lib/db'
+import { clearGameSelection, loadGameSelection, saveClassicGameDefinition, saveGameSelection, type ClassicGameDefinition } from '@/lib/db'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/components/toast'
 import { LOCKED_CELL_COLOR_HEX } from '@/rendering/colors'
@@ -28,6 +28,8 @@ interface GameGridProps {
   lockButtonId?: string
   verifyButtonId?: string
   config: GameConfig
+  /** The immutable original board, persisted only when the player explicitly saves. */
+  gameDefinition?: ClassicGameDefinition
   gameId: string
   gameMode: GameMode
   onElapsedSecondsChange: (elapsedSeconds: number) => void
@@ -251,7 +253,10 @@ export function GameGrid(props: GameGridProps) {
         setGameGridScreenshot(screenshot)
         setSavedAt(nextSavedAt)
         savedSelectionRef.current = savedSelection
-        await queuePersistence(() => saveGameSelection(props.gameMode, props.gameId, savedSelection))
+        await queuePersistence(async () => {
+          if (props.gameDefinition) await saveClassicGameDefinition(props.gameDefinition)
+          await saveGameSelection(props.gameMode, props.gameId, savedSelection)
+        })
       } else if (savedSelectionRef.current) {
         await queuePersistence(() => saveGameSelection(props.gameMode, props.gameId, savedSelectionRef.current!))
       } else {
