@@ -3,7 +3,7 @@ import { ArrowLeft, List, Route } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { AppNavigationButton } from '@/components/ui/app-navigation-button'
 import { Button } from '@/components/ui/button'
-import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
+// import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
 import { ClassicShapesDialog } from './ClassicShapesDialog'
 
 interface ClassicMenuLayoutProps {
