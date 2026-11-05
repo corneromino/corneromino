@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { Dialog as DialogPrimitive } from 'radix-ui'
+import { DepthSurface } from './depth-surface'
 import { cn } from '@/lib/utils'
 
 const Dialog = DialogPrimitive.Root
@@ -9,15 +10,18 @@ function DialogContent({ children, className, ...props }: React.ComponentProps<t
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="dialog-overlay fixed inset-0 z-50 bg-[#15100e]/60" />
-      <DialogPrimitive.Content
+      <DepthSurface
         {...props}
+        as={DialogPrimitive.Content}
+        depth={8}
+        shadowColor="#b95c2e"
         className={cn(
-          'dialog-content ios-surface fixed top-1/2 left-1/2 z-50 w-[calc(100%-2.5rem)] max-w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-lg outline-none',
+          'dialog-content fixed top-1/2 left-1/2 z-50 w-[calc(100%-2.5rem)] max-w-[340px] -translate-x-1/2 -translate-y-1/2 outline-none',
           className,
         )}
       >
         <div className="dialog-content-surface">{children}</div>
-      </DialogPrimitive.Content>
+      </DepthSurface>
     </DialogPrimitive.Portal>
   )
 }

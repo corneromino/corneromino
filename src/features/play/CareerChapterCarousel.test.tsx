@@ -6,7 +6,7 @@ import { I18nextProvider } from 'react-i18next'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import en from '@/locales/en.js'
 import { CareerChapterCarousel } from './CareerChapterCarousel'
-import { chapters } from './careerChapters'
+import { CAREER_PATH_DASH_GAP_PX, CAREER_PATH_DASH_LENGTH_PX, CAREER_PATH_THICKNESS_PX, chapters } from './careerChapters'
 
 const i18n = createInstance()
 void i18n.init({ lng: 'en', initAsync: false, resources: { en: { translation: en } } })
@@ -71,6 +71,10 @@ it('presents four ordered level cards in one accessible chapter at a time', () =
   expect(cards).toHaveLength(4)
   expect(cards.map((card) => card.getAttribute('aria-label'))).toEqual(['Level 1', 'Level 2', 'Level 3', 'Level 4'])
   expect(cards.map((card) => card.textContent)).toEqual(['1', '2', '3', '4'])
+  const path = document.querySelector('path')
+  expect(path?.getAttribute('stroke-width')).toBe(String(CAREER_PATH_THICKNESS_PX))
+  expect(path?.getAttribute('stroke-dasharray')).toBe(`${CAREER_PATH_DASH_LENGTH_PX} ${CAREER_PATH_DASH_GAP_PX}`)
+  expect(path?.getAttribute('d')).toContain(' C ')
   expect(screen.queryByRole('button')).toBeNull()
 })
 
@@ -104,6 +108,28 @@ it('keeps the current chapter on taps, short drags, vertical gestures, and cance
   swipe(viewport, -150, 0, true)
   expect(screen.getByRole('heading').textContent).toContain('The Beginning')
   expect(captures.size).toBe(0)
+})
+
+it('releases a stale mobile touch capture when its terminal event reaches the window', () => {
+  const viewport = setup()
+  fireEvent.pointerDown(viewport, { clientX: 180, clientY: 200, button: 0, pointerId: 7, isPrimary: true })
+  fireEvent.pointerMove(viewport, { clientX: 60, clientY: 200, pointerId: 7 })
+  expect(captures.has(7)).toBe(true)
+
+  window.dispatchEvent(new PointerEvent('pointerup', { clientX: 60, clientY: 200, pointerId: 7 }))
+
+  expect(captures.has(7)).toBe(false)
+  expect(screen.getByRole('heading').textContent).toContain('The Beginning')
+})
+
+it('recovers a missing mobile terminal event before the next primary touch begins', () => {
+  const viewport = setup()
+  fireEvent.pointerDown(viewport, { clientX: 180, clientY: 200, button: 0, pointerId: 7, isPrimary: true })
+  expect(captures.has(7)).toBe(true)
+
+  window.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 8, isPrimary: true }))
+
+  expect(captures.has(7)).toBe(false)
 })
 
 it('supports keyboard navigation and preserves the current chapter on resize', () => {

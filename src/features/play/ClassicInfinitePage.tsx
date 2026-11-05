@@ -13,7 +13,7 @@ import type { ClassicInfiniteCellExit } from './classicInfiniteCellExit'
 import { CLASSIC_INFINITE_EXIT_DISTORTION } from './classicInfiniteEffects'
 
 const BOARD_CONFIG = { ...CLASSIC_INFINITE_CONFIG, rows: CLASSIC_INFINITE_CONFIG.rows * 2 }
-const PAUSE_BUTTON_CLASS = 'cartoon-press h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase'
+const PAUSE_BUTTON_CLASS = 'h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase'
 const ignoreElapsedSecondsChange = (_elapsedSeconds: number) => undefined
 const ignoreMoveCountChange = (_moveCount: number) => undefined
 const INITIAL_HEALTH = 1
@@ -122,16 +122,16 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <h1 className="poster-title text-[33px] leading-none">{t('classic.title')}</h1>
-            <Button aria-label={t('classic.shapesTitle')} className="h-auto min-w-0 border-0 bg-transparent p-0 text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40 font-black shadow-none hover:opacity-70 focus-visible:opacity-100" onClick={() => setShapesOpen(true)} size="icon" title={t('classic.shapesTitle')} type="button">?</Button>
+            <Button aria-label={t('classic.shapesTitle')} className="h-auto min-w-0 border-0 bg-transparent p-0 text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40 font-black shadow-none hover:opacity-70 focus-visible:opacity-100" onClick={() => setShapesOpen(true)} size="icon" title={t('classic.shapesTitle')} type="button" variant="ghost">?</Button>
           </div>
-          <Button aria-label={t('common.pause')} className="cartoon-press size-10 shrink-0 text-[var(--canvas-foreground)]" onClick={pause} size="icon" title={t('common.pause')} type="button"><Pause aria-hidden="true" /></Button>
+          <Button aria-label={t('common.pause')} className="size-10 shrink-0 text-[var(--canvas-foreground)]" onClick={pause} size="icon" title={t('common.pause')} type="button"><Pause aria-hidden="true" /></Button>
         </div>
         <ClassicInfiniteHealthBar fullBarAnimationKey={healthAnimationKey} redSquareCount={health} totalSquareCount={CLASSIC_INFINITE_HEALTH_SQUARE_COUNT} />
       </header>
       {generationFailed && (
         <div className="mx-auto mb-3 flex max-w-[550px] items-center gap-3 px-5">
           <p className="text-[11px] text-[var(--coral)]" role="alert">{t('classic.infiniteGenerationFailed')}</p>
-          <Button className="cartoon-press" onClick={onRestart} type="button">{t('common.restart')}</Button>
+          <Button className="" onClick={onRestart} type="button">{t('common.restart')}</Button>
         </div>
       )}
       <div className="relative min-h-0 flex-1">

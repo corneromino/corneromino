@@ -86,11 +86,12 @@ function GameSession(props: GameSessionProps) {
               size="icon"
               title={t('classic.shapesTitle')}
               type="button"
+              variant="ghost"
             >?</Button>
           </div>
           <Button
             aria-label={`${t('common.pause')} ${t('classic.title')}`}
-            className="cartoon-press size-10 shrink-0 text-[var(--canvas-foreground)]"
+            className="size-10 shrink-0 text-[var(--canvas-foreground)]"
             onClick={() => setPauseOpen(true)}
             size="icon"
             title={t('common.pause')}

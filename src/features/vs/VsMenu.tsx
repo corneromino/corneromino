@@ -29,13 +29,13 @@ export function VsMenu() {
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{t('mainMenu.title')}</p>
           <h1 className="poster-title mt-2 text-[40px] leading-none">VS</h1>
         </div>
-        <AppNavigationButton aria-label={t('common.backToMainMenu')} className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
+        <AppNavigationButton aria-label={t('common.backToMainMenu')} className="size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
       </header>
       <section aria-label={t('versus.gameType')} className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain px-1 pb-1">
-        <Button className="cartoon-press h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase" onClick={() => setLocalSetupOpen(true)} size="lg" type="button">
+        <Button className="h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase" onClick={() => setLocalSetupOpen(true)} size="lg" type="button">
           <Users aria-hidden="true" /> {t('versus.local')}
         </Button>
-        <Button className="cartoon-press h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase" disabled size="lg" type="button">
+        <Button className="h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase" disabled size="lg" type="button">
           <Wifi aria-hidden="true" /> {t('versus.online')}
         </Button>
       </section>

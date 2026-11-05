@@ -197,7 +197,7 @@ export function Cascade(props: { startNew?: boolean }) {
         </div>
         <Button
           aria-label={`${t('common.pause')} ${t('cascade.title')}`}
-          className="cartoon-press size-10 text-[var(--canvas-foreground)]"
+          className="size-10 text-[var(--canvas-foreground)]"
           disabled={initialState === undefined}
           onClick={pauseGame}
           onPointerUp={handlePausePointerUp}

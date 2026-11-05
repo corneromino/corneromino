@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { DEPTH_BUTTON_COLORS } from '@/components/ui/depth-surface'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { PixelTrophyIcon } from '@/features/cascade/PixelTrophyIcon'
 import { useTranslation } from 'react-i18next'
@@ -38,7 +39,8 @@ export function VsVictoryDialog({ onNewGame, onOpenChange, open, result }: VsVic
         </DialogHeader>
         <DialogFooter>
           <Button
-            className="cartoon-press cartoon-press--green text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase"
+            {...DEPTH_BUTTON_COLORS.green}
+            className="text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase"
             onClick={onNewGame}
             size="lg"
             type="button"
@@ -46,7 +48,7 @@ export function VsVictoryDialog({ onNewGame, onOpenChange, open, result }: VsVic
             {t('versusGame.newMatch')}
           </Button>
           <DialogClose asChild>
-            <Button className="cartoon-press text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">
+            <Button className="text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">
               {t('versusGame.viewBoard')}
             </Button>
           </DialogClose>

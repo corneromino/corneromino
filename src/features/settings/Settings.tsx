@@ -18,7 +18,7 @@ export function Settings() {
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{t('mainMenu.title')}</p>
           <h1 className="poster-title mt-2 text-[40px] leading-none">{t('common.settings')}</h1>
         </div>
-        <AppNavigationButton aria-label={t('common.backToMainMenu')} className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
+        <AppNavigationButton aria-label={t('common.backToMainMenu')} className="size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
       </header>
       <section aria-label={t('common.settings')} className="relative z-10 mx-auto flex w-full max-w-[550px] flex-1 items-start justify-center px-1 pb-1">
         <div className="w-full max-w-[430px]">
@@ -26,7 +26,7 @@ export function Settings() {
             <p className="poster-kicker text-[16px] text-[var(--canvas-foreground)]" id="language-label">{t('settings.language')}</p>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button aria-labelledby="language-label language-current" className="cartoon-press h-[48px] shrink-0 px-4 text-[12px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" type="button">
+                <Button aria-labelledby="language-label language-current" className="h-[48px] shrink-0 px-4 text-[12px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" type="button">
                   <span className="-translate-y-1 inline-flex items-center gap-2">
                     <span id="language-current">{currentLanguage}</span><ChevronDown aria-hidden="true" className="dropdown-menu-chevron" />
                   </span>

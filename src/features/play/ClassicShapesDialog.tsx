@@ -140,7 +140,7 @@ export function ClassicShapesDialog(props: ClassicShapesDialogProps) {
         </div>
         <DialogFooter className="shrink-0 grid-cols-1">
           <DialogClose asChild>
-            <Button className="cartoon-press  text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">
+            <Button className="text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">
               {t('common.close')}
             </Button>
           </DialogClose>

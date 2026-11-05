@@ -2,6 +2,7 @@ import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { DEPTH_BUTTON_COLORS } from '@/components/ui/depth-surface'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { VS_LOCAL_BOARD_SIZES, VS_LOCAL_DEFAULT_BOARD_SIZE, type VsLocalBoardSize } from './vsLocalConfig'
@@ -33,7 +34,7 @@ export function VsLocalSetupDialog(props: VsLocalSetupDialogProps) {
           <p className="poster-kicker text-[16px] text-[var(--canvas-foreground)]">{t('versusGame.mode')}</p>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button aria-label={t('versusGame.boardSize', { size: boardSize })} className="cartoon-press h-[48px] shrink-0 px-4 text-[12px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" type="button">
+              <Button aria-label={t('versusGame.boardSize', { size: boardSize })} className="h-[48px] shrink-0 px-4 text-[12px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" type="button">
                 <span className="-translate-y-1 inline-flex items-center gap-2">
                   {boardSize}×{boardSize}<ChevronDown aria-hidden="true" className="dropdown-menu-chevron" />
                 </span>
@@ -51,10 +52,10 @@ export function VsLocalSetupDialog(props: VsLocalSetupDialogProps) {
           </DropdownMenu>
         </div>
         <DialogFooter>
-          <Button className="cartoon-press cartoon-press--green  w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => onStart(boardSize)} size="lg" type="button">
+          <Button {...DEPTH_BUTTON_COLORS.green} className="w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => onStart(boardSize)} size="lg" type="button">
             {t('versusGame.start')}
           </Button>
-          <Button className="cartoon-press  w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={onContinue} size="lg" type="button">
+          <Button className="w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={onContinue} size="lg" type="button">
             {t('common.continue')}
           </Button>
         </DialogFooter>

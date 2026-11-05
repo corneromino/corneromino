@@ -33,14 +33,15 @@ export function ClassicMenuLayout({ children, menu }: ClassicMenuLayoutProps) {
               size="icon"
               title={t('classic.shapesTitle')}
               type="button"
+              variant="ghost"
             >?</Button>
           </div>
         </div>
         <div className="flex shrink-0 gap-2">
-          <AppNavigationButton aria-label={switchLabel} className="cartoon-press size-[42px] text-[var(--canvas-foreground)]" size="icon" title={switchLabel} to={switchTo}>
+          <AppNavigationButton aria-label={switchLabel} className="size-[42px] text-[var(--canvas-foreground)]" size="icon" title={switchLabel} to={switchTo}>
             {isCareer ? <List aria-hidden="true" /> : <Route aria-hidden="true" />}
           </AppNavigationButton>
-          <AppNavigationButton aria-label={t('common.backToMainMenu')} className="cartoon-press size-[42px] text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
+          <AppNavigationButton aria-label={t('common.backToMainMenu')} className="size-[42px] text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
         </div>
       </header>
       {children}

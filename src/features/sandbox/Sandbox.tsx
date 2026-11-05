@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DepthSurface } from '@/components/ui/depth-surface'
 import { AppNavigationButton } from '@/components/ui/app-navigation-button'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { deleteSandboxWorld, loadSandboxWorlds, saveSandboxWorld, type SavedSandboxWorld } from '@/lib/db'
@@ -30,7 +31,7 @@ export function SandboxWorldCard(props: {
   }, [props.world.screenshot])
 
   return (
-    <article className="saved-game-card ios-surface flex gap-3 p-2 text-[var(--canvas-foreground)]">
+    <DepthSurface as="article" className="flex gap-3 p-2 text-[var(--canvas-foreground)]" shadowColor="#b95c2e" style={{ paddingBottom: 'calc(0.5rem + var(--depth-size))' }}>
       {props.onSelect ? (
         <button className="flex min-w-0 flex-1 gap-3 text-left" onClick={() => props.onSelect?.(props.world)} type="button">
           {screenshotUrl &&
@@ -47,7 +48,7 @@ export function SandboxWorldCard(props: {
         </button>
       ) : (
         <>
-          <AppNavigationButton className="h-auto min-w-0 flex-1 items-start justify-start gap-3 p-0 text-left whitespace-normal" to={`/sandbox/${props.world.id}`}>
+          <AppNavigationButton className="h-auto min-w-0 flex-1 items-start justify-start gap-3 p-0 text-left whitespace-normal" to={`/sandbox/${props.world.id}`} variant="ghost">
             {screenshotUrl &&
               <img
                 alt={`Saved sandbox world: ${props.world.name}`}
@@ -64,7 +65,7 @@ export function SandboxWorldCard(props: {
             <div className="flex shrink-0 flex-col justify-end gap-2">
               {props.onRename && <Button
                 aria-label={`Rename ${props.world.name}`}
-                className="cartoon-press size-9 text-[var(--canvas-foreground)]"
+                className="size-9 text-[var(--canvas-foreground)]"
                 onClick={() => props.onRename?.(props.world)}
                 size="icon"
                 title="Rename world"
@@ -74,7 +75,7 @@ export function SandboxWorldCard(props: {
               </Button>}
               {props.onDelete && <Button
                 aria-label={`Delete ${props.world.name}`}
-                className="cartoon-press size-9 text-[var(--coral)]"
+                className="size-9 text-[var(--coral)]"
                 onClick={() => props.onDelete?.(props.world)}
                 size="icon"
                 title="Delete world"
@@ -86,7 +87,7 @@ export function SandboxWorldCard(props: {
           )}
         </>
       )}
-    </article>
+    </DepthSurface>
   )
 }
 
@@ -148,10 +149,10 @@ export function Sandbox() {
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{t('mainMenu.title')}</p>
           <h1 className="poster-title mt-2 text-[40px] leading-none">Sandbox</h1>
         </div>
-        <AppNavigationButton aria-label="Back to main menu" className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title="Back to main menu" to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
+        <AppNavigationButton aria-label="Back to main menu" className="size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title="Back to main menu" to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
       </header>
       <section aria-label="Sandbox worlds" className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col px-5">
-        <AppNavigationButton className="cartoon-press h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase" size="lg" to="/sandbox/new">New</AppNavigationButton>
+        <AppNavigationButton className="h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase" size="lg" to="/sandbox/new">New</AppNavigationButton>
         <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
           {loading && <p className="poster-kicker text-center text-[11px] text-[var(--muted-text-color)]">Loading worlds…</p>}
           {!loading && savedWorlds.length > 0 && (
@@ -185,11 +186,11 @@ export function Sandbox() {
           {renameError && <p className="mt-3 text-[11px] text-[var(--coral)]" role="alert">{renameError}</p>}
           <DialogFooter>
             <DialogClose asChild>
-              <Button className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">
+              <Button className="h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">
                 Cancel
               </Button>
             </DialogClose>
-            <Button className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={!worldName.trim()} onClick={() => void renameWorld()} size="lg" type="button">
+            <Button className="h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={!worldName.trim()} onClick={() => void renameWorld()} size="lg" type="button">
               Rename
             </Button>
           </DialogFooter>

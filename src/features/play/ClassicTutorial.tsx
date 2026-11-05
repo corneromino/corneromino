@@ -387,7 +387,7 @@ export function ClassicTutorial() {
             <h1 className="poster-title text-[33px] leading-none">{t('classic.title')}</h1>
             <span aria-hidden="true" className="mt-0.5 text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40">?</span>
           </div>
-          <Button aria-label={`${t('common.pause')} ${t('classic.title')}`} className="cartoon-press size-10 shrink-0 text-[var(--canvas-foreground)]" onClick={() => setPauseOpen(true)} size="icon" title={t('common.pause')} type="button">
+          <Button aria-label={`${t('common.pause')} ${t('classic.title')}`} className="size-10 shrink-0 text-[var(--canvas-foreground)]" onClick={() => setPauseOpen(true)} size="icon" title={t('common.pause')} type="button">
             <Pause aria-hidden="true" />
           </Button>
         </div>

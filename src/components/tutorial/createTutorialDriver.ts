@@ -26,11 +26,11 @@ const DEFAULT_LABELS: TutorialDriverLabels = {
 
 function styleButton(button: HTMLButtonElement, label: string, disabled: boolean) {
   const content = document.createElement('span')
-  content.className = 'button-press-content'
+  content.className = 'tutorial-depth-button-content'
   content.textContent = label
 
   button.replaceChildren(content)
-  button.classList.add('cartoon-press')
+  button.classList.add('tutorial-depth-button')
   button.classList.toggle('driver-popover-btn-disabled', disabled)
   button.style.removeProperty('display')
   button.disabled = disabled

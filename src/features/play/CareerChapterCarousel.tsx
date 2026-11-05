@@ -1,8 +1,8 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { animate, domAnimation, LazyMotion, m, useMotionValue, useReducedMotion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { CareerChapter } from './CareerChapter'
-import type { CareerChapter as Chapter } from './careerChapters'
+import { CAREER_PATH_DASH_GAP_PX, CAREER_PATH_DASH_LENGTH_PX, CAREER_PATH_THICKNESS_PX, type CareerChapter as Chapter } from './careerChapters'
 
 interface Gesture {
   pointerId: number
@@ -13,6 +13,44 @@ interface Gesture {
   axis: 'x' | 'y' | null
 }
 
+function createDecorativePath(chapterCount: number) {
+  const chapterWidth = 1_000
+  const height = 1_000
+  let seed = 0x6d2b79f5
+  const random = () => {
+    seed |= 0
+    seed = (seed + 0x6d2b79f5) | 0
+    let value = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value
+    return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296
+  }
+  const points = [{ x: -80, y: Math.round(220 + random() * 560) }]
+  let previousY = points[0].y
+  for (let index = 0; index < chapterCount; index += 1) {
+    // A bounded random walk keeps the decoration organic without producing
+    // steep climbs between neighbouring chapters.
+    previousY = Math.round(Math.max(160, Math.min(840, previousY + (random() - 0.5) * 360)))
+    points.push({ x: (index + 1) * chapterWidth, y: previousY })
+  }
+  points.push({ x: chapterCount * chapterWidth + 80, y: previousY })
+
+  const tangentStrength = 0.6
+  let path = `M ${points[0].x} ${points[0].y}`
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const previous = points[Math.max(0, index - 1)]
+    const start = points[index]
+    const end = points[index + 1]
+    const next = points[Math.min(points.length - 1, index + 2)]
+    const control1X = start.x + (end.x - previous.x) * tangentStrength / 6
+    const control1Y = start.y + (end.y - previous.y) * tangentStrength / 6
+    const control2X = end.x - (next.x - start.x) * tangentStrength / 6
+    const control2Y = end.y - (next.y - start.y) * tangentStrength / 6
+    path += ` C ${control1X} ${control1Y}, ${control2X} ${control2Y}, ${end.x} ${end.y}`
+  }
+
+  return { height, path, width: chapterCount * chapterWidth }
+}
+
 export function CareerChapterCarousel({ chapters }: { chapters: readonly Chapter[] }) {
   const { t } = useTranslation()
   const [index, setIndex] = useState(0)
@@ -20,11 +58,12 @@ export function CareerChapterCarousel({ chapters }: { chapters: readonly Chapter
   const viewportRef = useRef<HTMLDivElement>(null)
   const widthRef = useRef(0)
   const gestureRef = useRef<Gesture | null>(null)
+  const ignoredPointerIdRef = useRef<number | null>(null)
   const animationRef = useRef<ReturnType<typeof animate> | null>(null)
   const helpId = useId()
   const x = useMotionValue(0)
   const reduceMotion = useReducedMotion()
-
+  const decorativePath = useMemo(() => createDecorativePath(chapters.length), [chapters.length])
   useEffect(() => {
     const viewport = viewportRef.current
     if (!viewport) return
@@ -47,6 +86,43 @@ export function CareerChapterCarousel({ chapters }: { chapters: readonly Chapter
     }
   }, [x])
 
+  useEffect(() => {
+    // Chrome on mobile can occasionally deliver a terminal touch event outside
+    // React's carousel handler after a drag. Without this fallback, pointer
+    // capture survives until the next tap, swallowing that tap's target.
+    function recoverStaleCapture() {
+      const gesture = gestureRef.current
+      const viewport = viewportRef.current
+      if (!gesture || !viewport) return false
+      gestureRef.current = null
+      if (viewport.hasPointerCapture(gesture.pointerId)) viewport.releasePointerCapture(gesture.pointerId)
+      goToChapter(indexRef.current)
+      return true
+    }
+
+    function handleTerminalEvent(event: globalThis.PointerEvent) {
+      const gesture = gestureRef.current
+      if (gesture?.pointerId === event.pointerId) recoverStaleCapture()
+    }
+
+    function handleNewPointer(event: globalThis.PointerEvent) {
+      if (!event.isPrimary || !recoverStaleCapture()) return
+      // If Chrome delivered this new tap to the stale capture target, do not
+      // start another carousel gesture from it. Its later click can then reach
+      // the actual button below the pointer.
+      if (event.composedPath().includes(viewportRef.current!)) ignoredPointerIdRef.current = event.pointerId
+    }
+
+    window.addEventListener('pointerdown', handleNewPointer, true)
+    window.addEventListener('pointerup', handleTerminalEvent)
+    window.addEventListener('pointercancel', handleTerminalEvent)
+    return () => {
+      window.removeEventListener('pointerdown', handleNewPointer, true)
+      window.removeEventListener('pointerup', handleTerminalEvent)
+      window.removeEventListener('pointercancel', handleTerminalEvent)
+    }
+  }, [reduceMotion, x])
+
   function goToChapter(next: number) {
     const target = Math.max(0, Math.min(chapters.length - 1, next))
     indexRef.current = target
@@ -58,6 +134,10 @@ export function CareerChapterCarousel({ chapters }: { chapters: readonly Chapter
   }
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (ignoredPointerIdRef.current === event.pointerId) {
+      ignoredPointerIdRef.current = null
+      return
+    }
     if (!event.isPrimary || event.button !== 0 || gestureRef.current || widthRef.current === 0) return
     animationRef.current?.stop()
     gestureRef.current = {
@@ -118,7 +198,7 @@ export function CareerChapterCarousel({ chapters }: { chapters: readonly Chapter
         aria-describedby={helpId}
         aria-label={t('classic.career')}
         aria-roledescription={t('career.carousel')}
-        className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 touch-pan-y overflow-hidden select-none cursor-grab [-webkit-tap-highlight-color:transparent] active:cursor-grabbing focus-visible:rounded-[var(--ios-radius)] focus-visible:outline-2 focus-visible:outline-[var(--outline-color)] focus-visible:outline-offset-[-2px]"
+        className="relative z-10 -mx-5 flex min-h-0 w-[calc(100%+2.5rem)] flex-1 touch-pan-y overflow-hidden select-none cursor-grab [-webkit-tap-highlight-color:transparent] active:cursor-grabbing focus-visible:rounded-[var(--ios-radius)] focus-visible:outline-2 focus-visible:outline-[var(--outline-color)] focus-visible:outline-offset-[-2px]"
         onKeyDown={handleKeyDown}
         onLostPointerCapture={handlePointerCancel}
         onPointerCancel={handlePointerCancel}
@@ -130,9 +210,26 @@ export function CareerChapterCarousel({ chapters }: { chapters: readonly Chapter
         tabIndex={0}
       >
         <p className="sr-only" id={helpId}>{t('career.navigationHint')}</p>
-        <m.div className="flex size-full" style={{ x }}>
+        <m.div className="relative flex h-full shrink-0" style={{ width: `${chapters.length * 100}%`, x }}>
+          <svg
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-0 size-full overflow-hidden"
+            focusable="false"
+            preserveAspectRatio="none"
+            viewBox={`0 0 ${decorativePath.width} ${decorativePath.height}`}
+          >
+            <path
+              d={decorativePath.path}
+              fill="none"
+              stroke="var(--outline-color)"
+              strokeDasharray={`${CAREER_PATH_DASH_LENGTH_PX} ${CAREER_PATH_DASH_GAP_PX}`}
+              strokeLinecap="round"
+              strokeWidth={CAREER_PATH_THICKNESS_PX}
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
           {chapters.map((chapter, chapterIndex) => (
-            <div aria-hidden={chapterIndex !== index} className="h-full min-w-0 basis-full shrink-0" inert={chapterIndex !== index} key={chapter.id}>
+            <div aria-hidden={chapterIndex !== index} className="relative z-10 h-full min-w-0 shrink-0" inert={chapterIndex !== index} key={chapter.id} style={{ width: `${100 / chapters.length}%` }}>
               <CareerChapter chapter={chapter} number={chapterIndex + 1} startLevel={chapterIndex * 4 + 1} />
             </div>
           ))}

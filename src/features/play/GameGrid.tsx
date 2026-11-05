@@ -3,6 +3,7 @@ import { Check, Eraser, Lock, Pencil, RotateCcw, Unlock } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { DEPTH_BUTTON_COLORS } from '@/components/ui/depth-surface'
 import type { CellMarkerColor, GameConfig, GameMode, GameSelectionState, LockedCellGroup, PlacedTetromino } from '@/game/gameConfig'
 import { CLASSIC_VERIFICATION_EFFECT } from '@/game/gameConfig'
 import { isTetrominoShape } from '@/game/tetrominoes'
@@ -674,7 +675,7 @@ export function GameGrid(props: GameGridProps) {
       {!props.config.hideGameControls && <div className="mx-auto flex w-full max-w-[550px] shrink-0 flex-nowrap justify-center gap-1 sm:gap-2">
         <Button
           aria-label={t('common.restart')}
-          className="cartoon-press text-[var(--canvas-foreground)]"
+          className="text-[var(--canvas-foreground)]"
           disabled={!selectionLoaded || isExiting}
           onClick={restartFromPause}
           size="icon-lg"
@@ -685,7 +686,7 @@ export function GameGrid(props: GameGridProps) {
         </Button>
         <Button
           aria-label="Deselect all cells"
-          className="cartoon-press text-[var(--canvas-foreground)]"
+          className="text-[var(--canvas-foreground)]"
           disabled={!!verification || (selectedCellKeys.size === 0 && !selectedLockedGroupId)}
           onClick={clearSelectedCells}
           size="icon-lg"
@@ -697,11 +698,11 @@ export function GameGrid(props: GameGridProps) {
         <Button
           aria-label="Take notes"
           disabled={!!verification}
-          aria-pressed={markerMode}
-          className={cn(
-            'cartoon-press text-[var(--canvas-foreground)]',
-            markerMode && '!bg-[var(--yellow)]',
-          )}
+            aria-pressed={markerMode}
+            className={cn(
+              'text-[var(--canvas-foreground)]',
+            )}
+            color={markerMode ? 'var(--yellow)' : undefined}
           onClick={() => setMarkerMode((active) => !active)}
           size="icon-lg"
           title="Take notes"
@@ -711,7 +712,7 @@ export function GameGrid(props: GameGridProps) {
         </Button>
         {!autoLock && <Button
           aria-label="Lock four selected cells"
-          className="cartoon-press text-[var(--mint)]"
+          className="text-[var(--mint)]"
           disabled={!!verification || !canLockSelectedCells}
           id={props.lockButtonId}
           onClick={lockSelectedCells}
@@ -723,7 +724,8 @@ export function GameGrid(props: GameGridProps) {
         </Button>}
         {!autoLock && <Button
           aria-label="Unlock selected cells"
-          className="cartoon-press [--element-color:var(--paper-muted)] text-[var(--canvas-foreground)]"
+          className="text-[var(--canvas-foreground)]"
+          color="var(--paper-muted)"
           disabled={!!verification || !selectedLockedGroupId}
           onClick={unlockSelectedCells}
           size="icon-lg"
@@ -733,12 +735,12 @@ export function GameGrid(props: GameGridProps) {
           <Unlock aria-hidden="true" />
         </Button>}
         {!props.scrolling && <div className="relative shrink-0">
-          {/* The badge lives outside the button: .cartoon-press clips its own children. */}
+          {/* The badge lives outside the button: .clips its own children. */}
           <Button
+            {...(validationResult?.isCorrect ? DEPTH_BUTTON_COLORS.green : validationResult ? DEPTH_BUTTON_COLORS.red : DEPTH_BUTTON_COLORS.blue)}
             aria-label={verificationLabel}
             className={cn(
-              'cartoon-press text-[var(--canvas-foreground)]',
-              validationResult?.isCorrect ? 'cartoon-press--green' : validationResult ? 'cartoon-press--red' : 'cartoon-press--blue',
+              'text-[var(--canvas-foreground)]',
             )}
             disabled={!canValidate || !!verification || isGameplayPaused || isExiting}
             id={props.verifyButtonId}

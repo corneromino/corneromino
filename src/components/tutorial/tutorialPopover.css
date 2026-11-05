@@ -50,7 +50,10 @@
   gap: 8px;
 }
 
-.driver-popover.game-tutorial .cartoon-press {
+.driver-popover.game-tutorial .tutorial-depth-button {
+  --tutorial-depth-size: 6px;
+  --tutorial-depth-color: var(--paper);
+  --tutorial-depth-shadow: #b95c2e;
   box-sizing: border-box;
   overflow: hidden;
   pointer-events: auto;
@@ -62,9 +65,11 @@
   width: 100%;
   height: 36px;
   margin: 0;
-  padding: 0 4px var(--press-shadow-depth);
+  padding: 0 4px var(--tutorial-depth-size);
+  border: var(--outline-width) solid #713324;
   border-radius: var(--ios-radius);
-  background-color: var(--press-face);
+  background-color: var(--tutorial-depth-color);
+  box-shadow: inset 0 calc(var(--tutorial-depth-size) * -1) 0 var(--tutorial-depth-shadow), 0 0 0 1px rgb(21 16 14 / 8%);
   color: var(--canvas-foreground);
   font-family: inherit;
   font-size: 10px;
@@ -75,33 +80,61 @@
   text-align: center;
 }
 
-.driver-popover.game-tutorial .cartoon-press:disabled {
-  --press-face: #c7c2ba;
-  --press-shadow: #8a8178;
+.driver-popover.game-tutorial .tutorial-depth-button::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: var(--tutorial-depth-size);
+  pointer-events: none;
+  content: '';
+  background: var(--tutorial-depth-shadow);
+  transform-origin: bottom;
+  transition: transform 80ms ease;
+}
+
+.driver-popover.game-tutorial .tutorial-depth-button-content {
+  position: relative;
+  z-index: 1;
+  transition: transform 80ms ease;
+}
+
+.driver-popover.game-tutorial .tutorial-depth-button:disabled {
+  --tutorial-depth-color: #c7c2ba;
+  --tutorial-depth-shadow: #8a8178;
   color: #625c55;
   opacity: 1;
   cursor: default;
   pointer-events: none;
 }
 
-.driver-popover.game-tutorial .cartoon-press:focus-visible {
+.driver-popover.game-tutorial .tutorial-depth-button:focus-visible {
   outline: var(--outline-width) solid var(--outline-color);
   outline-offset: 3px;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .driver-popover.game-tutorial .cartoon-press:hover:not(:disabled) {
-    background-color: var(--press-face-hover);
+  .driver-popover.game-tutorial .tutorial-depth-button:hover:not(:disabled) {
+    background-color: #ffe0a4;
   }
 }
 
-.driver-popover.game-tutorial .cartoon-press:active:not(:disabled) {
-  background-color: var(--press-face-active);
+.driver-popover.game-tutorial .tutorial-depth-button:active:not(:disabled) {
+  background-color: #e49a50;
+  box-shadow: inset 0 -1px 0 var(--tutorial-depth-shadow), 0 0 0 1px rgb(21 16 14 / 8%);
+}
+
+.driver-popover.game-tutorial .tutorial-depth-button:active:not(:disabled)::after {
+  transform: scaleY(0.166667);
+}
+
+.driver-popover.game-tutorial .tutorial-depth-button:active:not(:disabled) .tutorial-depth-button-content {
+  transform: translateY(calc(var(--tutorial-depth-size) / 2));
 }
 
 @supports (corner-shape: superellipse(1.5)) {
   .driver-popover.game-tutorial,
-  .driver-popover.game-tutorial .cartoon-press {
+  .driver-popover.game-tutorial .tutorial-depth-button {
     corner-shape: superellipse(1.5);
   }
 }

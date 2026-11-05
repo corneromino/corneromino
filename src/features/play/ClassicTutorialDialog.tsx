@@ -174,10 +174,10 @@ function TutorialPieceExample(props: TutorialPieceExampleProps) {
       </div>
       {lockInstruction && <p className="mt-3">{lockInstruction}</p>}
       <div className="mx-auto mt-3 flex w-fit gap-2">
-        <Button aria-label="Lock four selected cells" className="cartoon-press size-[44px] text-[var(--mint)]" disabled={!canLockSelection} onClick={lockSelection} size="icon" title="Lock four selected cells" type="button">
+        <Button aria-label="Lock four selected cells" className="size-[44px] text-[var(--mint)]" disabled={!canLockSelection} onClick={lockSelection} size="icon" title="Lock four selected cells" type="button">
           <Lock aria-hidden="true" />
         </Button>
-        <Button aria-label="Unlock selected cells" className="cartoon-press size-[44px] [--element-color:var(--paper-muted)] text-[var(--canvas-foreground)]" disabled={lockedCellGroups.length === 0} onClick={unlockSelection} size="icon" title="Unlock selected cells" type="button">
+        <Button aria-label="Unlock selected cells" className="size-[44px] text-[var(--canvas-foreground)]" color="var(--paper-muted)" disabled={lockedCellGroups.length === 0} onClick={unlockSelection} size="icon" title="Unlock selected cells" type="button">
           <Unlock aria-hidden="true" />
         </Button>
       </div>
@@ -245,10 +245,10 @@ export function ClassicTutorialDialog(props: ClassicTutorialDialogProps) {
         </div>
         <DialogFooter className="grid-cols-3">
           <DialogClose asChild>
-            <Button className="cartoon-press  w-full text-[10px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">Skip</Button>
+            <Button className="w-full text-[10px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">Skip</Button>
           </DialogClose>
-          <Button className="cartoon-press  w-full text-[10px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase" disabled={!previousPage} onClick={() => showPage(previousPage)} size="lg" type="button">Previous</Button>
-          <Button className="cartoon-press  w-full text-[10px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase" disabled={!nextPage} onClick={() => showPage(nextPage)} size="lg" type="button">Next</Button>
+          <Button className="w-full text-[10px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase" disabled={!previousPage} onClick={() => showPage(previousPage)} size="lg" type="button">Previous</Button>
+          <Button className="w-full text-[10px] font-black tracking-[0.08em] text-[var(--canvas-foreground)] uppercase" disabled={!nextPage} onClick={() => showPage(nextPage)} size="lg" type="button">Next</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

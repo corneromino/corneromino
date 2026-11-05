@@ -25,10 +25,11 @@ export function MainMenu() {
           size="icon"
           title={t('tutorial.open')}
           to="/play/tutorial"
+          variant="ghost"
         >
           ?
         </AppNavigationButton>
-        <AppNavigationButton aria-label={t('common.settings')} className="cartoon-press size-10 text-[var(--canvas-foreground)]" size="icon" title={t('common.settings')} to="/settings"><Settings aria-hidden="true" /></AppNavigationButton>
+        <AppNavigationButton aria-label={t('common.settings')} className="size-10 text-[var(--canvas-foreground)]" size="icon" title={t('common.settings')} to="/settings"><Settings aria-hidden="true" /></AppNavigationButton>
       </div>
       <div className="menu-scroll">
         <section className={cn("menu-content mx-auto flex w-full max-w-[430px] flex-col items-center")}>
@@ -37,7 +38,7 @@ export function MainMenu() {
             {t('mainMenu.title')}
           </h1>
           <AppNavigationButton
-            className="cartoon-press classic-menu-button w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
+            className="classic-menu-button w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
             size="lg"
             to="/play/levels"
           >
@@ -45,7 +46,7 @@ export function MainMenu() {
             <img alt="" aria-hidden="true" className="classic-menu-graphic -rotate-12 scale-125" src={classicGraphic} />
           </AppNavigationButton>
           <AppNavigationButton
-            className="cartoon-press cascade-menu-button w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
+            className="cascade-menu-button w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
             size="lg"
             to="/cascade"
           >
@@ -53,7 +54,7 @@ export function MainMenu() {
             <img alt="" aria-hidden="true" className="cascade-menu-graphic -rotate-12 scale-125" src={cascadeGraphic} />
           </AppNavigationButton>
           <AppNavigationButton
-            className="cartoon-press vs-menu-button w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
+            className="vs-menu-button w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
             size="lg"
             to="/vs"
           >

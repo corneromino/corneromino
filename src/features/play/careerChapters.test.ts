@@ -10,6 +10,7 @@ describe('career chapter layout', () => {
       rotation: 1,
       levelOrder: ['d', 'c', 'b', 'a'],
       colors: { a: 'red', b: 'green', c: 'blue', d: 'yellow' },
+      backgroundColor: 'black',
     }
     expect(getCareerChapterLayout(chapter)).toEqual({
       columns: 3,

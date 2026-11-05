@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Check } from 'lucide-react'
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui'
+import { DepthSurface } from './depth-surface'
 import { cn } from '@/lib/utils'
 
 const DropdownMenu = DropdownMenuPrimitive.Root
@@ -10,14 +11,18 @@ function DropdownMenuTrigger(props: React.ComponentProps<typeof DropdownMenuPrim
   return <DropdownMenuPrimitive.Trigger {...props} className={cn('dropdown-menu-trigger', props.className)} />
 }
 
-function DropdownMenuContent(props: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+function DropdownMenuContent({ className, style, ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
   return (
     <DropdownMenuPrimitive.Portal>
-      <DropdownMenuPrimitive.Content
+      <DepthSurface
         collisionPadding={12}
+        as={DropdownMenuPrimitive.Content}
+        depth={6}
+        shadowColor="#b95c2e"
         sideOffset={8}
         {...props}
-        className={cn('dropdown-menu-content ios-surface', props.className)}
+        className={cn('dropdown-menu-content !block', className)}
+        style={{ paddingBottom: 'calc(5px + var(--depth-size))', ...style }}
       />
     </DropdownMenuPrimitive.Portal>
   )

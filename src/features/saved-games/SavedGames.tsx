@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppNavigationButton } from '@/components/ui/app-navigation-button'
 import { Button } from '@/components/ui/button'
+import { DepthSurface } from '@/components/ui/depth-surface'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { GAME_CONFIGS, isGameMode } from '@/game/gameConfig'
 import { deleteSavedGame, type SavedGame, loadSavedGames } from '@/lib/db'
@@ -46,7 +47,7 @@ function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => 
   }, [props.game.screenshot])
 
   return (
-    <article className="saved-game-card ios-surface flex gap-3 p-2 text-[var(--canvas-foreground)]">
+    <DepthSurface as="article" className="flex gap-3 p-2 text-[var(--canvas-foreground)]" shadowColor="#b95c2e" style={{ paddingBottom: 'calc(0.5rem + var(--depth-size))' }}>
       <AppNavigationButton
         aria-label={t('savedGames.continueSavedGame', { date: savedAt, mode: gameMode })}
         className="h-auto shrink-0 self-start p-0 hover:bg-transparent"
@@ -70,7 +71,7 @@ function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => 
           </AppNavigationButton>
           <Button
             aria-label={t('savedGames.copySeedForGame', { mode: gameMode })}
-            className="cartoon-press size-9 shrink-0 text-[var(--canvas-foreground)]"
+            className="size-9 shrink-0 text-[var(--canvas-foreground)]"
             onClick={copySeed}
             size="icon"
             title={t('savedGames.copySeed')}
@@ -80,7 +81,7 @@ function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => 
           </Button>
           <Button
             aria-label={t('savedGames.deleteSavedGame', { mode: gameMode })}
-            className="cartoon-press size-9 shrink-0 text-[var(--coral)]"
+            className="size-9 shrink-0 text-[var(--coral)]"
             onClick={() => setDeleteDialogOpen(true)}
             size="icon"
             title={t('savedGames.deleteSavedGame', { mode: gameMode })}
@@ -98,17 +99,17 @@ function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => 
           </DialogHeader>
           <DialogFooter>
             <DialogClose asChild>
-              <Button className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">
+              <Button className="h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">
                 {t('common.cancel')}
               </Button>
             </DialogClose>
-            <Button className="cartoon-press h-[42px] !bg-[var(--coral)] text-[11px] font-black tracking-[0.1em] !text-[var(--paper)] uppercase" onClick={deleteGame} size="lg" type="button">
+            <Button className="h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--paper)] uppercase" color="var(--coral)" onClick={deleteGame} size="lg" type="button">
               {t('common.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </article>
+    </DepthSurface>
   )
 }
 
@@ -162,10 +163,10 @@ export function SavedGames() {
             <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{t('mainMenu.title')}</p>
             <h1 className="poster-title mt-2 whitespace-nowrap text-[33px] leading-none">{t('savedGames.title')}</h1>
           </div>
-          <AppNavigationButton aria-label={t('savedGames.backToClassic')} className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('savedGames.backToClassic')} to="/play/modes"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
+          <AppNavigationButton aria-label={t('savedGames.backToClassic')} className="size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('savedGames.backToClassic')} to="/play/modes"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
         </div>
 
-        <Button className="cartoon-press mt-6 h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => setLoadDialogOpen(true)} size="sm" type="button">
+        <Button className="mt-6 h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={() => setLoadDialogOpen(true)} size="sm" type="button">
           {t('savedGames.loadGame')}
         </Button>
 
@@ -204,11 +205,11 @@ export function SavedGames() {
             </div>
             <DialogFooter className="shrink-0">
               <DialogClose asChild>
-                <Button className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">
+                <Button className="h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">
                   {t('common.cancel')}
                 </Button>
               </DialogClose>
-              <Button className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={!seedToLoad.trim()} onClick={loadGame} size="lg" type="button">
+              <Button className="h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={!seedToLoad.trim()} onClick={loadGame} size="lg" type="button">
                 {t('common.load')}
               </Button>
             </DialogFooter>

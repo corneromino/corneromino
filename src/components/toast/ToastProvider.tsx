@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { DepthButton } from '@/components/ui/depth-surface'
 import { cn } from '@/lib/utils'
 import { TOAST_DURATION_MS, TOAST_MAX_VISIBLE, TOAST_POSITION, ToastContext, type ToastOptions, type ToastSize, type ToastVariant } from './toastContext'
 
 export { TOAST_DURATION_MS, TOAST_MAX_VISIBLE, TOAST_POSITION, useToast } from './toastContext'
+
+const MotionDepthButton = motion.create(DepthButton)
 
 interface Toast extends Omit<ToastOptions, 'durationMs' | 'size' | 'variant'> {
   durationMs: number
@@ -70,22 +73,24 @@ function ToastItem({ dismiss, toast }: { dismiss: (id: number) => void; toast: T
   }, [scheduleDismiss])
 
   return (
-    <motion.button
+    <MotionDepthButton
       aria-label={toast.text ?? (typeof toast.message === 'string' ? toast.message : 'Dismiss notification')}
+      borderColor={toast.variant === 'success' ? 'var(--mint)' : toast.variant === 'error' ? 'var(--coral)' : 'var(--outline-color)'}
       className={cn(
-        'pointer-events-auto ios-surface w-full border-2 text-center font-black shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
+        'pointer-events-auto w-full text-center font-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
         // size
         toast.size === 'small' && 'px-3 py-2 text-[12px]',
         toast.size === 'large' && 'px-5 py-4 text-[30px]',
         toast.size === 'medium' && 'px-4 py-3 text-[14px]',
         // variant
-        toast.variant === 'success' && 'border-[var(--mint)] bg-[#c9e6b6] text-[var(--mint)]',
-        toast.variant === 'error' && 'border-[var(--coral)] bg-[#ffd0bd] text-[var(--coral)]',
-        toast.variant === 'default' && 'border-[var(--outline-color)] bg-[var(--paper)] text-[var(--canvas-foreground)]',
+        toast.variant === 'success' && 'text-[var(--mint)]',
+        toast.variant === 'error' && 'text-[var(--coral)]',
+        toast.variant === 'default' && 'text-[var(--canvas-foreground)]',
 
         toast.uppercase && "uppercase",
         toast.className
       )}
+      color={toast.variant === 'success' ? '#c9e6b6' : toast.variant === 'error' ? '#ffd0bd' : 'var(--paper)'}
       animate={{ opacity: 1, y: 0 }}
       exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
       initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
@@ -96,6 +101,6 @@ function ToastItem({ dismiss, toast }: { dismiss: (id: number) => void; toast: T
       type="button"
     >
       {toast.message}
-    </motion.button>
+    </MotionDepthButton>
   );
 }

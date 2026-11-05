@@ -25,4 +25,18 @@ describe('AppNavigationButton', () => {
     fireEvent.click(button)
     expect(screen.getByText('/play')).toBeTruthy()
   })
+
+  it('navigates from a touch pointer release when Chrome suppresses its click', () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={['/']}>
+        <AppNavigationButton to="/play">Play</AppNavigationButton>
+        <CurrentPath />
+      </MemoryRouter>,
+    )
+
+    fireEvent.pointerUp(container.querySelector('button')!, { pointerType: 'touch' })
+
+    expect(container.querySelector('a')).toBeNull()
+    expect(container.querySelector('output')?.textContent).toBe('/play')
+  })
 })

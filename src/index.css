@@ -213,95 +213,6 @@
   .menu-content { gap: 8px; }
 }
 
-.cartoon-press {
-  --press-shadow-depth: 6px;
-  --press-face: var(--paper);
-  --press-face-active: #e49a50;
-  --press-face-hover: #ffe0a4;
-  --press-shadow: #b95c2e;
-  position: relative;
-  overflow: hidden;
-  background-color: var(--press-face);
-  border: var(--outline-width) solid #713324 !important;
-  box-shadow:
-    inset 0 calc(0px - var(--press-shadow-depth)) 0 var(--press-shadow),
-    0 0 0 1px rgb(21 16 14 / 8%) !important;
-  padding-bottom: var(--press-shadow-depth) !important;
-  touch-action: manipulation;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  transition: box-shadow 80ms ease, background-color 120ms ease !important;
-}
-
-.cartoon-press::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: var(--press-shadow-depth);
-  pointer-events: none;
-  background: var(--press-shadow);
-  transform-origin: bottom;
-  transition: transform 80ms ease;
-}
-
-.button-press-content {
-  display: inline-flex;
-  align-items: inherit;
-  justify-content: inherit;
-  gap: inherit;
-  min-width: 0;
-  pointer-events: none;
-  transition: transform 80ms ease;
-}
-
-.cartoon-press:active:not(:disabled) .button-press-content {
-  transform: translateY(calc(var(--press-shadow-depth) / 2));
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .cartoon-press:hover:not(:disabled) {
-    background-color: var(--press-face-hover);
-    border-color: #15100e !important;
-    box-shadow:
-      inset 0 calc(0px - var(--press-shadow-depth)) 0 var(--press-shadow),
-      0 0 0 1px rgb(21 16 14 / 14%) !important;
-  }
-}
-
-.cartoon-press:active:not(:disabled) {
-  background-color: var(--press-face-active);
-  box-shadow:
-    inset 0 -1px 0 var(--press-shadow),
-    0 0 0 1px rgb(21 16 14 / 8%) !important;
-}
-
-.cartoon-press:active:not(:disabled)::after {
-  transform: scaleY(0.166667);
-}
-
-.cartoon-press--green {
-  --press-face: #8acb7a;
-  --press-face-active: #5caa65;
-  --press-face-hover: #a8dea0;
-  --press-shadow: #315c45;
-}
-
-.cartoon-press--blue {
-  --press-face: #73a9ee;
-  --press-face-active: #4d85c9;
-  --press-face-hover: #91c2ff;
-  --press-shadow: #315c91;
-}
-
-.cartoon-press--red {
-  --press-face: #e4555c;
-  --press-face-active: #ba3f48;
-  --press-face-hover: #f0787e;
-  --press-shadow: #84343b;
-}
-
 .vs-player-turn-badge {
   border-radius: var(--radius-sm);
   background: var(--paper);
@@ -323,8 +234,6 @@
 }
 
 .dropdown-menu-content {
-  --dropdown-band-color: #b95c2e;
-  --dropdown-band-depth: 6px;
   z-index: 60;
   box-sizing: border-box;
   min-width: min(max(144px, var(--radix-dropdown-menu-trigger-width)), var(--radix-dropdown-menu-content-available-width));
@@ -334,11 +243,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 5px;
-  border: 1px solid var(--outline-color);
-  border-radius: var(--radius);
-  background: var(--paper);
   color: var(--canvas-foreground);
-  box-shadow: 0 var(--dropdown-band-depth) 0 var(--dropdown-band-color), 0 10px 18px rgb(113 51 36 / 18%);
   outline: none;
   transform-origin: var(--radix-dropdown-menu-content-transform-origin);
   --dropdown-offset: -4px;
@@ -395,8 +300,6 @@
 
 .dropdown-menu-trigger[data-state='open'] .dropdown-menu-chevron { transform: rotate(180deg); }
 
-.cartoon-press.dropdown-menu-trigger[data-state='open'] { background-color: var(--press-face-hover); }
-
 @keyframes dropdown-enter {
   from { opacity: 0; transform: translateY(var(--dropdown-offset)) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -423,34 +326,7 @@
   animation: cascade-score-shake 55ms steps(2, end) infinite;
 }
 
-.saved-game-card {
-  --press-shadow-depth: 6px;
-  --press-face: var(--paper);
-  --press-shadow: #b95c2e;
-  position: relative;
-  overflow: hidden;
-  background-color: var(--press-face);
-  border: var(--outline-width) solid var(--outline-color);
-  border-radius: var(--radius);
-  box-shadow:
-    inset 0 calc(0px - var(--press-shadow-depth)) 0 var(--press-shadow),
-    0 0 0 1px rgb(21 16 14 / 8%);
-  padding-bottom: calc(8px + var(--press-shadow-depth)) !important;
-}
-
-.saved-game-card::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: var(--press-shadow-depth);
-  pointer-events: none;
-  background: var(--press-shadow);
-}
-
 .dialog-content {
-  --dialog-band-color: #b95c2e;
   --dialog-band-depth: 8px;
   --dialog-content-padding: 20px;
   top: calc(var(--dialog-viewport-top, 0px) + env(safe-area-inset-top, 0px) + (var(--dialog-viewport-height, var(--app-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) / 2);
@@ -463,12 +339,6 @@
   isolation: isolate;
   overflow: hidden;
   overscroll-behavior: contain;
-  border: var(--outline-width) solid var(--outline-color) !important;
-  background: var(--paper);
-  box-shadow:
-    inset 0 calc(0px - var(--dialog-band-depth)) 0 var(--dialog-band-color),
-    0 0 0 1px rgb(21 16 14 / 8%);
-  padding: 0 !important;
 }
 
 .dialog-content-surface {
@@ -483,22 +353,11 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: var(--dialog-content-padding) var(--dialog-content-padding) calc(var(--dialog-content-padding) + var(--dialog-band-depth));
+  padding: var(--dialog-content-padding);
 }
 
 .dialog-content-fixed-chrome .dialog-content-surface {
   overflow: hidden;
-}
-
-.dialog-content::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: var(--dialog-band-depth);
-  pointer-events: none;
-  background: var(--dialog-band-color);
 }
 
 .dialog-overlay[data-state='open'] {
@@ -557,28 +416,6 @@
 
   18%, 100% {
     transform: translateX(60%);
-  }
-}
-
-.element-shadow {
-  background-color: color-mix(in srgb, var(--element-color, var(--paper)) 72%, transparent);
-  border: 1px solid var(--outline-color);
-  border-radius: var(--radius-md);
-  box-shadow: 0 0 0 1px rgb(21 16 14 / 12%), inset 0 0 24px rgb(113 51 36 / 12%);
-}
-
-.element-shadow::after {
-  content: none;
-}
-
-/* Circular radii remain the fallback; supported browsers use Apple-style continuous corners. */
-.ios-surface {
-  border-radius: var(--ios-radius);
-}
-
-@supports (corner-shape: superellipse(1.5)) {
-  .ios-surface {
-    corner-shape: superellipse(1.5);
   }
 }
 
@@ -647,12 +484,6 @@
 .animate-tetromino-drift-up-slow { animation: tetromino-drift-up 24s linear forwards; }
 
 @media (prefers-reduced-motion: reduce) {
-  .cartoon-press,
-  .cartoon-press::after,
-  .button-press-content {
-    transition: none !important;
-  }
-
   .tetromino-motion {
     animation: none !important;
   }

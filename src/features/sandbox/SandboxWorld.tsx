@@ -134,7 +134,8 @@ export function SandboxWorld() {
           <Button
             aria-label="Toggle draw mode"
             aria-pressed={drawEnabled}
-            className={`cartoon-press text-[var(--canvas-foreground)] ${drawEnabled ? '!bg-[var(--yellow)]' : ''}`}
+            className="text-[var(--canvas-foreground)]"
+            color={drawEnabled ? 'var(--yellow)' : undefined}
             onClick={() => {
               setDrawEnabled((enabled) => !enabled)
               setDeleteEnabled(false)
@@ -149,7 +150,8 @@ export function SandboxWorld() {
           <Button
             aria-label="Toggle delete mode"
             aria-pressed={deleteEnabled}
-            className={`cartoon-press text-[var(--coral)] ${deleteEnabled ? '!bg-[var(--coral)] !text-[var(--paper)]' : ''}`}
+            className={deleteEnabled ? 'text-[var(--paper)]' : 'text-[var(--coral)]'}
+            color={deleteEnabled ? 'var(--coral)' : undefined}
             onClick={() => {
               if (selectEnabled) {
                 canvasRef.current?.deleteSelectedCells()
@@ -184,10 +186,10 @@ export function SandboxWorld() {
         {!loadingWorld && worldId && !loadedWorld && <p className="poster-kicker p-5 text-center text-[11px] text-[var(--paper)]">World not found</p>}
       </section>
       <div className="relative z-10 mx-auto flex w-full max-w-[550px] flex-nowrap justify-center gap-1 px-1 pt-4 sm:gap-2">
-        <AppNavigationButton aria-label="Exit sandbox" className="cartoon-press text-[var(--canvas-foreground)]" size="icon-lg" title="Exit sandbox" to="/sandbox"><LogOut aria-hidden="true" /></AppNavigationButton>
+        <AppNavigationButton aria-label="Exit sandbox" className="text-[var(--canvas-foreground)]" size="icon-lg" title="Exit sandbox" to="/sandbox"><LogOut aria-hidden="true" /></AppNavigationButton>
         <Button
           aria-label="Save sandbox world"
-          className="cartoon-press text-[var(--canvas-foreground)]"
+          className="text-[var(--canvas-foreground)]"
           onClick={openSaveDialog}
           size="icon-lg"
           title="Save sandbox world"
@@ -197,7 +199,7 @@ export function SandboxWorld() {
         </Button>
         <Button
           aria-label="Load sandbox world"
-          className="cartoon-press text-[var(--canvas-foreground)]"
+          className="text-[var(--canvas-foreground)]"
           onClick={openImportDialog}
           size="icon-lg"
           title="Load sandbox world"
@@ -205,10 +207,11 @@ export function SandboxWorld() {
         >
           <FolderOpen aria-hidden="true" />
         </Button>
-        <Button
-          aria-label="Toggle select mode"
-          aria-pressed={selectEnabled}
-          className={`cartoon-press text-[var(--canvas-foreground)] ${selectEnabled ? '!bg-[#a8a8a8]' : ''}`}
+          <Button
+            aria-label="Toggle select mode"
+            aria-pressed={selectEnabled}
+            className="text-[var(--canvas-foreground)]"
+            color={selectEnabled ? '#a8a8a8' : undefined}
           onClick={() => {
             setSelectEnabled((enabled) => !enabled)
             setDrawEnabled(false)
@@ -221,10 +224,11 @@ export function SandboxWorld() {
         >
           <MousePointer2 aria-hidden="true" />
         </Button>
-        <Button
-          aria-label={moveEnabled ? 'Confirm move' : 'Toggle move mode'}
-          aria-pressed={moveEnabled}
-          className={`cartoon-press text-[var(--canvas-foreground)] ${moveEnabled ? '!bg-[#a8a8a8]' : ''}`}
+          <Button
+            aria-label={moveEnabled ? 'Confirm move' : 'Toggle move mode'}
+            aria-pressed={moveEnabled}
+            className="text-[var(--canvas-foreground)]"
+            color={moveEnabled ? '#a8a8a8' : undefined}
           disabled={!selectEnabled}
           onClick={() => {
             if (moveEnabled) {
@@ -242,7 +246,7 @@ export function SandboxWorld() {
         </Button>
         <Button
           aria-label="Copy moved selection"
-          className="cartoon-press text-[var(--canvas-foreground)]"
+          className="text-[var(--canvas-foreground)]"
           disabled={!moveEnabled}
           onClick={() => {
             canvasRef.current?.commitMove(true)
@@ -284,21 +288,21 @@ export function SandboxWorld() {
           <DialogFooter>
             {overwriteWorld ? (
               <>
-                <Button className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={isSaving} onClick={() => setOverwriteWorld(null)} size="lg" type="button">
+                <Button className="h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={isSaving} onClick={() => setOverwriteWorld(null)} size="lg" type="button">
                   Back
                 </Button>
-                <Button className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--coral)] uppercase" disabled={isSaving} onClick={() => void saveWorld(overwriteWorld.id)} size="lg" type="button">
+                <Button className="h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--coral)] uppercase" disabled={isSaving} onClick={() => void saveWorld(overwriteWorld.id)} size="lg" type="button">
                   Overwrite
                 </Button>
               </>
             ) : (
               <>
                 <DialogClose asChild>
-                  <Button className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={isSaving} size="lg" type="button">
+                  <Button className="h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={isSaving} size="lg" type="button">
                     Cancel
                   </Button>
                 </DialogClose>
-                <Button className="cartoon-press h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={isSaving || !worldName.trim()} onClick={() => void saveWorld()} size="lg" type="button">
+                <Button className="h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={isSaving || !worldName.trim()} onClick={() => void saveWorld()} size="lg" type="button">
                   Save
                 </Button>
               </>

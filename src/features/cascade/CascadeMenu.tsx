@@ -36,11 +36,11 @@ export function CascadeMenu() {
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{t('mainMenu.title')}</p>
           <h1 className="poster-title mt-2 text-[40px] leading-none">{t('cascade.title')}</h1>
         </div>
-        <AppNavigationButton aria-label={t('common.backToMainMenu')} className="cartoon-press size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
+        <AppNavigationButton aria-label={t('common.backToMainMenu')} className="size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
       </header>
       <section className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col gap-4 overflow-hidden px-1 pb-1">
         <Button
-          className="cartoon-press w-full h-[70px] text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+          className="w-full h-[70px] text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
           onClick={() => navigate('/cascade/game/new', { state: { returnToCascadeMenu: true } })}
           size="lg"
           type="button"
@@ -49,7 +49,7 @@ export function CascadeMenu() {
         </Button>
         <div className="relative shrink-0">
           <Button
-            className="cartoon-press w-full h-[70px] text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+            className="w-full h-[70px] text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
             disabled={hasSavedGame !== true}
             onClick={() => navigate('/cascade/game/continue', { state: { returnToCascadeMenu: true } })}
             size="lg"

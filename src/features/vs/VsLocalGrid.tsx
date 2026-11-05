@@ -3,6 +3,7 @@ import { Check, ChevronLeft, ChevronRight, Pause } from 'lucide-react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { DEPTH_BUTTON_COLORS } from '@/components/ui/depth-surface'
 import { cn } from '@/lib/utils'
 import { loadVsLocalGameState, saveVsLocalGameState } from '@/lib/db'
 import { VsLocalCanvas } from './VsLocalCanvas'
@@ -66,8 +67,9 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTur
         </p>
       </div>
       <Button
+        {...DEPTH_BUTTON_COLORS.green}
         aria-label={t('versusGame.finishTurn')}
-        className="cartoon-press cartoon-press--green ml-3 size-10 text-[var(--canvas-foreground)] disabled:opacity-50"
+        className="ml-3 size-10 text-[var(--canvas-foreground)] disabled:opacity-50"
         disabled={!active || !canFinishTurn}
         onClick={onFinishTurn}
         size="icon"
@@ -226,13 +228,13 @@ export function VsLocalGrid() {
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
           <div className="flex gap-2">
-            <Button aria-label={hasTurnDraft ? t('versusGame.cancelCurrentTurn') : t('versusGame.previousMove')} className="cartoon-press size-10 text-[var(--canvas-foreground)] disabled:opacity-50" disabled={!game || (!hasTurnDraft && historyIndex === 0)} onClick={previousMove} size="icon" title={hasTurnDraft ? t('versusGame.cancelCurrentTurn') : t('versusGame.previousMove')} type="button">
+            <Button aria-label={hasTurnDraft ? t('versusGame.cancelCurrentTurn') : t('versusGame.previousMove')} className="size-10 text-[var(--canvas-foreground)] disabled:opacity-50" disabled={!game || (!hasTurnDraft && historyIndex === 0)} onClick={previousMove} size="icon" title={hasTurnDraft ? t('versusGame.cancelCurrentTurn') : t('versusGame.previousMove')} type="button">
               <ChevronLeft aria-hidden="true" />
             </Button>
-            <Button aria-label={t('versusGame.nextMove')} className="cartoon-press size-10 text-[var(--canvas-foreground)] disabled:opacity-50" disabled={!game || !viewingPast} onClick={nextMove} size="icon" title={t('versusGame.nextMove')} type="button">
+            <Button aria-label={t('versusGame.nextMove')} className="size-10 text-[var(--canvas-foreground)] disabled:opacity-50" disabled={!game || !viewingPast} onClick={nextMove} size="icon" title={t('versusGame.nextMove')} type="button">
               <ChevronRight aria-hidden="true" />
             </Button>
-            <Button aria-label={t('versusGame.pauseLocalVs')} className="cartoon-press size-10 text-[var(--canvas-foreground)]" disabled={!game} onClick={() => handlePauseOpenChange(true)} size="icon" title={t('common.pause')} type="button">
+            <Button aria-label={t('versusGame.pauseLocalVs')} className="size-10 text-[var(--canvas-foreground)]" disabled={!game} onClick={() => handlePauseOpenChange(true)} size="icon" title={t('common.pause')} type="button">
               <Pause aria-hidden="true" />
             </Button>
           </div>
