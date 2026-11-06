@@ -63,11 +63,9 @@ function SavedGameCard(props: { game: SavedGame; onDelete: (game: SavedGame) => 
         {screenshotUrl && <img alt={t('savedGames.savedBoard')} className="h-auto w-28 shrink-0 self-start" src={screenshotUrl} />}
       </AppNavigationButton>
       <div className="flex min-w-0 flex-1 self-stretch flex-col justify-between py-1">
-        <AppNavigationButton className="h-auto justify-start p-0 text-left whitespace-normal hover:bg-transparent" to={gamePath} variant="ghost">
-          <div>
-            <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{savedAt}</p>
-            <h2 className="mt-1 text-[22px] font-black uppercase">{gameTitle}</h2>
-          </div>
+        <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{savedAt}</p>
+        <AppNavigationButton className="scrollbar-hidden h-auto min-w-0 max-w-full justify-start overflow-x-auto p-0 text-left whitespace-nowrap hover:bg-transparent" to={gamePath} variant="ghost">
+          <h2 className="mt-1 whitespace-nowrap text-[22px] font-black uppercase">{gameTitle}</h2>
         </AppNavigationButton>
         <div className="flex min-w-0 items-center gap-2">
           <AppNavigationButton className="h-auto min-w-0 flex-1 justify-start p-0 hover:bg-transparent" title={props.game.gameId} to={gamePath} variant="ghost">

@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
 @font-face {
   font-family: 'Bricolage Grotesque';
   src: url('./assets/fonts/BricolageGrotesque-Variable.ttf') format('truetype');

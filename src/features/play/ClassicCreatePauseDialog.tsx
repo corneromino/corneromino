@@ -44,6 +44,9 @@ export function ClassicCreatePauseDialog(props: ClassicCreatePauseDialogProps) {
           <Button className="w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={props.isSaving} onClick={() => props.onOpenChange(false)} size="lg" type="button">
             <Play aria-hidden="true" /> {t('common.resume')}
           </Button>
+          <Button className="w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={props.isSaving} onClick={() => void copyGameData()} size="lg" type="button">
+            <Copy aria-hidden="true" /> {t('classic.copyGameData')}
+          </Button>
           <div className="mt-3 grid gap-2">
             <DialogDescription className="text-center text-[18px]">{t('classic.savePrompt')}</DialogDescription>
             <label className="poster-kicker block text-[11px] text-[var(--muted-text-color)]">
@@ -56,9 +59,6 @@ export function ClassicCreatePauseDialog(props: ClassicCreatePauseDialogProps) {
             </label>
             <Button className="w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={props.isSaving} onClick={() => void props.onSaveAndQuit()} size="lg" type="button">
               <Save aria-hidden="true" /> {t('common.saveAndQuit')}
-            </Button>
-            <Button className="w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={props.isSaving} onClick={() => void copyGameData()} size="lg" type="button">
-              <Copy aria-hidden="true" /> {t('classic.copyGameData')}
             </Button>
             <Button className="w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={props.isSaving} onClick={props.onQuitWithoutSaving} size="lg" type="button">
               <LogOut aria-hidden="true" /> {t('common.quitWithoutSaving')}
