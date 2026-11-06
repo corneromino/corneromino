@@ -14,7 +14,7 @@ const INTERVAL_MS = 3000
  */
 export class GridLockedShine {
   private readonly band = new GraphicsContext()
-  private readonly cells = new Map<Container, { shine: Graphics; mask: Graphics }>()
+  private readonly cells = new Map<Container, { layer: Container; shine: Graphics; mask: Graphics }>()
   private readonly bandTransform = new Matrix()
   private readonly worldTransform = new Matrix()
   private readonly cellTransform = new Matrix()
@@ -46,11 +46,15 @@ export class GridLockedShine {
   setCell(parent: Container, width: number, height: number, inset: number) {
     let cell = this.cells.get(parent)
     if (!cell) {
+      // Hide the entire masked branch until render has positioned it. Hiding
+      // only the band leaves its sibling mask live during the idle interval.
+      const layer = new Container({ eventMode: 'none', label: 'locked-shine-layer', visible: false })
       const mask = new Graphics({ eventMode: 'none' })
       const shine = new Graphics({ context: this.band, eventMode: 'none', label: 'locked-shine' })
       shine.mask = mask
-      parent.addChild(mask, shine)
-      cell = { shine, mask }
+      layer.addChild(mask, shine)
+      parent.addChild(layer)
+      cell = { layer, shine, mask }
       this.cells.set(parent, cell)
     }
     cell.mask.clear()
@@ -62,11 +66,8 @@ export class GridLockedShine {
   render(timeMs: number, x = 0, y = 0) {
     if (this.cells.size === 0) return
     const elapsed = timeMs % (CYCLE_MS + INTERVAL_MS)
-    if (elapsed >= CYCLE_MS) {
-      for (const { shine } of this.cells.values()) shine.visible = false
-      return
-    }
-    const phase = elapsed / CYCLE_MS
+    const sweeping = elapsed < CYCLE_MS
+    const phase = Math.min(elapsed / CYCLE_MS, 1)
     const diagonalReach = Math.abs(Math.tan(ROTATION)) * this.height / 2
     const start = -diagonalReach - this.cellWidth * 1.5
     const end = this.width + diagonalReach + this.cellWidth
@@ -75,21 +76,24 @@ export class GridLockedShine {
     this.bandTransform.set(cosine, sine, -sine, cosine, x + start + phase * (end - start), y + this.height / 2)
     this.board.getGlobalTransform(this.worldTransform).append(this.bandTransform)
 
-    for (const [parent, { shine }] of this.cells) {
-      shine.visible = true
+    for (const [parent, { layer, shine }] of this.cells) {
       // Cancel each cell's transform so every clipped view samples the SAME
       // board-space band, even during a pop, shake, gravity move, pan or zoom.
       parent.getGlobalTransform(this.cellTransform).invert().append(this.worldTransform)
       shine.setFromMatrix(this.cellTransform)
+      layer.visible = sweeping
     }
   }
 
   removeCell(parent: Container) {
     const cell = this.cells.get(parent)
     if (!cell) return
+    cell.layer.visible = false
+    cell.layer.removeFromParent()
     cell.shine.mask = null
     cell.shine.destroy()
     cell.mask.destroy()
+    cell.layer.destroy()
     this.cells.delete(parent)
   }
 

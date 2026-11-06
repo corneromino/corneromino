@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { GridLockedShine } from './GridLockedShine'
 
 function projection(cell: Container) {
-  return cell.getChildByLabel('locked-shine') as Graphics
+  return cell.getChildByLabel('locked-shine', true) as Graphics
 }
 
 function expectAligned(first: Graphics, second: Graphics) {
@@ -68,16 +68,54 @@ describe('board-wide locked-cell shine', () => {
     const effect = new GridLockedShine(board)
     effect.setBounds(400, 600, 50)
     effect.setCell(cell, 50, 50, 2)
-    const shine = projection(cell)
+    const layer = projection(cell).parent!
 
-    effect.render(9_999)
-    expect(shine.visible).toBe(true)
-    effect.render(10_000)
-    expect(shine.visible).toBe(false)
-    effect.render(19_999)
-    expect(shine.visible).toBe(false)
-    effect.render(20_000)
-    expect(shine.visible).toBe(true)
+    effect.render(2_999)
+    expect(layer.visible).toBe(true)
+    effect.render(3_000)
+    expect(layer.visible).toBe(false)
+    effect.render(5_999)
+    expect(layer.visible).toBe(false)
+    effect.render(6_000)
+    expect(layer.visible).toBe(true)
+    effect.destroy()
+    board.destroy({ children: true })
+  })
+
+  it('keeps rebuilt masks and bands hidden together until a positioned sweep is ready', () => {
+    const board = new Container()
+    const first = board.addChild(new Container())
+    const second = board.addChild(new Container({ x: 250, y: 350 }))
+    const effect = new GridLockedShine(board)
+    effect.setBounds(400, 600, 50)
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      effect.setCell(first, 50, 50, 2)
+      effect.setCell(second, 50, 50, 2)
+      const shine = projection(second)
+      const layer = shine.parent!
+      const mask = shine.mask as Graphics
+      expect(layer.visible).toBe(false)
+      expect(mask.parent).toBe(layer)
+
+      second.position.set(250 + attempt, 350 - attempt)
+      second.scale.set(0.75)
+      effect.render(4_500)
+      expect(layer.visible).toBe(false)
+      expectAligned(projection(first), shine)
+
+      effect.render(6_500)
+      expect(layer.visible).toBe(true)
+      expectAligned(projection(first), shine)
+      effect.render(9_000)
+      expect(layer.visible).toBe(false)
+
+      effect.clearCells()
+      expect(layer.destroyed).toBe(true)
+      expect(shine.destroyed).toBe(true)
+      expect(mask.destroyed).toBe(true)
+      expect(second.children).toHaveLength(0)
+    }
     effect.destroy()
     board.destroy({ children: true })
   })
