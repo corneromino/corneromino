@@ -1,15 +1,16 @@
 import { useId, useMemo, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
-import { DepthSurface } from '@/components/ui/depth-surface'
+import { DepthButton } from '@/components/ui/depth-surface'
 import { getCareerChapterLayout, type CareerChapter as Chapter } from './careerChapters'
 
 interface CareerChapterProps {
   chapter: Chapter
   number: number
   startLevel: number
+  onPlayLevel?: (levelIndex: number) => void
 }
 
-export function CareerChapter({ chapter, number, startLevel }: CareerChapterProps) {
+export function CareerChapter({ chapter, number, onPlayLevel, startLevel }: CareerChapterProps) {
   const { t } = useTranslation()
   const headingId = useId()
   const layout = useMemo(() => getCareerChapterLayout(chapter, startLevel), [chapter, startLevel])
@@ -36,17 +37,25 @@ export function CareerChapter({ chapter, number, startLevel }: CareerChapterProp
           className="relative mx-auto grid w-max list-none grid-cols-[repeat(var(--chapter-columns),var(--card-size))] grid-rows-[repeat(var(--chapter-rows),var(--card-size))] gap-[var(--card-gap)] p-0"
           style={shapeStyle}
         >
-          {layout.cells.map((cell) => (
-            <DepthSurface
-              aria-label={t('career.level', { number: cell.level })}
-              as="li"
-              className="relative z-10 grid place-items-center text-[40px] leading-none font-black text-[var(--canvas-foreground)]"
-              color={cell.color}
-              key={cell.id}
-              style={{ gridColumn: cell.x + 1, gridRow: cell.y + 1 }}
-              depth={5}
-            >{cell.level}</DepthSurface>
-          ))}
+          {layout.cells.map((cell, levelIndex) => {
+            const canPlay = chapter.levelsData[levelIndex] !== undefined && onPlayLevel !== undefined
+            const style = { gridColumn: cell.x + 1, gridRow: cell.y + 1 }
+              return (
+                <li className="relative z-10" key={cell.id} style={style}>
+                  <DepthButton
+                    aria-label={t('career.level', { number: cell.level })}
+                    className="size-full text-[40px] leading-none font-black text-[var(--canvas-foreground)]"
+                    color={cell.color}
+                    depth={10}
+                    radius={30}
+                    onClick={() => canPlay && onPlayLevel && onPlayLevel(levelIndex)}
+                    // shadowColor={cell.color === 'var(--paper)' ? PAPER_DEPTH_SHADOW_COLOR : undefined}
+                  >
+                    {cell.level}
+                  </DepthButton>
+              </li>
+            )
+          })}
         </ol>
       </div>
     </article>

@@ -53,6 +53,8 @@ interface GameGridProps {
   vhsCrt?: VhsCrtEffectConfig
   exitDistortion?: InfiniteExitDistortionConfig,
   disableUnlock?: boolean
+  /** Destination for this game type after leaving its pause dialog. */
+  exitPath?: string
 }
 
 function createCellMap(pieces: readonly PlacedTetromino[]): Map<string, PlacedTetromino> {
@@ -270,7 +272,7 @@ export function GameGrid(props: GameGridProps) {
     } finally {
       // Replacing the active game route avoids returning to a seedless game
       // history entry, which would otherwise generate another fresh board.
-      navigate('/play/modes', { replace: true })
+        navigate(props.exitPath ?? '/play/modes', { replace: true })
     }
   }
 

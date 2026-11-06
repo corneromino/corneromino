@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { DepthButton } from '@/components/ui/depth-surface'
+import { DepthButton, PAPER_DEPTH_SHADOW_COLOR } from '@/components/ui/depth-surface'
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 const INPUT_CLASS = 'mt-2 py-[11px] w-full border border-[var(--outline-color)] bg-[var(--paper-muted)] px-3 text-[15px] text-[var(--canvas-foreground)] outline-none focus:border-[var(--canvas-foreground)]'
@@ -49,11 +49,11 @@ export function ClassicCreateSettingsDialog(props: ClassicCreateSettingsDialogPr
         {props.error && <p className="mt-3 text-[11px] text-[var(--coral)]" role="alert">{props.error}</p>}
         <DialogFooter>
           <DialogClose asChild>
-            <DepthButton className="h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase">
+            <DepthButton className="h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" shadowColor={PAPER_DEPTH_SHADOW_COLOR}>
               {t('common.cancel')}
             </DepthButton>
           </DialogClose>
-          <DepthButton className="h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={props.onApply}>
+          <DepthButton className="h-[42px] text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={props.onApply} shadowColor={PAPER_DEPTH_SHADOW_COLOR}>
             {t('classic.applyBoardSize')}
           </DepthButton>
         </DialogFooter>

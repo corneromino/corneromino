@@ -7,6 +7,7 @@ import { createRandomSeed, createSeededRandom } from '@/game/random'
 import { GAME_CONFIGS, isGameMode, type ClassicGameMode } from '@/game/gameConfig'
 import { clearGameSelection, loadClassicGameDefinition, type ClassicGameDefinition } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
+import { getCareerGameId, getCareerLevel, getCareerLevelPath, getNextCareerLevel, type CareerLevel } from './careerChapters'
 import { GameGrid } from './GameGrid'
 import { ClassicShapesDialog } from './ClassicShapesDialog'
 
@@ -17,6 +18,7 @@ function formatElapsedTime(elapsedSeconds: number) {
 }
 
 interface GameSessionProps {
+  careerLevel?: CareerLevel
   gameMode: ClassicGameMode
   requestedSeed: string | null
 }
@@ -32,20 +34,25 @@ function GameSession(props: GameSessionProps) {
   const [gameDefinition, setGameDefinition] = useState<ClassicGameDefinition | null>(null)
   const [pauseOpen, setPauseOpen] = useState(false)
   const [shapesOpen, setShapesOpen] = useState(false)
-  const seed = props.requestedSeed || generatedSeed
+  const seed = props.careerLevel ? getCareerGameId(props.careerLevel.definition) : props.requestedSeed || generatedSeed
   const modeConfig = GAME_CONFIGS[props.gameMode]
-  const gameTitle = gameDefinition?.source === 'custom' && gameDefinition.customName ? gameDefinition.customName : t(modeConfig.title)
+  const gameTitle = props.careerLevel ? t('career.level', { number: props.careerLevel.number }) : gameDefinition?.source === 'custom' && gameDefinition.customName ? gameDefinition.customName : t(modeConfig.title)
 
   function nextGame() {
+    if (props.careerLevel) {
+      const nextLevel = getNextCareerLevel(props.careerLevel)
+      navigate(nextLevel ? getCareerLevelPath(nextLevel) : '/play/levels')
+      return
+    }
     navigate(`/play?mode=${props.gameMode}&seed=${encodeURIComponent(createRandomSeed())}`)
   }
 
   useEffect(() => {
-    if (!props.requestedSeed) {
+    if (!props.requestedSeed && !props.careerLevel) {
       void clearGameSelection(props.gameMode, generatedSeed)
       navigate(`/play?mode=${props.gameMode}&seed=${encodeURIComponent(generatedSeed)}`, { replace: true, state: location.state })
     }
-  }, [generatedSeed, location.state, navigate, props.gameMode, props.requestedSeed])
+  }, [generatedSeed, location.state, navigate, props.careerLevel, props.gameMode, props.requestedSeed])
 
   useEffect(() => {
     let active = true
@@ -54,7 +61,10 @@ function GameSession(props: GameSessionProps) {
     setMoveCount(0)
     setGameDefinition(null)
 
-    void loadClassicGameDefinition(props.gameMode, seed)
+    const definition = props.careerLevel
+      ? Promise.resolve({ ...props.careerLevel.definition, seed })
+      : loadClassicGameDefinition(props.gameMode, seed)
+    void definition
       .catch(() => null)
       .then(async (savedDefinition) => {
         if (savedDefinition) return savedDefinition
@@ -82,7 +92,7 @@ function GameSession(props: GameSessionProps) {
     return () => {
       active = false
     }
-  }, [modeConfig, props.gameMode, seed])
+  }, [modeConfig, props.careerLevel, props.gameMode, seed])
 
   return (
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
@@ -124,6 +134,7 @@ function GameSession(props: GameSessionProps) {
         {gameDefinition &&
           <GameGrid
             config={gameDefinition.config}
+            exitPath={props.careerLevel ? '/play/levels' : undefined}
             gameDefinition={gameDefinition}
             gameId={seed}
             gameMode={props.gameMode}
@@ -152,6 +163,12 @@ export function Play() {
   const [searchParams] = useSearchParams()
   const gameMode = searchParams.get('mode')
   const requestedSeed = searchParams.get('seed')
+  const careerChapterId = searchParams.get('career')
+  const careerLevelValue = searchParams.get('level')
+  const careerLevel = careerChapterId !== null && careerLevelValue !== null ? getCareerLevel(careerChapterId, Number(careerLevelValue)) : null
+
+  if ((careerChapterId !== null || careerLevelValue !== null) && !careerLevel) return <Navigate replace to="/play/levels" />
+  if (careerLevel) return <GameSession careerLevel={careerLevel} gameMode={careerLevel.definition.gameMode} key={`career:${careerLevel.definition.seed}`} requestedSeed={getCareerGameId(careerLevel.definition)} />
 
   if (!isGameMode(gameMode)) return <Navigate replace to="/play/levels" />
 

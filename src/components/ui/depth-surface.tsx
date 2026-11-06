@@ -28,10 +28,13 @@ interface DepthAppearanceProps {
 type DepthVariables = CSSProperties & Record<`--depth-${string}`, string>
 
 export const DEPTH_BUTTON_COLORS = {
-  blue: { color: '#73a9ee', activeColor: '#4d85c9', hoverColor: '#91c2ff', shadowColor: '#315c91' },
-  green: { color: '#8acb7a', activeColor: '#5caa65', hoverColor: '#a8dea0', shadowColor: '#315c45' },
-  red: { color: '#e4555c', activeColor: '#ba3f48', hoverColor: '#f0787e', shadowColor: '#84343b' },
+  blue: { color: '#73a9ee' },
+  green: { color: '#8acb7a' },
+  red: { color: '#e4555c' },
 } as const
+
+/** Legacy depth band used explicitly by controls with the paper face color. */
+export const PAPER_DEPTH_SHADOW_COLOR = '#b95c2e'
 
 function depthStyle({
   color = 'var(--paper)',
@@ -44,8 +47,8 @@ function depthStyle({
   outlineColor = 'rgb(21 16 14 / 8%)',
   outlineWidth = '1px',
   shadowColor,
-  activeColor = color,
-  hoverColor = color,
+  activeColor = `color-mix(in srgb, ${color} 90%, #000000)`,
+  hoverColor = `color-mix(in srgb, ${color} 82%, #ffffff)`,
   style,
 }: DepthAppearanceProps & { style?: CSSProperties }): DepthVariables {
   return {
@@ -92,7 +95,7 @@ export interface DepthButtonProps extends ComponentPropsWithoutRef<'button'>, De
 
 /** A native button with the app's outlined, inset-depth treatment and press motion. */
 export const DepthButton = forwardRef<HTMLButtonElement, DepthButtonProps>(function DepthButton(
-  { activeColor = '#e49a50', borderColor = '#713324', borderWidth, children, className, color = 'var(--paper)', depth, hoverColor = '#ffe0a4', outlineColor, outlineWidth, radius, shadeColor, shadeStrength, shadowColor = '#b95c2e', style, type = 'button', ...props },
+  { activeColor, borderColor = '#713324', borderWidth, children, className, color = 'var(--paper)', depth, hoverColor, outlineColor, outlineWidth, radius, shadeColor, shadeStrength, shadowColor, style, type = 'button', ...props },
   ref,
 ) {
   return (

@@ -3,14 +3,16 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { GAME_CONFIGS, type PlacedTetromino } from '@/game/gameConfig'
+import { chapters } from './careerChapters'
 
-const gameGridProps = vi.hoisted(() => ({ current: undefined as { gameDefinition?: unknown; pieces: readonly PlacedTetromino[] } | undefined }))
+const gameGridProps = vi.hoisted(() => ({ current: undefined as { exitPath?: string; gameDefinition?: { seed: string }; gameId: string; pieces: readonly PlacedTetromino[] } | undefined }))
+const initialCareerLevels = chapters.map((chapter) => chapter.levelsData)
 
 vi.mock('@/lib/db', () => ({ clearGameSelection: vi.fn(), loadClassicGameDefinition: vi.fn() }))
 vi.mock('@/game/placementV2', () => ({ generateTetrominoPlacementsV2: vi.fn() }))
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: { number?: number }) => key === 'career.level' ? `LEVEL ${values?.number}` : key }) }))
 vi.mock('./GameGrid', () => ({
-  GameGrid: (props: { gameDefinition?: unknown; pieces: readonly PlacedTetromino[] }) => {
+  GameGrid: (props: { exitPath?: string; gameDefinition?: { seed: string }; gameId: string; pieces: readonly PlacedTetromino[] }) => {
     gameGridProps.current = props
     return <output data-testid="game-grid">{props.pieces.length}</output>
   },
@@ -43,6 +45,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  for (const [index, chapter] of chapters.entries()) chapter.levelsData = initialCareerLevels[index]!
   vi.restoreAllMocks()
 })
 
@@ -72,6 +75,29 @@ it('shows a custom board name instead of its original difficulty title', async (
 
   await waitFor(() => expect(screen.getByText('My saved board')).toBeTruthy())
   expect(screen.queryByText('difficulty.medium')).toBeNull()
+})
+
+it('plays a Career level from its authored data using its stable career save ID', async () => {
+  chapters[0]!.levelsData = [{
+    config: { ...GAME_CONFIGS.c003 },
+    customName: 'Ignored custom title',
+    gameMode: 'c003',
+    pieces,
+    seed: 'authored-career-board',
+    source: 'custom',
+    version: 1,
+  }]
+
+  render(<MemoryRouter initialEntries={['/play?mode=c003&career=the-beginning&level=0']}><Play /></MemoryRouter>)
+
+  await waitFor(() => expect(screen.getByTestId('game-grid').textContent).toBe('1'))
+  expect(screen.getByText('LEVEL 1')).toBeTruthy()
+  expect(gameGridProps.current).toMatchObject({
+    exitPath: '/play/levels',
+    gameDefinition: { seed: 'career:authored-career-board' },
+    gameId: 'career:authored-career-board',
+  })
+  expect(generateTetrominoPlacementsV2).not.toHaveBeenCalled()
 })
 
 it('uses the seed generator for a legacy save with no board definition', async () => {

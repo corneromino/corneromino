@@ -16,17 +16,14 @@ interface MenuPageTransitionProps {
 function Page({ children, isMenu, reduceMotion }: Omit<MenuPageTransitionProps, 'pageKey'> & { reduceMotion: boolean }) {
   const isPresent = useIsPresent()
 
-  // Gameplay and tutorial effects must stop as soon as their route is left.
-  if (!isPresent && !isMenu) return null
-
   return (
     <m.div
-      animate={{ x: 0 }}
+      animate={{ x: 0, y: 0 }}
       aria-hidden={!isPresent || undefined}
       className="absolute inset-0 min-h-0 min-w-0 bg-[var(--canvas)]"
       exit="covered"
       inert={!isPresent}
-      initial={isMenu && !reduceMotion ? { x: '-100%' } : false}
+      initial={reduceMotion ? false : isMenu ? { x: '-100%' } : { y: '100%' }}
       style={{ zIndex: isPresent ? 1 : 0 }}
       transition={{ duration: reduceMotion ? 0 : SLIDE_DURATION, ease: [0.16, 1, 0.3, 1] }}
       variants={PAGE_VARIANTS}
@@ -42,7 +39,7 @@ export function MenuPageTransition({ children, isMenu, pageKey }: MenuPageTransi
   return (
     <LazyMotion features={domAnimation} strict>
       <div className="relative isolate h-full min-h-0 min-w-0 overflow-hidden">
-        <AnimatePresence custom={isMenu && !reduceMotion ? SLIDE_DURATION : 0} initial={false}>
+        <AnimatePresence custom={reduceMotion ? 0 : SLIDE_DURATION} initial={false}>
           <Page isMenu={isMenu} key={pageKey} reduceMotion={reduceMotion}>
             {children}
           </Page>

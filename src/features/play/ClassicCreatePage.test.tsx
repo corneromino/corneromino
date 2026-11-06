@@ -237,3 +237,33 @@ it('saves a custom definition and normal-game selection from its pause menu', as
   }))
   expect(persistence.captureBoard).toHaveBeenCalledWith({ gameplayPreview: true })
 })
+
+it('copies the exact custom game definition that Save uses, without editor-only piece colors', async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined)
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+  render(<MemoryRouter><ClassicCreatePage /></MemoryRouter>)
+
+  fireEvent.click(screen.getByRole('button', { name: 'classic.placeCells' }))
+  for (const key of ['0,0', '1,0', '0,1', '1,1']) act(() => canvasProps.current!.onToggle(key, 0))
+  fireEvent.click(screen.getByRole('button', { name: 'common.pause classic.title' }))
+  fireEvent.change(screen.getByLabelText('classic.boardName'), { target: { value: 'Career export' } })
+  fireEvent.click(screen.getByRole('button', { name: 'classic.copyGameData' }))
+
+  await waitFor(() => expect(writeText).toHaveBeenCalledOnce())
+  const gameData = JSON.parse(writeText.mock.calls[0]![0] as string)
+  expect(gameData).toMatchObject({
+    config: { columns: 5, rows: 5, tetrominoCount: 1 },
+    customName: 'Career export',
+    gameMode: 'c003',
+    seed: expect.stringMatching(/^custom-/),
+    source: 'custom',
+    version: 1,
+  })
+  expect(gameData.pieces).toHaveLength(1)
+  expect(gameData.pieces[0]).not.toHaveProperty('color')
+  expect(gameData.config).not.toHaveProperty('title')
+  expect(screen.getByRole('status').textContent).toBe('classic.gameDataCopied')
+
+  fireEvent.click(screen.getByRole('button', { name: 'common.saveAndQuit' }))
+  await waitFor(() => expect(persistence.saveClassicGameDefinition).toHaveBeenCalledWith(gameData))
+})

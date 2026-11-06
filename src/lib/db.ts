@@ -450,9 +450,13 @@ export async function loadSavedGames(): Promise<SavedGame[]> {
       return []
     }
 
-    const definition = definitions.get(classicDefinitionStorageKey(gameMode, gameIdParts.join(':')))
+    const gameId = gameIdParts.join(':')
+    // Career progress reuses normal Classic storage, but is reopened from the
+    // Career path rather than the general Saved Games collection.
+    if (gameId.startsWith('career:')) return []
+    const definition = definitions.get(classicDefinitionStorageKey(gameMode, gameId))
     return [{
-      gameId: gameIdParts.join(':'),
+      gameId,
       gameMode,
       isCustom: definition?.source === 'custom',
       name: definition?.source === 'custom' ? definition.customName ?? null : null,

@@ -1,7 +1,7 @@
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from 'cn'
 import { Slot } from 'radix-ui'
-import { DepthButton, type DepthButtonProps } from './depth-surface'
+import { DepthButton, PAPER_DEPTH_SHADOW_COLOR, type DepthButtonProps } from './depth-surface'
 
 const buttonVariants = cva('', {
   variants: {
@@ -35,7 +35,7 @@ type ButtonProps = DepthButtonProps
   & { asChild?: boolean }
 
 /** The app's default action button. Ghost and link variants intentionally stay flat. */
-function Button({ asChild = false, children, className, size = 'default', variant = 'default', ...props }: ButtonProps) {
+function Button({ asChild = false, children, className, color, shadowColor, size = 'default', variant = 'default', ...props }: ButtonProps) {
   const classes = cn(buttonVariants({ variant, size, className }))
   if (asChild || variant === 'ghost' || variant === 'link') {
     const Comp = asChild ? Slot.Root : 'button'
@@ -56,9 +56,11 @@ function Button({ asChild = false, children, className, size = 'default', varian
     <DepthButton
       {...props}
       className={classes}
+      color={color}
       data-size={size}
       data-slot="button"
       data-variant={variant}
+      shadowColor={shadowColor ?? (color === undefined || color === 'var(--paper)' ? PAPER_DEPTH_SHADOW_COLOR : undefined)}
     >
       {children}
     </DepthButton>

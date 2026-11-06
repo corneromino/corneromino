@@ -2,7 +2,7 @@ import { Eraser, Pause, RotateCcw, Settings } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { DEPTH_BUTTON_COLORS, DepthButton, DepthSurface } from '@/components/ui/depth-surface'
+import { DEPTH_BUTTON_COLORS, DepthButton, DepthSurface, PAPER_DEPTH_SHADOW_COLOR } from '@/components/ui/depth-surface'
 import { createRandomSeed, createSeededRandom } from '@/game/random'
 import { CELL_CORNERS, GAME_CONFIGS, isGameMode, type CellCorner, type CellMarkerColor, type ClassicGameMode, type GameConfig, type GameSelectionState, type LockedCellGroup, type PlacedTetromino } from '@/game/gameConfig'
 import { getTetrominoKind, TETROMINOES } from '@/game/tetrominoes'
@@ -34,6 +34,12 @@ const NEXT_CORNER: Readonly<Record<CellCorner, CellCorner>> = {
   'bottom-right': 'bottom-left',
   'bottom-left': 'top-left',
   'top-left': 'top-right',
+}
+
+type ClassicGameData = Pick<ClassicGameDefinition, 'config' | 'gameMode' | 'pieces' | 'version'>
+
+function createCustomGameDefinition(data: ClassicGameData, seed: string, customName: string): ClassicGameDefinition {
+  return { ...data, customName, seed, source: 'custom' }
 }
 
 function parseCellKey(key: string) {
@@ -146,6 +152,9 @@ export function ClassicCreatePage() {
   const initialDraftRef = useRef<ReturnType<typeof loadDraft> | null>(null)
   if (initialDraftRef.current === null) initialDraftRef.current = loadDraft()
   const initialDraft = initialDraftRef.current
+  const unsavedGameIdRef = useRef<string | null>(null)
+  if (unsavedGameIdRef.current === null) unsavedGameIdRef.current = `custom-${createRandomSeed()}`
+  const unsavedGameId = unsavedGameIdRef.current!
   const [dimensions, setDimensions] = useState(initialDraft.dimensions)
   const [draftDimensions, setDraftDimensions] = useState(() => ({ columns: String(initialDraft.dimensions.columns), rows: String(initialDraft.dimensions.rows) }))
   const [dimensionsOpen, setDimensionsOpen] = useState(false)
@@ -164,6 +173,28 @@ export function ClassicCreatePage() {
   const [boardName, setBoardName] = useState(initialDraft.name)
   const config = useMemo(() => ({ ...CLASSIC_CREATE_CONFIG, ...dimensions }), [dimensions])
   const repetitionCount = useMemo(() => pieces.filter((piece) => new Set(piece.cells.map((cell) => cell.corner)).size !== CELL_CORNERS.length).length, [pieces])
+  const gameDefinitionData = useMemo<ClassicGameData>(() => {
+    // Presets include an i18n-only title, but authored definitions use the
+    // narrower GameConfig schema so their JSON can be pasted directly in code.
+    const { title: _title, ...savedGameConfig } = savedConfig as GameConfig & { title?: unknown }
+    return {
+      config: {
+        ...savedGameConfig,
+        columns: config.columns,
+        hideGameControls: false,
+        navigationEnabled: true,
+        rows: config.rows,
+        tetrominoCount: pieces.length,
+      },
+      gameMode,
+      pieces: pieces.map(({ color: _color, ...piece }) => piece),
+      version: 1,
+    }
+  }, [config.columns, config.rows, gameMode, pieces, savedConfig])
+  const exportedName = boardName.trim()
+  const exportedGameId = savedGameId && exportedName === originalName ? savedGameId : unsavedGameId
+  const exportedDefinition = useMemo(() => createCustomGameDefinition(gameDefinitionData, exportedGameId, exportedName), [exportedGameId, exportedName, gameDefinitionData])
+  const gameDataJson = useMemo(() => JSON.stringify(exportedDefinition, null, 2), [exportedDefinition])
 
   useEffect(() => {
     sessionStorage.setItem(CLASSIC_CREATE_DRAFT_STORAGE_KEY, JSON.stringify({ dimensions, gameId: savedGameId, gameMode, name: boardName, originalName, pieces, savedConfig }))
@@ -288,7 +319,7 @@ export function ClassicCreatePage() {
     setIsSaving(true)
     setSaveError('')
     try {
-      const gameId = savedGameId && name === originalName ? savedGameId : `custom-${createRandomSeed()}`
+      const gameId = savedGameId && name === originalName ? savedGameId : unsavedGameId
       const screenshot = await new Promise<Blob | null>((resolve) => {
         const canvas = gameCanvasRef.current?.captureBoard({ gameplayPreview: true })
         if (!canvas) {
@@ -298,24 +329,11 @@ export function ClassicCreatePage() {
         canvas.toBlob(resolve, 'image/png')
       })
       if (!screenshot) throw new Error('Could not capture the custom board screenshot.')
-      const definition: ClassicGameDefinition = {
+      const definition = createCustomGameDefinition(
         // A custom board changes its dimensions and contents, not the shared
         // Classic visual/verification behavior players expect in a game.
-        config: {
-          ...savedConfig,
-          columns: config.columns,
-          hideGameControls: false,
-          navigationEnabled: true,
-          rows: config.rows,
-          tetrominoCount: pieces.length,
-        },
-        gameMode,
-        customName: name,
-        pieces: pieces.map(({ color: _color, ...piece }) => piece),
-        seed: gameId,
-        source: 'custom',
-        version: 1,
-      }
+        gameDefinitionData, gameId, name,
+      )
       const selection: GameSelectionState = {
         elapsedSeconds: 0,
         gameGridScreenshot: screenshot,
@@ -347,7 +365,7 @@ export function ClassicCreatePage() {
           <h1 className="poster-title text-[33px] leading-none">{t('classic.title')}</h1>
           <p className="poster-kicker mt-2 text-[11px] text-[var(--muted-text-color)]">{t('classic.create')}</p>
         </div>
-        <DepthButton aria-label={`${t('common.pause')} ${t('classic.title')}`} className="size-10 shrink-0 text-[var(--canvas-foreground)]" onClick={() => setPauseOpen(true)} title={t('common.pause')}>
+        <DepthButton aria-label={`${t('common.pause')} ${t('classic.title')}`} className="size-10 shrink-0 text-[var(--canvas-foreground)]" onClick={() => setPauseOpen(true)} shadowColor={PAPER_DEPTH_SHADOW_COLOR} title={t('common.pause')}>
           <Pause aria-hidden="true" />
         </DepthButton>
       </header>
@@ -378,6 +396,7 @@ export function ClassicCreatePage() {
               aria-label={t('classic.mistakes', { count: repetitionCount })}
               aria-live="polite"
               className="h-10 min-w-10 px-3 text-[15px] font-black text-[var(--canvas-foreground)]"
+              shadowColor={PAPER_DEPTH_SHADOW_COLOR}
             >
               {repetitionCount}
             </DepthSurface>
@@ -387,6 +406,7 @@ export function ClassicCreatePage() {
               aria-pressed={placementMode}
               className="size-10 text-[var(--canvas-foreground)]"
               onClick={togglePlacementMode}
+              shadowColor={placementMode ? undefined : PAPER_DEPTH_SHADOW_COLOR}
               title={t('classic.placeCells')}
             >
               <svg aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><rect height="16" rx="2" width="16" x="4" y="4" /><rect fill="currentColor" height="6" rx="1" stroke="none" width="6" x="12" y="6" /></svg>
@@ -397,6 +417,7 @@ export function ClassicCreatePage() {
               aria-pressed={eraseMode}
               className="size-10 text-[var(--canvas-foreground)]"
               onClick={toggleEraseMode}
+              shadowColor={eraseMode ? undefined : PAPER_DEPTH_SHADOW_COLOR}
               title={t('classic.eraseNokomino')}
             >
               <Eraser aria-hidden="true" />
@@ -404,7 +425,7 @@ export function ClassicCreatePage() {
             <DepthButton {...DEPTH_BUTTON_COLORS.red} aria-label={t('classic.resetBoard')} className="size-10 text-[var(--canvas-foreground)]" onClick={resetBoard} title={t('classic.resetBoard')}>
               <RotateCcw aria-hidden="true" />
             </DepthButton>
-            <DepthButton aria-label={t('classic.configureBoardSize')} className="size-10 text-[var(--canvas-foreground)]" onClick={openDimensionsDialog} title={t('classic.configureBoardSize')}>
+            <DepthButton aria-label={t('classic.configureBoardSize')} className="size-10 text-[var(--canvas-foreground)]" onClick={openDimensionsDialog} shadowColor={PAPER_DEPTH_SHADOW_COLOR} title={t('classic.configureBoardSize')}>
               <Settings aria-hidden="true" />
             </DepthButton>
           </div>
@@ -423,6 +444,7 @@ export function ClassicCreatePage() {
       />
       <ClassicCreatePauseDialog
         boardName={boardName}
+        gameDataJson={gameDataJson}
         isSaving={isSaving}
         onBoardNameChange={(name) => {
           setBoardName(name)

@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type U
 import { useReducedMotion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { CareerChapter } from './CareerChapter'
-import { CAREER_PATH_DASH_GAP_PX, CAREER_PATH_DASH_LENGTH_PX, CAREER_PATH_THICKNESS_PX, type CareerChapter as Chapter } from './careerChapters'
+import { CAREER_PATH_DASH_GAP_PX, CAREER_PATH_DASH_LENGTH_PX, CAREER_PATH_THICKNESS_PX, type CareerChapter as Chapter, type CareerLevel } from './careerChapters'
 
 const CAREER_PATH_HEIGHT = 1_000
 const CAREER_PATH_CHAPTER_WIDTH = 1_000
@@ -55,7 +55,7 @@ function createDecorativePath(chapterCount: number) {
   return { path, viewBox: `0 0 ${width} ${CAREER_PATH_HEIGHT}` }
 }
 
-export function CareerChapterCarousel({ chapters }: { chapters: readonly Chapter[] }) {
+export function CareerChapterCarousel({ chapters, onPlayLevel }: { chapters: readonly Chapter[]; onPlayLevel?: (level: CareerLevel) => void }) {
   const { t } = useTranslation()
   const [index, setIndex] = useState(0)
   const indexRef = useRef(0)
@@ -138,7 +138,10 @@ export function CareerChapterCarousel({ chapters }: { chapters: readonly Chapter
           </svg>
           {chapters.map((chapter, chapterIndex) => (
             <div aria-hidden={chapterIndex !== index} className="relative z-10 h-full min-w-0 shrink-0 snap-start" inert={chapterIndex !== index} key={chapter.id} style={{ width: `${100 / chapters.length}%` }}>
-              <CareerChapter chapter={chapter} number={chapterIndex + 1} startLevel={chapterIndex * 4 + 1} />
+              <CareerChapter chapter={chapter} number={chapterIndex + 1} onPlayLevel={onPlayLevel ? (levelIndex) => {
+                const definition = chapter.levelsData[levelIndex]
+                if (definition) onPlayLevel({ chapter, chapterIndex, definition, levelIndex, number: chapterIndex * chapter.levelOrder.length + levelIndex + 1 })
+              } : undefined} startLevel={chapterIndex * 4 + 1} />
             </div>
           ))}
         </div>

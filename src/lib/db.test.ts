@@ -7,10 +7,11 @@ vi.mock('./gameDatabase', () => ({
     get: async (_store: string, key: string) => records.get(key),
     put: async (_store: string, value: { id: string; state: unknown; updatedAt: number }) => { records.set(value.id, value) },
     delete: async (_store: string, key: string) => { records.delete(key) },
+    getAll: async () => [...records.values()],
   }),
 }))
 
-import { clearVsLocalGameState, db, loadClassicGameDefinition, loadVsLocalGameState, saveClassicGameDefinition, saveGameSelection, saveVsLocalGameState, type ClassicGameDefinition, type VsLocalGameSaveState } from './db'
+import { clearVsLocalGameState, db, loadClassicGameDefinition, loadSavedGames, loadVsLocalGameState, saveClassicGameDefinition, saveGameSelection, saveVsLocalGameState, type ClassicGameDefinition, type VsLocalGameSaveState } from './db'
 import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsHistoryPosition, goToVsHistory, selectVsCell, toggleVsMoveDirection } from '@/features/vs/vsLocalGame'
 import type { VsTrapResolution } from '@/features/vs/vsLocalConfig'
 
@@ -96,6 +97,21 @@ describe('Classic game definitions', () => {
 
     await expect(loadClassicGameDefinition('c001', 'legacy-seed')).resolves.toBeNull()
     expect(records.size).toBe(recordCount)
+  })
+
+  it('keeps Career progress out of the general saved-game list', async () => {
+    await saveGameSelection('c001', 'career:authored-level', {
+      elapsedSeconds: 12,
+      gameGridScreenshot: new Blob(['board'], { type: 'image/png' }),
+      isCompleted: false,
+      lockedCellGroups: [],
+      markers: [],
+      moveCount: 4,
+      savedAt: 123,
+      selectedCellKeys: [],
+    })
+
+    await expect(loadSavedGames()).resolves.toEqual([])
   })
 })
 

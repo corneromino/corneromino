@@ -7,6 +7,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import en from '@/locales/en.js'
 import { CareerChapterCarousel } from './CareerChapterCarousel'
 import { CAREER_PATH_DASH_GAP_PX, CAREER_PATH_DASH_LENGTH_PX, CAREER_PATH_THICKNESS_PX, chapters } from './careerChapters'
+import { GAME_CONFIGS } from '@/game/gameConfig'
 
 const i18n = createInstance()
 void i18n.init({ lng: 'en', initAsync: false, resources: { en: { translation: en } } })
@@ -60,6 +61,16 @@ it('numbers levels continuously across chapters', () => {
   const viewport = setup()
   scrollToChapter(viewport, 1)
   expect(screen.getAllByRole('listitem').map((card) => card.textContent)).toEqual(['5', '6', '7', '8'])
+})
+
+it('opens the authored definition mapped to the pressed level-order slot', () => {
+  const definition = { config: { ...GAME_CONFIGS.c003 }, gameMode: 'c003' as const, pieces: [], seed: 'first-level', version: 1 as const }
+  const onPlayLevel = vi.fn()
+  render(<I18nextProvider i18n={i18n}><CareerChapterCarousel chapters={[{ ...chapters[0]!, levelsData: [definition] }]} onPlayLevel={onPlayLevel} /></I18nextProvider>)
+
+  fireEvent.click(screen.getByRole('button', { name: 'Level 1' }))
+
+  expect(onPlayLevel).toHaveBeenCalledWith(expect.objectContaining({ definition, levelIndex: 0, number: 1 }))
 })
 
 it('advances one chapter per swipe, supports reverse swipes, and stops at both ends', () => {
