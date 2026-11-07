@@ -35,3 +35,17 @@ it('explicitly preserves the legacy band for paper-colored Button wrappers', () 
   render(<Button aria-label="paper">Button</Button>)
   expect(screen.getByLabelText('paper').style.getPropertyValue('--depth-shadow-color')).toBe(PAPER_DEPTH_SHADOW_COLOR)
 })
+
+it('adds the depth band below an explicit equal vertical face padding', () => {
+  render(<>
+    <DepthSurface aria-label="padded surface" depth={8} yPadding={12} />
+    <DepthButton aria-label="padded button" depth="0.5rem" yPadding="0.75rem">Button</DepthButton>
+  </>)
+
+  const surface = screen.getByLabelText('padded surface')
+  expect(surface.style.paddingTop).toBe('12px')
+  expect(surface.style.paddingBottom).toBe('calc(12px + var(--depth-size))')
+  const button = screen.getByLabelText('padded button')
+  expect(button.style.paddingTop).toBe('0.75rem')
+  expect(button.style.paddingBottom).toBe('calc(0.75rem + var(--depth-size))')
+})

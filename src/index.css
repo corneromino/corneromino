@@ -177,13 +177,11 @@
   height: clamp(44px, calc(var(--app-content-height) * 0.1), 70px);
 }
 
-.cascade-menu-button,
 .classic-menu-button,
 .vs-menu-button {
   height: clamp(58px, calc(var(--app-content-height) * 0.13), 88px);
 }
 
-.cascade-menu-graphic,
 .classic-menu-graphic,
 .vs-menu-graphic {
   width: auto;

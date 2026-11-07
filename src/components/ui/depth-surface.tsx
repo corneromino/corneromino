@@ -8,6 +8,8 @@ interface DepthAppearanceProps {
   color?: string
   /** Height of the darker lower band. */
   depth?: CssLength
+  /** Equal face padding above and below content; bottom padding begins above the depth band. */
+  yPadding?: CssLength
   /** Color mixed into the lower band. */
   shadeColor?: string
   /** Percentage of shadeColor in the lower band. */
@@ -39,6 +41,7 @@ export const PAPER_DEPTH_SHADOW_COLOR = '#b95c2e'
 function depthStyle({
   color = 'var(--paper)',
   depth = '6px',
+  yPadding,
   shadeColor = 'var(--outline-color)',
   shadeStrength = 35,
   borderColor = 'var(--outline-color)',
@@ -51,9 +54,15 @@ function depthStyle({
   hoverColor = `color-mix(in srgb, ${color} 82%, #ffffff)`,
   style,
 }: DepthAppearanceProps & { style?: CSSProperties }): DepthVariables {
+  const yPaddingValue = yPadding === undefined ? undefined : typeof yPadding === 'number' ? `${yPadding}px` : yPadding
   return {
     '--depth-color': color,
     '--depth-size': typeof depth === 'number' ? `${depth}px` : depth,
+    ...(yPaddingValue === undefined ? {} : {
+      '--depth-y-padding': yPaddingValue,
+      paddingBottom: `calc(${yPaddingValue} + var(--depth-size))`,
+      paddingTop: yPaddingValue,
+    }),
     '--depth-shadow-color': shadowColor ?? `color-mix(in srgb, ${color} ${100 - shadeStrength}%, ${shadeColor})`,
     '--depth-active-color': activeColor,
     '--depth-hover-color': hoverColor,
@@ -78,7 +87,7 @@ export interface DepthSurfaceProps extends ComponentPropsWithoutRef<'div'>, Dept
 
 /** A non-interactive surface with the app's outlined, inset-depth treatment. */
 export const DepthSurface = forwardRef<HTMLElement, DepthSurfaceProps>(function DepthSurface(
-  { as: Component = 'div', activeColor, borderColor, borderWidth, className, color, depth, hoverColor, outlineColor, outlineWidth, radius, shadeColor, shadeStrength, shadowColor, style, ...props },
+  { as: Component = 'div', activeColor, borderColor, borderWidth, className, color, depth, hoverColor, outlineColor, outlineWidth, radius, shadeColor, shadeStrength, shadowColor, style, yPadding, ...props },
   ref,
 ) {
   return (
@@ -86,7 +95,7 @@ export const DepthSurface = forwardRef<HTMLElement, DepthSurfaceProps>(function 
       {...props}
       className={cn(depthSurfaceClass, className)}
       ref={ref}
-      style={depthStyle({ activeColor, borderColor, borderWidth, color, depth, hoverColor, outlineColor, outlineWidth, radius, shadeColor, shadeStrength, shadowColor, style })}
+      style={depthStyle({ activeColor, borderColor, borderWidth, color, depth, hoverColor, outlineColor, outlineWidth, radius, shadeColor, shadeStrength, shadowColor, style, yPadding })}
     />
   )
 })
@@ -95,7 +104,7 @@ export interface DepthButtonProps extends ComponentPropsWithoutRef<'button'>, De
 
 /** A native button with the app's outlined, inset-depth treatment and press motion. */
 export const DepthButton = forwardRef<HTMLButtonElement, DepthButtonProps>(function DepthButton(
-  { activeColor, borderColor = '#713324', borderWidth, children, className, color = 'var(--paper)', depth, hoverColor, outlineColor, outlineWidth, radius, shadeColor, shadeStrength, shadowColor, style, type = 'button', ...props },
+  { activeColor, borderColor = '#713324', borderWidth, children, className, color = 'var(--paper)', depth, hoverColor, outlineColor, outlineWidth, radius, shadeColor, shadeStrength, shadowColor, style, type = 'button', yPadding, ...props },
   ref,
 ) {
   return (
@@ -103,7 +112,7 @@ export const DepthButton = forwardRef<HTMLButtonElement, DepthButtonProps>(funct
       {...props}
       className={cn(depthSurfaceClass, 'shrink-0 gap-2 text-[15px] font-medium whitespace-nowrap outline-none cursor-pointer touch-manipulation select-none [-webkit-tap-highlight-color:transparent] transition-[box-shadow,background-color] duration-[80ms] focus-visible:outline-2 focus-visible:outline-[var(--outline-color)] focus-visible:outline-offset-2 after:transition-transform after:duration-[80ms] hover:bg-[var(--depth-hover-color)] active:bg-[var(--depth-active-color)] active:shadow-[inset_0_-1px_0_var(--depth-shadow-color),0_0_0_var(--depth-outline-width)_var(--depth-outline-color)] active:[&>.depth-button-content]:translate-y-[calc(var(--depth-size)_/_2)] active:after:scale-y-[0.166667] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*="size-"])]:size-4', className)}
       ref={ref}
-      style={depthStyle({ activeColor, borderColor, borderWidth, color, depth, hoverColor, outlineColor, outlineWidth, radius, shadeColor, shadeStrength, shadowColor, style })}
+      style={depthStyle({ activeColor, borderColor, borderWidth, color, depth, hoverColor, outlineColor, outlineWidth, radius, shadeColor, shadeStrength, shadowColor, style, yPadding })}
       type={type}
     >
       <span className="depth-button-content inline-flex min-w-0 items-center justify-center gap-[inherit] transition-transform duration-[80ms]">{children}</span>

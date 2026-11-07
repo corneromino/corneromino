@@ -44,17 +44,16 @@ function scrollToChapter(viewport: HTMLElement, chapterIndex: number) {
 
 it('presents four ordered level cards in one accessible chapter at a time', () => {
   setup()
-  expect(screen.getByRole('heading', { name: 'Chapter 1 The Beginning' })).toBeTruthy()
+  expect(screen.queryByRole('heading')).toBeNull()
   const cards = screen.getAllByRole('listitem')
   expect(cards).toHaveLength(4)
-  expect(cards.map((card) => card.getAttribute('aria-label'))).toEqual(['Level 1', 'Level 2', 'Level 3', 'Level 4'])
+  expect(screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual(['Level 1', 'Level 2', 'Level 3', 'Level 4'])
   expect(cards.map((card) => card.textContent)).toEqual(['1', '2', '3', '4'])
   const path = document.querySelector('path')
   expect(path?.getAttribute('stroke-width')).toBe(String(CAREER_PATH_THICKNESS_PX))
   expect(path?.getAttribute('stroke-dasharray')).toBe(`${CAREER_PATH_DASH_LENGTH_PX} ${CAREER_PATH_DASH_GAP_PX}`)
   expect(path?.getAttribute('d')).toContain(' C ')
   expect(path?.parentElement?.getAttribute('viewBox')).toBe(`0 0 ${chapters.length * 1_000} 1000`)
-  expect(screen.queryByRole('button')).toBeNull()
 })
 
 it('numbers levels continuously across chapters', () => {
@@ -76,37 +75,37 @@ it('opens the authored definition mapped to the pressed level-order slot', () =>
 it('advances one chapter per swipe, supports reverse swipes, and stops at both ends', () => {
   const viewport = setup()
   scrollToChapter(viewport, 0)
-  expect(screen.getByRole('heading').textContent).toContain('The Beginning')
+  expect(screen.getByRole('article', { name: 'Chapter 1' })).toBeTruthy()
   scrollToChapter(viewport, 1)
-  expect(screen.getByRole('heading').textContent).toContain('A New Perspective')
+  expect(screen.getByRole('article', { name: 'Chapter 2' })).toBeTruthy()
   scrollToChapter(viewport, 2)
-  expect(screen.getByRole('heading').textContent).toContain('Finding Balance')
+  expect(screen.getByRole('article', { name: 'Chapter 3' })).toBeTruthy()
   for (let chapterIndex = 3; chapterIndex < chapters.length; chapterIndex += 1) scrollToChapter(viewport, chapterIndex)
-  expect(screen.getByRole('heading').textContent).toContain(`Chapter ${chapters.length} ${chapters.at(-1)?.title}`)
+  expect(screen.getByRole('article', { name: `Chapter ${chapters.length}` })).toBeTruthy()
   scrollToChapter(viewport, chapters.length - 2)
-  expect(screen.getByRole('heading').textContent).toContain(`Chapter ${chapters.length - 1} ${chapters.at(-2)?.title}`)
+  expect(screen.getByRole('article', { name: `Chapter ${chapters.length - 1}` })).toBeTruthy()
 })
 
 it('keeps the current chapter selected until native scrolling passes the next snap midpoint', () => {
   const viewport = setup()
   Object.defineProperty(viewport, 'scrollLeft', { configurable: true, value: width * 0.49, writable: true })
   fireEvent.scroll(viewport)
-  expect(screen.getByRole('heading').textContent).toContain('The Beginning')
+  expect(screen.getByRole('article', { name: 'Chapter 1' })).toBeTruthy()
 })
 
 it('supports keyboard navigation and preserves the current chapter on resize', () => {
   const viewport = setup()
   fireEvent.keyDown(viewport, { key: 'ArrowRight' })
-  expect(screen.getByRole('heading').textContent).toContain('A New Perspective')
+  expect(screen.getByRole('article', { name: 'Chapter 2' })).toBeTruthy()
   act(() => {
     width = 550
     resize([], {} as ResizeObserver)
   })
-  expect(screen.getByRole('heading').textContent).toContain('A New Perspective')
+  expect(screen.getByRole('article', { name: 'Chapter 2' })).toBeTruthy()
   fireEvent.keyDown(viewport, { key: 'End' })
-  expect(screen.getByRole('heading').textContent).toContain(`Chapter ${chapters.length} ${chapters.at(-1)?.title}`)
+  expect(screen.getByRole('article', { name: `Chapter ${chapters.length}` })).toBeTruthy()
   fireEvent.keyDown(viewport, { key: 'ArrowLeft' })
-  expect(screen.getByRole('heading').textContent).toContain(`Chapter ${chapters.length - 1} ${chapters.at(-2)?.title}`)
+  expect(screen.getByRole('article', { name: `Chapter ${chapters.length - 1}` })).toBeTruthy()
   fireEvent.keyDown(viewport, { key: 'Home' })
-  expect(screen.getByRole('heading').textContent).toContain('The Beginning')
+  expect(screen.getByRole('article', { name: 'Chapter 1' })).toBeTruthy()
 })

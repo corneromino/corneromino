@@ -2,6 +2,7 @@ export default {
     "common": {
         "back": "Retour",
         "backToMainMenu": "Retour au menu principal",
+        "backToMiniGames": "Retour aux mini-jeux",
         "cancel": "Annuler",
         "canvasStartupFailed": "Impossible d'afficher la grille. Veuillez recharger la page.",
         "continue": "Continuer",
@@ -23,6 +24,12 @@ export default {
         "quitWithoutSaving": "Quitter sans sauvegarder",
         "settings": "Paramétres",
         "close": "Fermer"
+    },
+    "mainMenu": {
+        "miniGames": "Mini-jeux"
+    },
+    "miniGames": {
+        "title": "Mini-jeux"
     },
     "difficulty": {
         "veryEasy": "Très facile",
@@ -71,10 +78,10 @@ export default {
         "custom": "Personnalisé",
         "createBoard": "Grille de création",
         "configureBoardSize": "Taille du plateau",
-        "placeCells": "Placer des cellules Nokomino",
+        "placeCells": "Placer des cellules",
         "boardName": "Nom du plateau",
         "resetBoard": "Réinitialiser le plateau",
-        "eraseNokomino": "Effacer le Nokomino",
+        "erasePiece": "Effacer la pièce",
         "editBoard": "Modifier le plateau",
         "copyGameData": "Copier les données du jeu",
         "gameDataCopied": "Données du jeu copiées",

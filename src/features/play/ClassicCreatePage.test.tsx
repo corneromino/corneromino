@@ -69,7 +69,7 @@ it('applies configured row and column counts to the board', () => {
   expect(canvasProps.current?.config).toMatchObject({ columns: 8, rows: 6, tetrominoCount: 0 })
 })
 
-it('removes an entire Nokomino if reducing the board would put any of its cells outside', () => {
+it('removes an entire Cantomino if reducing the board would put any of its cells outside', () => {
   render(<MemoryRouter><ClassicCreatePage /></MemoryRouter>)
 
   fireEvent.click(screen.getByRole('button', { name: 'classic.placeCells' }))
@@ -88,7 +88,7 @@ it('removes an entire Nokomino if reducing the board would put any of its cells 
   ]))
 })
 
-it('places valid temporary cells as a Nokomino and rotates its corners in placement mode', () => {
+it('places valid temporary cells as a Cantomino and rotates its corners in placement mode', () => {
   render(<MemoryRouter><ClassicCreatePage /></MemoryRouter>)
 
   fireEvent.click(screen.getByRole('button', { name: 'classic.placeCells' }))
@@ -144,14 +144,14 @@ it('resets confirmed and unfinished placements without changing the board size',
   expect(canvasProps.current?.config).toMatchObject({ columns: 5, rows: 5 })
 })
 
-it('erases an entire Nokomino in erase mode and exits the mode when toggled again', () => {
+it('erases an entire Cantomino in erase mode and exits the mode when toggled again', () => {
   render(<MemoryRouter><ClassicCreatePage /></MemoryRouter>)
 
   fireEvent.click(screen.getByRole('button', { name: 'classic.placeCells' }))
   for (const key of ['0,0', '1,0', '0,1', '1,1']) act(() => canvasProps.current!.onToggle(key, 0))
   expect(canvasProps.current?.pieces).toHaveLength(1)
 
-  const eraseButton = screen.getByRole('button', { name: 'classic.eraseNokomino' })
+  const eraseButton = screen.getByRole('button', { name: 'classic.erasePiece' })
   fireEvent.click(eraseButton)
   expect(eraseButton.getAttribute('aria-pressed')).toBe('true')
   act(() => canvasProps.current!.onToggle('1,1', 0))

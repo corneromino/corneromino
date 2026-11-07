@@ -2,6 +2,7 @@ export default {
     "common": {
         "back": "Back",
         "backToMainMenu": "Back to main menu",
+        "backToMiniGames": "Back to Mini games",
         "cancel": "Cancel",
         "canvasStartupFailed": "Could not display the board. Please reload the page.",
         "continue": "Continue",
@@ -28,8 +29,12 @@ export default {
         "title": "{{appName}}",
         "classic": "Classic",
         "cascade": "Cascade",
+        "miniGames": "Mini games",
         "versus": "VS",
         "version": "Version {{version}}"
+    },
+    "miniGames": {
+        "title": "Mini games"
     },
     "difficulty": {
         "veryEasy": "Very easy",
@@ -78,10 +83,10 @@ export default {
         "custom": "Custom",
         "createBoard": "Create board",
         "configureBoardSize": "Board size",
-        "placeCells": "Place Nokomino cells",
+        "placeCells": "Place cells",
         "boardName": "Board name",
         "resetBoard": "Reset board",
-        "eraseNokomino": "Erase Nokomino",
+        "erasePiece": "Erase piece",
         "editBoard": "Edit board",
         "copyGameData": "Copy game data",
         "gameDataCopied": "Game data copied",

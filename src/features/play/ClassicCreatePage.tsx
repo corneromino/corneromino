@@ -413,12 +413,12 @@ export function ClassicCreatePage() {
             </DepthButton>
             <DepthButton
               {...(eraseMode ? DEPTH_BUTTON_COLORS.red : {})}
-              aria-label={t('classic.eraseNokomino')}
+              aria-label={t('classic.erasePiece')}
               aria-pressed={eraseMode}
               className="size-10 text-[var(--canvas-foreground)]"
               onClick={toggleEraseMode}
               shadowColor={eraseMode ? undefined : PAPER_DEPTH_SHADOW_COLOR}
-              title={t('classic.eraseNokomino')}
+              title={t('classic.erasePiece')}
             >
               <Eraser aria-hidden="true" />
             </DepthButton>

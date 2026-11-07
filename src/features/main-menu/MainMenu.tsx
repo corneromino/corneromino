@@ -46,20 +46,20 @@ export function MainMenu() {
             <img alt="" aria-hidden="true" className="classic-menu-graphic -rotate-12 scale-125" src={classicGraphic} />
           </AppNavigationButton>
           <AppNavigationButton
-            className="cascade-menu-button w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
-            size="lg"
-            to="/cascade"
-          >
-            <span>{t('mainMenu.cascade')}</span>
-            <img alt="" aria-hidden="true" className="cascade-menu-graphic -rotate-12 scale-125" src={cascadeGraphic} />
-          </AppNavigationButton>
-          <AppNavigationButton
             className="vs-menu-button w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
             size="lg"
             to="/vs"
           >
             <span>{t('mainMenu.versus')}</span>
             <img alt="" aria-hidden="true" className="vs-menu-graphic -rotate-12 scale-125" src={vsGraphic} />
+          </AppNavigationButton>
+          <AppNavigationButton
+            className="w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
+            yPadding={25}
+            to="/mini-games"
+          >
+            <span>{t('mainMenu.miniGames')}</span>
+            <img alt="" aria-hidden="true" className="size-16 -rotate-12 scale-500 object-contain" src={cascadeGraphic} />
           </AppNavigationButton>
         </section>
       </div>

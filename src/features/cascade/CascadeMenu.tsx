@@ -36,7 +36,7 @@ export function CascadeMenu() {
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{t('mainMenu.title')}</p>
           <h1 className="poster-title mt-2 text-[40px] leading-none">{t('cascade.title')}</h1>
         </div>
-        <AppNavigationButton aria-label={t('common.backToMainMenu')} className="size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
+        <AppNavigationButton aria-label={t('common.backToMiniGames')} className="size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMiniGames')} to="/mini-games"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
       </header>
       <section className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col gap-4 overflow-hidden px-1 pb-1">
         <Button

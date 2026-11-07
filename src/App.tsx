@@ -10,6 +10,7 @@ import { ClassicCreatePage } from '@/features/play/ClassicCreatePage'
 import { ClassicTutorial } from '@/features/play/ClassicTutorial'
 import { ClassicInfinitePage } from '@/features/play/ClassicInfinitePage'
 import { MainMenu } from '@/features/main-menu/MainMenu'
+import { MiniGames } from '@/features/mini-games/MiniGames'
 import { SavedGames } from '@/features/saved-games/SavedGames'
 import { Sandbox } from '@/features/sandbox/Sandbox'
 import { SandboxWorld } from '@/features/sandbox/SandboxWorld'
@@ -22,6 +23,7 @@ import { ToastProvider } from '@/components/toast'
 
 const APP_ROUTES = [
   { path: '/', element: <MainMenu />, handle: { menu: true } },
+  { path: '/mini-games', element: <MiniGames />, handle: { menu: true } },
   { path: '/play', element: <Play />, handle: { menu: true } },
   { path: '/play/levels', element: <ClassicCareerMenu />, handle: { menu: true } },
   { path: '/play/modes', element: <ClassicModesMenu />, handle: { menu: true } },

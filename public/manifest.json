@@ -1,7 +1,7 @@
 {
   "id": "./game-pwa-v1",
-  "name": "Nokomino",
-  "short_name": "Nokomino",
+  "name": "Cantomino",
+  "short_name": "Cantomino",
   "version": "0.12.11",
   "description": "A tetromino deduction puzzle game.",
   "lang": "en",
