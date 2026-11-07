@@ -22,6 +22,7 @@ export function MiniGames() {
         <AppNavigationButton
           className="w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
           yPadding={40}
+          radius={20}
           to={"/cascade"}
         >
           <span>{t('mainMenu.cascade')}</span>

@@ -41,6 +41,7 @@ export function MainMenu() {
             className="classic-menu-button w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
             size="lg"
             to="/play/levels"
+            radius={20}
           >
             <span>{t('mainMenu.classic')}</span>
             <img alt="" aria-hidden="true" className="classic-menu-graphic -rotate-12 scale-125" src={classicGraphic} />
@@ -48,6 +49,7 @@ export function MainMenu() {
           <AppNavigationButton
             className="vs-menu-button w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
             size="lg"
+            radius={20}
             to="/vs"
           >
             <span>{t('mainMenu.versus')}</span>
@@ -56,6 +58,7 @@ export function MainMenu() {
           <AppNavigationButton
             className="w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
             yPadding={30}
+            radius={20}
             to="/mini-games"
           >
             <span>{t('mainMenu.miniGames')}</span>
