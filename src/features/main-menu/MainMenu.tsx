@@ -59,7 +59,7 @@ export function MainMenu() {
             to="/mini-games"
           >
             <span>{t('mainMenu.miniGames')}</span>
-            <img alt="" aria-hidden="true" className="size-16 -rotate-12 scale-500 object-contain" src={cascadeGraphic} />
+            <img alt="" aria-hidden="true" className="size-16 -rotate-12 scale-200 -translate-y-5 object-contain" src={cascadeGraphic} />
           </AppNavigationButton>
         </section>
       </div>
