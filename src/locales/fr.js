@@ -79,6 +79,7 @@ export default {
         "copyGameData": "Copier les données du jeu",
         "gameDataCopied": "Données du jeu copiées",
         "copyGameDataFailed": "Impossible de copier les données du jeu",
+        "restartConfirmation": "Êtes-vous sûr ?",
         "nameRequired": "Saisissez un nom de plateau avant de sauvegarder.",
         "columns": "Colonnes",
         "rows": "Lignes",

@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { useToast } from '@/components/toast'
 import { chooseLockColor } from '@/game/lockingColor'
 import { ClassicPauseDialog } from './ClassicPauseDialog'
+import { ClassicRestartDialog } from './ClassicRestartDialog'
 import { CorrectGameDialog } from './CorrectGameDialog'
 import { GameGridCanvas, type GameGridCanvasHandle, type ScrollingGridViewport } from './GameGridCanvas'
 import type { ClassicInfiniteCellExit } from './classicInfiniteCellExit'
@@ -101,6 +102,7 @@ export function GameGrid(props: GameGridProps) {
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false)
   const [verification, setVerification] = useState<VerificationRun | null>(null)
   const [completionScreenshot, setCompletionScreenshot] = useState<string | null>(null)
+  const [restartConfirmationOpen, setRestartConfirmationOpen] = useState(false)
   const [moveCount, setMoveCount] = useState(0)
   const [savedAt, setSavedAt] = useState<number | null>(null)
   const [previousScrollingPieces, setPreviousScrollingPieces] = useState(props.pieces)
@@ -207,7 +209,7 @@ export function GameGrid(props: GameGridProps) {
     return queuedTask
   }
 
-  function restartFromPause() {
+  function restartGame() {
     cancelVerification()
     if (props.onRestart) {
       props.onRestart()
@@ -215,6 +217,15 @@ export function GameGrid(props: GameGridProps) {
     }
     resetGame()
     props.onPauseOpenChange(false)
+  }
+
+  function requestRestart() {
+    setRestartConfirmationOpen(true)
+  }
+
+  function confirmRestart() {
+    setRestartConfirmationOpen(false)
+    restartGame()
   }
 
   function quitWithoutSavingFromPause() {
@@ -664,7 +675,7 @@ export function GameGrid(props: GameGridProps) {
           aria-label={t('common.restart')}
           className="text-[var(--canvas-foreground)]"
           disabled={!selectionLoaded || isExiting}
-          onClick={restartFromPause}
+          onClick={requestRestart}
           size="icon-lg"
           title={t('common.restart')}
           type="button"
@@ -750,7 +761,8 @@ export function GameGrid(props: GameGridProps) {
         </div>}
       </div>}
       <CorrectGameDialog onNext={props.onNextGame} onOpenChange={handleCompletionOpenChange} open={completionDialogOpen} screenshot={completionScreenshot} />
-      {props.pauseDialog ?? <ClassicPauseDialog gameMode={props.gameMode} isSaving={isExiting} onOpenChange={props.onPauseOpenChange} onQuitWithoutSaving={quitWithoutSavingFromPause} onRestart={restartFromPause} onResume={() => props.onPauseOpenChange(false)} onSaveAndQuit={saveAndQuitFromPause} open={props.paused} seed={props.gameId} />}
+      {props.pauseDialog ?? <ClassicPauseDialog gameMode={props.gameMode} isSaving={isExiting} onOpenChange={props.onPauseOpenChange} onQuitWithoutSaving={quitWithoutSavingFromPause} onRestart={requestRestart} onResume={() => props.onPauseOpenChange(false)} onSaveAndQuit={saveAndQuitFromPause} open={props.paused} seed={props.gameId} />}
+      <ClassicRestartDialog onOpenChange={setRestartConfirmationOpen} onRestart={confirmRestart} open={restartConfirmationOpen} />
     </div>
   )
 }

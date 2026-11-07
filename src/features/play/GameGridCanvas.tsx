@@ -69,10 +69,15 @@ const TEXT_COLOR = GAME_COLORS.ink
 /** Retains the existing 1.5px border at a 50px cell while scaling dense boards down. */
 const CELL_BORDER_RATIO = 0.04
 /** Note-outline stroke thickness as a fraction of the smaller cell dimension. */
-export const NOTE_OUTLINE_THICKNESS_RATIO = 0.1
+const NOTE_OUTLINE_THICKNESS_RATIO = 0.1
 /** Pulses per second for noted cells. Set to 0 for a static white outline. */
-export const NOTE_OUTLINE_BEAT_FREQUENCY_HZ = 1.5
-const NOTE_OUTLINE_MIN_ALPHA = 0.35
+const NOTE_OUTLINE_BEAT_FREQUENCY_HZ = 1.5
+/** Smallest scale reached by a pulsing note outline. */
+const NOTE_OUTLINE_MIN_SCALE = 0.9
+/** Largest scale reached by a pulsing note outline. */
+const NOTE_OUTLINE_MAX_SCALE = 1
+/** Opacity of white note outlines. */
+const NOTE_OUTLINE_OPACITY = 0.9
 const NOTE_OUTLINE_COLOR = 0xffffff
 /** Transparent render space for selected cells, capped below the game header. */
 const TOP_SELECTION_OVERFLOW_PX = 20
@@ -435,6 +440,8 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           if (current.markers.has(key)) {
             const noteGraphic = new Graphics()
             drawNoteOutline(noteGraphic, cellWidth, cellHeight)
+            noteGraphic.pivot.set(cellWidth / 2, cellHeight / 2)
+            noteGraphic.position.set(cellWidth / 2, cellHeight / 2)
             shakeLayer.addChild(noteGraphic)
             noteOutlines.push(noteGraphic)
           }
@@ -616,10 +623,13 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           verificationPhase = 'finished'
         }
       }
-      const noteAlpha = NOTE_OUTLINE_BEAT_FREQUENCY_HZ > 0
-        ? NOTE_OUTLINE_MIN_ALPHA + (1 - NOTE_OUTLINE_MIN_ALPHA) * (0.5 + 0.5 * Math.sin(performance.now() / 1000 * NOTE_OUTLINE_BEAT_FREQUENCY_HZ * Math.PI * 2))
-        : 1
-      for (const outline of noteOutlines) outline.alpha = noteAlpha
+      const noteOutlineScale = NOTE_OUTLINE_BEAT_FREQUENCY_HZ > 0
+        ? NOTE_OUTLINE_MIN_SCALE + (NOTE_OUTLINE_MAX_SCALE - NOTE_OUTLINE_MIN_SCALE) * (0.5 + 0.5 * Math.sin(performance.now() / 1000 * NOTE_OUTLINE_BEAT_FREQUENCY_HZ * Math.PI * 2))
+        : NOTE_OUTLINE_MAX_SCALE
+      for (const outline of noteOutlines) {
+        outline.alpha = NOTE_OUTLINE_OPACITY
+        outline.scale.set(noteOutlineScale)
+      }
       vhsCrtEffect?.advance(app.ticker.deltaMS, propsRef.current.interactive === false || document.hidden)
       const scrolling = propsRef.current.scrolling
       if (scrolling && surface) {

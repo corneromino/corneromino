@@ -5,5 +5,12 @@ import { ClassicMenuLayout } from './ClassicMenuLayout'
 
 export function ClassicCareerMenu() {
   const navigate = useNavigate()
-  return <ClassicMenuLayout menu="career"><CareerChapterCarousel chapters={chapters} onPlayLevel={(level) => navigate(getCareerLevelPath(level))} /></ClassicMenuLayout>
+  return (
+    <ClassicMenuLayout menu="career">
+      <CareerChapterCarousel
+        chapters={chapters}
+        onPlayLevel={(level) => navigate(getCareerLevelPath(level))}
+      />
+    </ClassicMenuLayout>
+  )
 }

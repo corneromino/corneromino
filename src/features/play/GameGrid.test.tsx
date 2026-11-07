@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { StrictMode, useImperativeHandle, type ComponentProps } from 'react'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CELL_CORNERS, GAME_CONFIGS, type GameSelectionState, type PlacedTetromino } from '@/game/gameConfig'
@@ -93,6 +93,10 @@ function finishVerificationWave() {
   const { verificationRequest, onVerificationComplete } = canvasMock.props!
   expect(verificationRequest).toBeDefined()
   act(() => onVerificationComplete?.(verificationRequest!.id))
+}
+
+function confirmRestart() {
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'common.restart' }))
 }
 
 type GridProps = ComponentProps<typeof GameGrid>
@@ -264,6 +268,7 @@ describe('Classic locking modes', () => {
     setup('auto', { config: { ...GAME_CONFIGS.c003, finalVerificationMode: 'auto', completionScreenshotDelayMs: 200 }, onCorrectSolution: undefined })
     tap(...firstSquare, ...secondSquare)
     fireEvent.click(screen.getByRole('button', { name: 'common.restart' }))
+    confirmRestart()
     await act(async () => { await vi.advanceTimersByTimeAsync(300) })
     expect(canvasMock.captureBoard).not.toHaveBeenCalled()
     expect(canvasMock.props!.verificationRequest).toBeUndefined()
@@ -272,6 +277,7 @@ describe('Classic locking modes', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(200) })
     const { verificationRequest, onVerificationComplete } = canvasMock.props!
     fireEvent.click(screen.getByRole('button', { name: 'common.restart' }))
+    confirmRestart()
     act(() => onVerificationComplete?.(verificationRequest!.id))
     expect(board().locked).toEqual([])
     expect(canvasMock.props!.verificationRequest).toBeUndefined()
@@ -348,6 +354,8 @@ describe('Classic locking modes', () => {
     tap(...firstSquare)
     expect(board().locked).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'common.restart' }))
+    expect(board().locked).toHaveLength(1)
+    confirmRestart()
     expect(board().locked).toEqual([])
     expect(board().selected).toEqual([])
     expect(props.onPauseOpenChange).toHaveBeenCalledWith(false)

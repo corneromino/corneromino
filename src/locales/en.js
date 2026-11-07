@@ -86,6 +86,7 @@ export default {
         "copyGameData": "Copy game data",
         "gameDataCopied": "Game data copied",
         "copyGameDataFailed": "Could not copy game data",
+        "restartConfirmation": "Are you sure?",
         "nameRequired": "Enter a board name before saving.",
         "columns": "Columns",
         "rows": "Rows",
