@@ -55,7 +55,7 @@ export function MainMenu() {
           </AppNavigationButton>
           <AppNavigationButton
             className="w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
-            yPadding={25}
+            yPadding={30}
             to="/mini-games"
           >
             <span>{t('mainMenu.miniGames')}</span>
