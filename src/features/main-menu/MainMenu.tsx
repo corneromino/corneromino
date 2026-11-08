@@ -38,8 +38,9 @@ export function MainMenu() {
             {t('mainMenu.title')}
           </h1>
           <AppNavigationButton
-            className="classic-menu-button w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
+            className="w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
             size="lg"
+            yPadding={40}
             to="/play/levels"
             radius={20}
           >
@@ -47,7 +48,8 @@ export function MainMenu() {
             <img alt="" aria-hidden="true" className="classic-menu-graphic -rotate-12 scale-125" src={classicGraphic} />
           </AppNavigationButton>
           <AppNavigationButton
-            className="vs-menu-button w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
+            className="w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
+            yPadding={40}
             size="lg"
             radius={20}
             to="/vs"
