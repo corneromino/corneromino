@@ -56,7 +56,7 @@ export function TetrominoBackground() {
   }, [])
 
   return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 scale-110 rotate-6 grid grid-cols-8 content-start gap-1 opacity-10 sm:grid-cols-12 lg:grid-cols-16">
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 scale-120 rotate-6 grid grid-cols-8 content-start gap-1 opacity-10 sm:grid-cols-12 lg:grid-cols-16">
       {MENU_BACKGROUND_CELLS.map((cell, index) => (
         <div className="relative aspect-square" key={cell.id}>
           {cell.hasTetrominoCell && (
