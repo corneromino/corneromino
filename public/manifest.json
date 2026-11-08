@@ -2,7 +2,7 @@
   "id": "./game-pwa-v1",
   "name": "Cantomino",
   "short_name": "Cantomino",
-  "version": "0.12.17",
+  "version": "0.12.18",
   "description": "A tetromino deduction puzzle game.",
   "lang": "en",
   "start_url": "./#/",
