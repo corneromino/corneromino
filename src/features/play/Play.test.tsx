@@ -3,10 +3,10 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { GAME_CONFIGS, type PlacedTetromino } from '@/game/gameConfig'
-import { chapters } from './careerChapters'
+import { careerLevels } from './careerLevels'
 
 const gameGridProps = vi.hoisted(() => ({ current: undefined as { exitPath?: string; gameDefinition?: { seed: string }; gameId: string; pieces: readonly PlacedTetromino[] } | undefined }))
-const initialCareerLevels = chapters.map((chapter) => chapter.levelsData)
+const initialCareerLevels = [...careerLevels]
 
 vi.mock('@/lib/db', () => ({ clearGameSelection: vi.fn(), loadClassicGameDefinition: vi.fn() }))
 vi.mock('@/game/placementV2', () => ({ generateTetrominoPlacementsV2: vi.fn() }))
@@ -45,7 +45,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
-  for (const [index, chapter] of chapters.entries()) chapter.levelsData = initialCareerLevels[index]!
+  careerLevels.splice(0, careerLevels.length, ...initialCareerLevels)
   vi.restoreAllMocks()
 })
 
@@ -78,17 +78,21 @@ it('shows a custom board name instead of its original difficulty title', async (
 })
 
 it('plays a Career level from its authored data using its stable career save ID', async () => {
-  chapters[0]!.levelsData = [{
-    config: { ...GAME_CONFIGS.c003 },
-    customName: 'Ignored custom title',
-    gameMode: 'c003',
-    pieces,
-    seed: 'authored-career-board',
-    source: 'custom',
-    version: 1,
-  }]
+  careerLevels.splice(0, careerLevels.length, {
+    data: {
+      config: { ...GAME_CONFIGS.c003 },
+      customName: 'Ignored custom title',
+      gameMode: 'c003',
+      pieces,
+      seed: 'authored-career-board',
+      source: 'custom',
+      version: 1,
+    },
+    x: 12,
+    y: 34,
+  })
 
-  render(<MemoryRouter initialEntries={['/play?mode=c003&career=the-beginning&level=0']}><Play /></MemoryRouter>)
+  render(<MemoryRouter initialEntries={['/play?career=authored-career-board']}><Play /></MemoryRouter>)
 
   await waitFor(() => expect(screen.getByTestId('game-grid').textContent).toBe('1'))
   expect(screen.getByText('LEVEL 1')).toBeTruthy()

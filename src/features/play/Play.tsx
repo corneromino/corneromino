@@ -7,7 +7,7 @@ import { createRandomSeed, createSeededRandom } from '@/game/random'
 import { GAME_CONFIGS, isGameMode, type ClassicGameMode } from '@/game/gameConfig'
 import { clearGameSelection, loadClassicGameDefinition, type ClassicGameDefinition } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
-import { getCareerGameId, getCareerLevel, getCareerLevelPath, getNextCareerLevel, type CareerLevel } from './careerChapters'
+import { getCareerGameId, getCareerLevel, getCareerLevelPath, getNextCareerLevel, type ResolvedCareerLevel } from './careerLevels'
 import { GameGrid } from './GameGrid'
 import { ClassicShapesDialog } from './ClassicShapesDialog'
 
@@ -18,7 +18,7 @@ function formatElapsedTime(elapsedSeconds: number) {
 }
 
 interface GameSessionProps {
-  careerLevel?: CareerLevel
+  careerLevel?: ResolvedCareerLevel
   gameMode: ClassicGameMode
   requestedSeed: string | null
 }
@@ -34,7 +34,7 @@ function GameSession(props: GameSessionProps) {
   const [gameDefinition, setGameDefinition] = useState<ClassicGameDefinition | null>(null)
   const [pauseOpen, setPauseOpen] = useState(false)
   const [shapesOpen, setShapesOpen] = useState(false)
-  const seed = props.careerLevel ? getCareerGameId(props.careerLevel.definition) : props.requestedSeed || generatedSeed
+  const seed = props.careerLevel ? getCareerGameId(props.careerLevel.data) : props.requestedSeed || generatedSeed
   const modeConfig = GAME_CONFIGS[props.gameMode]
   const gameTitle = props.careerLevel ? t('career.level', { number: props.careerLevel.number }) : gameDefinition?.source === 'custom' && gameDefinition.customName ? gameDefinition.customName : t(modeConfig.title)
 
@@ -62,7 +62,7 @@ function GameSession(props: GameSessionProps) {
     setGameDefinition(null)
 
     const definition = props.careerLevel
-      ? Promise.resolve({ ...props.careerLevel.definition, seed })
+      ? Promise.resolve({ ...props.careerLevel.data, seed })
       : loadClassicGameDefinition(props.gameMode, seed)
     void definition
       .catch(() => null)
@@ -163,12 +163,11 @@ export function Play() {
   const [searchParams] = useSearchParams()
   const gameMode = searchParams.get('mode')
   const requestedSeed = searchParams.get('seed')
-  const careerChapterId = searchParams.get('career')
-  const careerLevelValue = searchParams.get('level')
-  const careerLevel = careerChapterId !== null && careerLevelValue !== null ? getCareerLevel(careerChapterId, Number(careerLevelValue)) : null
+  const careerSeed = searchParams.get('career')
+  const careerLevel = careerSeed === null ? null : getCareerLevel(careerSeed)
 
-  if ((careerChapterId !== null || careerLevelValue !== null) && !careerLevel) return <Navigate replace to="/play/levels" />
-  if (careerLevel) return <GameSession careerLevel={careerLevel} gameMode={careerLevel.definition.gameMode} key={`career:${careerLevel.definition.seed}`} requestedSeed={getCareerGameId(careerLevel.definition)} />
+  if (careerSeed !== null && !careerLevel) return <Navigate replace to="/play/levels" />
+  if (careerLevel) return <GameSession careerLevel={careerLevel} gameMode={careerLevel.data.gameMode} key={`career:${careerLevel.data.seed}`} requestedSeed={getCareerGameId(careerLevel.data)} />
 
   if (!isGameMode(gameMode)) return <Navigate replace to="/play/levels" />
 

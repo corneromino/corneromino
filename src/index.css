@@ -170,7 +170,7 @@
 }
 
 .main-menu-title {
-  font-size: clamp(28px, min(12vw, calc(var(--app-content-height) * 0.07)), 50px);
+  font-size: clamp(38px, min(15vw, calc(var(--app-content-height) * 0.095)), 68px);
 }
 
 .menu-button {
