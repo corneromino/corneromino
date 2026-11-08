@@ -5,11 +5,11 @@ import { DepthButton, PAPER_DEPTH_SHADOW_COLOR } from '@/components/ui/depth-sur
 import { careerLevels, getCareerLevelPath, type CareerLevel, type CareerLevelEdge } from '@/features/play/careerLevels'
 
 const LEVEL_Y_OFFSET = 50
-const LEVEL_CARD_SIZE_PX = 60
-const LEVEL_VIEWPORT_MASK = 'linear-gradient(to bottom, transparent, black 12%, black 88%, transparent)'
+const LEVEL_CARD_SIZE_PX = 70
+const LEVEL_VIEWPORT_MASK = 'linear-gradient(to bottom, transparent, black 30%, black 88%, transparent)'
 const CONNECTOR_TURN_RADIUS_PX = 20
-const CONNECTOR_THICKNESS_PX = 20
-const CONNECTOR_BORDER_THICKNESS_PX = 3
+const CONNECTOR_THICKNESS_PX = 25
+const CONNECTOR_BORDER_THICKNESS_PX = 4
 const CONNECTOR_INTERIOR_THICKNESS_PX = CONNECTOR_THICKNESS_PX - CONNECTOR_BORDER_THICKNESS_PX * 2
 const CONNECTOR_MIN_SEGMENT_PX = 1
 
@@ -223,8 +223,8 @@ export function MainMenuCareerLevels() {
           return (
             <DepthButton
               aria-label={t('career.level', { number })}
-              borderWidth={3}
-              className="absolute z-10 text-[20px] font-black text-[var(--canvas-foreground)]"
+              borderWidth={CONNECTOR_BORDER_THICKNESS_PX}
+              className="absolute z-10 text-[25px] font-black text-[var(--canvas-foreground)]"
               depth={4}
               key={data?.seed ?? `${level.x}:${level.y}:${index}`}
               onClick={data ? () => navigate(getCareerLevelPath({ ...level, data })) : undefined}

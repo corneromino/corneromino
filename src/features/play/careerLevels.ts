@@ -62,10 +62,10 @@ export const careerLevels: CareerLevel[] = [
     x: 0,
     y: 200,
     from: 'top',
-    to: 'right'
+    to: 'bottom'
   }, {
     x: -0.7,
-    y: 300,
+    y: 400,
     from: 'top',
     to: 'bottom'
   },
