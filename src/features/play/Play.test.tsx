@@ -97,7 +97,7 @@ it('plays a Career level from its authored data using its stable career save ID'
   await waitFor(() => expect(screen.getByTestId('game-grid').textContent).toBe('1'))
   expect(screen.getByText('LEVEL 1')).toBeTruthy()
   expect(gameGridProps.current).toMatchObject({
-    exitPath: '/play/levels',
+    exitPath: '/',
     gameDefinition: { seed: 'career:authored-career-board' },
     gameId: 'career:authored-career-board',
   })

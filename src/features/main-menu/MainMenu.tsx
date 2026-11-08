@@ -1,21 +1,18 @@
-import { useRef } from 'react'
-import { Settings } from 'lucide-react'
+import { Blocks, Settings } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { AppNavigationButton } from '@/components/ui/app-navigation-button'
 import { APP_VERSION } from '@/lib/appVersion'
 import cascadeGraphic from '@/assets/cascade-graphic.svg'
 import vsGraphic from '@/assets/vs-graphic.svg'
 import { TetrominoBackground } from './TetrominoBackground'
+import { MainMenuCareerLevels } from './MainMenuCareerLevels'
 import { MainMenuTitle } from './MainMenuTitle'
-// import { TitleTetromino } from './TitleTetrominoCell'
-import { cn } from '@/lib/utils'
 
 export function MainMenu() {
-  const menuRef = useRef<HTMLElement>(null)
   const { t } = useTranslation()
 
   return (
-    <main className="poster-page app-page relative overflow-hidden px-5 text-[var(--canvas-foreground)]" ref={menuRef}>
+    <main className="poster-page app-page relative overflow-hidden px-5 text-[var(--canvas-foreground)]">
       <TetrominoBackground />
       <div className="absolute top-5 right-5 left-5 z-20 flex items-start justify-between">
         <AppNavigationButton
@@ -29,15 +26,18 @@ export function MainMenu() {
         >
           ?
         </AppNavigationButton>
-        <AppNavigationButton aria-label={t('common.settings')} className="size-10 text-[var(--canvas-foreground)]" size="icon" title={t('common.settings')} to="/settings"><Settings aria-hidden="true" /></AppNavigationButton>
+        <div className="flex items-center gap-2">
+          <AppNavigationButton aria-label={t('classic.title')} className="size-10 text-[var(--canvas-foreground)]" size="icon" title={t('classic.title')} to="/play/modes"><Blocks aria-hidden="true" /></AppNavigationButton>
+          <AppNavigationButton aria-label={t('common.settings')} className="size-10 text-[var(--canvas-foreground)]" size="icon" title={t('common.settings')} to="/settings"><Settings aria-hidden="true" /></AppNavigationButton>
+        </div>
       </div>
-      <div className="menu-scroll">
-        <section className={cn('menu-content mx-auto flex min-h-full w-full max-w-[430px] flex-col items-center justify-between pt-12 pb-5')}>
-          <div className="flex w-full flex-col items-center">
-            {/* <TitleTetromino pointerAreaRef={menuRef} /> */}
+      <div className="relative z-10 flex h-full min-h-0 flex-col overflow-hidden py-3">
+        <section className="mx-auto flex h-full min-h-0 w-full max-w-[430px] flex-col items-center gap-3 pt-12 pb-7">
+          <div className="flex w-full shrink-0 flex-col items-center">
             <MainMenuTitle />
           </div>
-          <div className="flex w-full flex-col items-center gap-3">
+          <MainMenuCareerLevels />
+          <div className="flex w-full shrink-0 flex-col items-center gap-3">
             {/* <AppNavigationButton
               className="w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
               size="lg"

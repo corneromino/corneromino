@@ -1,8 +1,14 @@
 import type { ClassicGameDefinition } from '@/lib/db'
 
+export type CareerLevelEdge = 'top' | 'bottom' | 'left' | 'right'
+
 /** A Career map position, which may be shown before it has an authored board. */
 export interface CareerLevel {
   data?: ClassicGameDefinition
+  /** Outgoing edge on this card, connecting it to the following level. */
+  from?: CareerLevelEdge
+  /** Edge on the following card where this card's connection arrives. */
+  to?: CareerLevelEdge
   x: number
   y: number
 }
@@ -50,6 +56,18 @@ export const careerLevels: CareerLevel[] = [
     },
     x: 0,
     y: 0,
+    from: 'top',
+    to: 'bottom'
+  }, {
+    x: 0,
+    y: 200,
+    from: 'top',
+    to: 'right'
+  }, {
+    x: -0.7,
+    y: 300,
+    from: 'top',
+    to: 'bottom'
   },
 ]
 

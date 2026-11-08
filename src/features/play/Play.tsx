@@ -41,7 +41,7 @@ function GameSession(props: GameSessionProps) {
   function nextGame() {
     if (props.careerLevel) {
       const nextLevel = getNextCareerLevel(props.careerLevel)
-      navigate(nextLevel ? getCareerLevelPath(nextLevel) : '/play/levels')
+      navigate(nextLevel ? getCareerLevelPath(nextLevel) : '/')
       return
     }
     navigate(`/play?mode=${props.gameMode}&seed=${encodeURIComponent(createRandomSeed())}`)
@@ -134,7 +134,7 @@ function GameSession(props: GameSessionProps) {
         {gameDefinition &&
           <GameGrid
             config={gameDefinition.config}
-            exitPath={props.careerLevel ? '/play/levels' : undefined}
+            exitPath={props.careerLevel ? '/' : undefined}
             gameDefinition={gameDefinition}
             gameId={seed}
             gameMode={props.gameMode}
