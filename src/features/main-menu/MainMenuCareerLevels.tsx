@@ -1,10 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { DepthButton, PAPER_DEPTH_SHADOW_COLOR } from '@/components/ui/depth-surface'
 import { PixelLockIcon } from '@/features/cascade/PixelLockIcon'
-import { loadCompletedCareerLevelSeeds } from '@/lib/db'
-import { getCareerLevelPath, getUnlockedCareerLevelSeeds, resolveCareerLevelPositions, type CareerLevelEdge, type CareerLevelPosition } from '@/features/play/careerLevels'
+import { loadCareerProgression, type CareerLevelProgression } from '@/lib/db'
+import { getCareerLevelPath, getCurrentCareerLevelIndex, resolveCareerLevelPositions, type CareerLevelEdge, type CareerLevelPosition } from '@/features/play/careerLevels'
 
 const LEVEL_Y_OFFSET = 350
 const LEVEL_CARD_SIZE_PX = 70
@@ -16,6 +16,12 @@ const CONNECTOR_INTERIOR_THICKNESS_PX = CONNECTOR_THICKNESS_PX - CONNECTOR_BORDE
 const CONNECTOR_MIN_SEGMENT_PX = 1
 const CURRENT_LEVEL_OUTLINE = '#FFFFFF'
 const COMPLETED_LEVEL_OUTLINE = '#8ACB7A'
+const STAR_FILLED_COLOR = '#F5BC6A'
+const STAR_EMPTY_COLOR = '#FFFFFF'
+const STAR_BORDER_COLOR = '#713324'
+const STAR_MIDDLE_SIZE_PX = 32
+const STAR_SIDE_SIZE_PX = 24
+const STAR_SIDE_VERTICAL_OFFSET_PX = -6
 
 interface Point {
   x: number
@@ -25,6 +31,11 @@ interface Point {
 interface CanvasSize {
   height: number
   width: number
+}
+
+interface CardAnchor {
+  bottomCenter: Point
+  topCenter: Point
 }
 
 const EDGE_NORMALS: Record<CareerLevelEdge, Point> = {
@@ -183,6 +194,45 @@ function LockedLevelBadge({ position }: { position: Point }) {
   )
 }
 
+function CareerLevelStar({ filled, id, size, style }: { filled: boolean; id: string; size: number; style: CSSProperties }) {
+  const pathId = `stroke0_2299_5664-${id}`
+  const maskId = `stroke1_2299_5664-${id}`
+  return (
+    <svg
+      aria-hidden="true"
+      className="absolute overflow-visible"
+      fill="none"
+      height={size * 23 / 24}
+      style={style}
+      viewBox="0 0 24 23"
+      width={size}
+      xmlns="http://www.w3.org/2000/svg"
+      xmlnsXlink="http://www.w3.org/1999/xlink">
+      <use fill={filled ? STAR_FILLED_COLOR : STAR_EMPTY_COLOR} xlinkHref={`#${pathId}`} />
+      <mask fill="black" height="23" id={maskId} maskUnits="userSpaceOnUse" width="25" x="-0.941406" y="-0.535156">
+        <rect fill="white" height="23" width="25" x="-0.941406" y="-0.535156" />
+        <use xlinkHref={`#${pathId}`} />
+      </mask>
+      <path d="M7.12037 6.93553L3.256 7.81296C2.06661 8.08302 1.59773 9.52606 2.40124 10.4436L5.01184 13.4249C5.30223 13.7565 5.44396 14.1927 5.40395 14.6317L5.04427 18.5781C4.93357 19.7927 6.1611 20.6846 7.28207 20.2039L10.9242 18.6424C11.3293 18.4687 11.7879 18.4687 12.193 18.6424L15.8351 20.2039C16.9561 20.6846 18.1836 19.7927 18.0729 18.5781L17.7132 14.6317C17.6732 14.1927 17.815 13.7565 18.1053 13.4249L20.716 10.4436C21.5195 9.52606 21.0506 8.08302 19.8612 7.81296L15.9968 6.93553C15.567 6.83793 15.1959 6.56836 14.9703 6.1897L12.9416 2.7856C12.3172 1.73788 10.7999 1.73788 10.1756 2.7856L8.14692 6.1897C7.92126 6.56836 7.55023 6.83793 7.12037 6.93553Z" mask={`url(#${maskId})`} stroke={STAR_BORDER_COLOR} strokeWidth="4" />
+      <defs>
+        <path d="M10.1756 2.7856C10.7999 1.73788 12.3172 1.73788 12.9416 2.7856L14.9703 6.1897C15.1959 6.56836 15.567 6.83793 15.9968 6.93553L19.8612 7.81296C21.0506 8.08302 21.5195 9.52606 20.716 10.4436L18.1053 13.4249C17.815 13.7565 17.6732 14.1927 17.7132 14.6317L18.0729 18.5781C18.1836 19.7927 16.9561 20.6846 15.8351 20.2039L12.193 18.6424C11.7879 18.4687 11.3293 18.4687 10.9242 18.6424L7.28207 20.2039C6.1611 20.6846 4.93357 19.7927 5.04427 18.5781L5.40395 14.6317C5.44396 14.1927 5.30223 13.7565 5.01184 13.4249L2.40124 10.4436C1.59773 9.52606 2.06661 8.08302 3.256 7.81296L7.12037 6.93553C7.55023 6.83793 7.92126 6.56836 8.14692 6.1897L10.1756 2.7856Z" id={pathId} />
+      </defs>
+    </svg>
+  )
+}
+
+function CompletedLevelStars({ position, stars, levelIndex }: { position: Point; stars: 0 | 1 | 2 | 3; levelIndex: number }) {
+  const sideStarOffset = LEVEL_CARD_SIZE_PX / 2 - STAR_SIDE_SIZE_PX / 4
+  const middleStarOffset = -STAR_MIDDLE_SIZE_PX / 3
+  return (
+    <span aria-hidden="true" className="absolute" style={{ left: position.x, top: position.y }}>
+      <CareerLevelStar filled={stars >= 1} id={`${levelIndex}-left`} size={STAR_SIDE_SIZE_PX} style={{ left: -sideStarOffset, top: STAR_SIDE_VERTICAL_OFFSET_PX, transform: 'translate(-50%, -50%)' }} />
+      <CareerLevelStar filled={stars >= 2} id={`${levelIndex}-right`} size={STAR_SIDE_SIZE_PX} style={{ left: sideStarOffset, top: STAR_SIDE_VERTICAL_OFFSET_PX, transform: 'translate(-50%, -50%)' }} />
+      <CareerLevelStar filled={stars >= 3} id={`${levelIndex}-middle`} size={STAR_MIDDLE_SIZE_PX} style={{ left: 0, top: middleStarOffset, transform: 'translate(-50%, -50%)' }} />
+    </span>
+  )
+}
+
 /** Positions authored Career level cards and their orthogonal connectors. */
 export function MainMenuCareerLevels() {
   const { t } = useTranslation()
@@ -191,13 +241,10 @@ export function MainMenuCareerLevels() {
   const canvasRef = useRef<HTMLDivElement>(null)
   const cardRefs = useRef(new Map<number, HTMLDivElement>())
   const [canvasSize, setCanvasSize] = useState<CanvasSize>({ height: 0, width: 0 })
-  const [completedLevelSeeds, setCompletedLevelSeeds] = useState<ReadonlySet<string>>(() => new Set())
-  const [lockPositions, setLockPositions] = useState<Map<number, Point>>(() => new Map())
+  const [careerProgression, setCareerProgression] = useState<readonly CareerLevelProgression[]>([])
+  const [cardAnchors, setCardAnchors] = useState<Map<number, CardAnchor>>(() => new Map())
   const levelPositions = resolveCareerLevelPositions()
-  const unlockedLevelSeeds = getUnlockedCareerLevelSeeds(completedLevelSeeds)
-  const lastUnlockedLevelIndex = Math.max(0, levelPositions.reduce((lastIndex, { level }, index) => (
-    level.data && unlockedLevelSeeds.has(level.data.seed) ? index : lastIndex
-  ), -1))
+  const lastUnlockedLevelIndex = getCurrentCareerLevelIndex(careerProgression)
   const highestLevelY = Math.max(0, ...levelPositions.map((level) => level.y)) + LEVEL_Y_OFFSET * 2
   const canvasHeight = highestLevelY + LEVEL_CARD_SIZE_PX
 
@@ -208,9 +255,9 @@ export function MainMenuCareerLevels() {
 
   useEffect(() => {
     let active = true
-    void loadCompletedCareerLevelSeeds(levelPositions.flatMap(({ level }) => level.data ? [level.data.seed] : []))
-      .then((completedSeeds) => {
-        if (active) setCompletedLevelSeeds(completedSeeds)
+    void loadCareerProgression()
+      .then((progression) => {
+        if (active) setCareerProgression(progression)
       })
       .catch(() => {
         // Career progression remains usable from its initial state if persistence is unavailable.
@@ -236,13 +283,16 @@ export function MainMenuCareerLevels() {
     if (!canvas) return
     const measure = () => {
       const canvasBounds = canvas.getBoundingClientRect()
-      const nextPositions = new Map<number, Point>()
+      const nextAnchors = new Map<number, CardAnchor>()
       for (const [index, card] of cardRefs.current) {
-        if (index <= lastUnlockedLevelIndex) continue
         const bounds = card.getBoundingClientRect()
-        nextPositions.set(index, { x: bounds.left - canvasBounds.left + bounds.width / 2, y: bounds.top - canvasBounds.top })
+        const centerX = bounds.left - canvasBounds.left + bounds.width / 2
+        nextAnchors.set(index, {
+          bottomCenter: { x: centerX, y: bounds.bottom - canvasBounds.top },
+          topCenter: { x: centerX, y: bounds.top - canvasBounds.top },
+        })
       }
-      setLockPositions(nextPositions)
+      setCardAnchors(nextAnchors)
     }
 
     measure()
@@ -278,7 +328,8 @@ export function MainMenuCareerLevels() {
           const data = level.data
           const isLocked = index > lastUnlockedLevelIndex
           const isCurrentLevel = index === lastUnlockedLevelIndex
-          const isCompleted = data ? completedLevelSeeds.has(data.seed) : false
+          const progression = data ? careerProgression.find((entry) => entry.seed === data.seed) : undefined
+          const isCompleted = progression?.completed ?? false
           const number = index + 1
           return (
             <div
@@ -317,7 +368,14 @@ export function MainMenuCareerLevels() {
           )
         })}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-20">
-          {[...lockPositions.entries()].map(([index, position]) => <LockedLevelBadge key={index} position={position} />)}
+          {[...cardAnchors.entries()].map(([index, anchor]) => {
+            const level = levelPositions[index]?.level
+            const progression = level?.data ? careerProgression.find((entry) => entry.seed === level.data!.seed) : undefined
+            return progression?.completed ? <CompletedLevelStars key={index} levelIndex={index} position={anchor.bottomCenter} stars={progression.stars ?? 3} /> : null
+          })}
+          {[...cardAnchors.entries()]
+            .filter(([index]) => index > lastUnlockedLevelIndex)
+            .map(([index, anchor]) => <LockedLevelBadge key={index} position={anchor.topCenter} />)}
         </div>
         </div>
       </section>

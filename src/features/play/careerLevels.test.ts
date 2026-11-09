@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { careerLevels, getCareerLevel, getNextCareerLevel, getUnlockedCareerLevelSeeds, resolveCareerLevelPositions } from './careerLevels'
+import { careerLevels, getCareerLevel, getCurrentCareerLevelIndex, getNextCareerLevel, resolveCareerLevelPositions } from './careerLevels'
 
 const initialLevels = [...careerLevels]
 
@@ -46,8 +46,8 @@ describe('Career levels', () => {
       { data: { ...initialLevels[0]!.data!, seed: 'three' }, x: 0, y: 300 },
     ]
 
-    expect([...getUnlockedCareerLevelSeeds(new Set(), levels)]).toEqual(['one'])
-    expect([...getUnlockedCareerLevelSeeds(new Set(['one']), levels)]).toEqual(['one', 'two'])
-    expect([...getUnlockedCareerLevelSeeds(new Set(['one', 'two']), levels)]).toEqual(['one', 'two', 'three'])
+    expect(getCurrentCareerLevelIndex([], levels)).toBe(0)
+    expect(getCurrentCareerLevelIndex([{ completed: true, seed: 'one' }], levels)).toBe(2)
+    expect(getCurrentCareerLevelIndex([{ completed: true, seed: 'one' }, { completed: true, seed: 'two' }], levels)).toBe(3)
   })
 })

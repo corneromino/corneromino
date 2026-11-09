@@ -1,5 +1,7 @@
 import type { ClassicGameDefinition } from '@/lib/db'
 import { LOCKED_CELL_COLOR_HEX } from '@/rendering/colors'
+import level1 from '@/assets/levels/1'
+import level2 from '@/assets/levels/2'
 
 export type CareerLevelEdge = 'top' | 'bottom' | 'left' | 'right'
 export type CareerLevelOrigin = 'absolute' | 'relative'
@@ -32,144 +34,14 @@ export interface ResolvedCareerLevel extends PlayableCareerLevel {
 export const careerLevels: CareerLevel[] = [
   {
     bgColor: LOCKED_CELL_COLOR_HEX[7],
-    data: {
-      "config": {
-        "columns": 4,
-        "rows": 5,
-        "spread": 0,
-        "tetrominoCount": 1,
-        "lockingMode": "auto",
-        "finalVerificationMode": "auto",
-        "completionScreenshotDelayMs": 400,
-        "finalLockAnimationEnabled": true,
-        "hideGameControls": false,
-        "navigationEnabled": true
-      },
-      "gameMode": "c003",
-      "pieces": [
-        {
-          "cells": [
-            {
-              "cellId": "a",
-              "corner": "top-left",
-              "x": 1,
-              "y": 1
-            },
-            {
-              "cellId": "b",
-              "corner": "bottom-right",
-              "x": 1,
-              "y": 2
-            },
-            {
-              "cellId": "c",
-              "corner": "top-right",
-              "x": 1,
-              "y": 3
-            },
-            {
-              "cellId": "d",
-              "corner": "bottom-left",
-              "x": 2,
-              "y": 3
-            }
-          ],
-          "id": 1,
-          "kind": "L"
-        }
-      ],
-      "version": 1,
-      "customName": "hello world",
-      "seed": "custom-35fc886e-50e3-46d3-9e9d-052d7fb71509",
-      "source": "custom"
-    },
+    data: level1,
     x: 0,
     y: 0,
     from: 'top',
     to: 'bottom'
   }, {
     bgColor: LOCKED_CELL_COLOR_HEX[2],
-    data: {
-      "config": {
-        "columns": 5,
-        "rows": 5,
-        "spread": 0,
-        "tetrominoCount": 2,
-        "lockingMode": "auto",
-        "finalVerificationMode": "auto",
-        "completionScreenshotDelayMs": 400,
-        "finalLockAnimationEnabled": true,
-        "hideGameControls": false,
-        "navigationEnabled": true
-      },
-      "gameMode": "c003",
-      "pieces": [
-        {
-          "cells": [
-            {
-              "cellId": "a",
-              "corner": "top-right",
-              "x": 1,
-              "y": 1
-            },
-            {
-              "cellId": "b",
-              "corner": "top-left",
-              "x": 1,
-              "y": 2
-            },
-            {
-              "cellId": "c",
-              "corner": "bottom-left",
-              "x": 1,
-              "y": 3
-            },
-            {
-              "cellId": "d",
-              "corner": "bottom-right",
-              "x": 2,
-              "y": 3
-            }
-          ],
-          "id": 1,
-          "kind": "L"
-        },
-        {
-          "cells": [
-            {
-              "cellId": "a",
-              "corner": "top-left",
-              "x": 3,
-              "y": 3
-            },
-            {
-              "cellId": "b",
-              "corner": "bottom-left",
-              "x": 3,
-              "y": 2
-            },
-            {
-              "cellId": "c",
-              "corner": "bottom-right",
-              "x": 3,
-              "y": 1
-            },
-            {
-              "cellId": "d",
-              "corner": "top-right",
-              "x": 2,
-              "y": 1
-            }
-          ],
-          "id": 2,
-          "kind": "L"
-        }
-      ],
-      "version": 1,
-      "customName": "hello world",
-      "seed": "custom-f989feff-c31d-4b39-9b2d-b1d2ec2e3fe3",
-      "source": "custom"
-    },
+    data: level2,
     origin: 'relative',
     x: 0,
     y: 200,
@@ -316,17 +188,18 @@ export function resolveCareerLevelPositions(levels: readonly CareerLevel[] = car
   })
 }
 
-/** The first authored level is available initially; each completion unlocks the next authored level. */
-export function getUnlockedCareerLevelSeeds(completedSeeds: ReadonlySet<string>, levels: readonly CareerLevel[] = careerLevels): Set<string> {
-  const unlockedSeeds = new Set<string>()
+/** Returns the map index of the current playable Career level. */
+export function getCurrentCareerLevelIndex(progression: readonly { completed: boolean; seed: string }[], levels: readonly CareerLevel[] = careerLevels): number {
   let priorLevelCompleted = true
-  for (const level of levels) {
+  let currentLevelIndex = 0
+  for (const [index, level] of levels.entries()) {
     const seed = level.data?.seed
     if (!seed) continue
-    if (priorLevelCompleted) unlockedSeeds.add(seed)
-    priorLevelCompleted = priorLevelCompleted && completedSeeds.has(seed)
+    if (!priorLevelCompleted) break
+    currentLevelIndex = index
+    priorLevelCompleted = progression.some((levelProgression) => levelProgression.seed === seed && levelProgression.completed)
   }
-  return unlockedSeeds
+  return currentLevelIndex
 }
 
 function resolveCareerLevel(level: PlayableCareerLevel, index: number): ResolvedCareerLevel {

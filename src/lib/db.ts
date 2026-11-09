@@ -10,6 +10,14 @@ export interface StoredGame {
   state: unknown
 }
 
+/** Persisted completion state for one authored Career level. */
+export interface CareerLevelProgression {
+  completed: boolean
+  seed: string
+  /** Omitted by progress records written before Career stars were introduced. */
+  stars?: 0 | 1 | 2 | 3
+  type: 'career-progression'
+}
 
 export interface SavedGame {
   gameId: string
@@ -83,6 +91,13 @@ const VS_LOCAL_STORAGE_KEY = 'vs:local:current'
 
 function careerProgressStorageKey(seed: string): string {
   return `career:${seed}`
+}
+
+function isCareerLevelProgressionState(value: unknown): value is Omit<CareerLevelProgression, 'seed'> {
+  return typeof value === 'object' && value !== null
+    && 'type' in value && value.type === 'career-progression'
+    && 'completed' in value && typeof value.completed === 'boolean'
+    && (!('stars' in value) || value.stars === 0 || value.stars === 1 || value.stars === 2 || value.stars === 3)
 }
 
 function isVsPlayer(value: unknown): value is 0 | 1 {
@@ -496,25 +511,20 @@ export async function clearGameSelection(gameMode: GameMode, gameId: string): Pr
   await (await db).delete('games', selectionStorageKey(gameMode, gameId))
 }
 
-/** Loads completed Career levels by their authored, stable board seeds. */
-export async function loadCompletedCareerLevelSeeds(seeds: Iterable<string>): Promise<Set<string>> {
+/** Loads every persisted Career level progression record. */
+export async function loadCareerProgression(): Promise<CareerLevelProgression[]> {
   const database = await db
-  const uniqueSeeds = [...new Set(seeds)]
-  const records = await Promise.all(uniqueSeeds.map(async (seed) => ({ record: await database.get('games', careerProgressStorageKey(seed)), seed })))
-  return new Set(records.flatMap(({ record, seed }) => (
-    typeof record?.state === 'object' && record.state !== null
-      && 'type' in record.state && record.state.type === 'career-progression'
-      && 'completed' in record.state && record.state.completed === true
-      ? [seed]
-      : []
-  )))
+  return (await database.getAll('games')).flatMap((record) => {
+    if (!record.id.startsWith('career:') || !isCareerLevelProgressionState(record.state)) return []
+    return [{ ...record.state, seed: record.id.slice('career:'.length) }]
+  })
 }
 
 /** Marks an authored Career level as complete without exposing it in Saved Games. */
 export async function completeCareerLevel(seed: string): Promise<void> {
   await (await db).put('games', {
     id: careerProgressStorageKey(seed),
-    state: { completed: true, type: 'career-progression' },
+    state: { completed: true, stars: 3, type: 'career-progression' },
     updatedAt: Date.now(),
   })
 }
