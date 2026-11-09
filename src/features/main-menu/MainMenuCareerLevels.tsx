@@ -6,9 +6,9 @@ import { PixelLockIcon } from '@/features/cascade/PixelLockIcon'
 import { loadCompletedCareerLevelSeeds } from '@/lib/db'
 import { getCareerLevelPath, getUnlockedCareerLevelSeeds, resolveCareerLevelPositions, type CareerLevelEdge, type CareerLevelPosition } from '@/features/play/careerLevels'
 
-const LEVEL_Y_OFFSET = 50
+const LEVEL_Y_OFFSET = 300
 const LEVEL_CARD_SIZE_PX = 70
-const LEVEL_VIEWPORT_MASK = 'linear-gradient(to bottom, transparent, black 25%, black 88%, transparent)'
+const LEVEL_VIEWPORT_MASK = 'linear-gradient(to bottom, transparent 5%, black 35%, black 60%, transparent)'
 const CONNECTOR_TURN_RADIUS_PX = 20
 const CONNECTOR_THICKNESS_PX = 25
 const CONNECTOR_BORDER_THICKNESS_PX = 4
@@ -252,13 +252,14 @@ export function MainMenuCareerLevels() {
   }, [lastUnlockedLevelIndex, levelPositions.length])
 
   return (
-    <section
-      aria-label={t('classic.career')}
-      className="scrollbar-hidden relative min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain"
-      ref={viewportRef}
-      style={{ maskImage: LEVEL_VIEWPORT_MASK, WebkitMaskImage: LEVEL_VIEWPORT_MASK }}
-    >
-      <div className="relative min-h-full" ref={canvasRef} style={{ height: canvasHeight }}>
+    <div className="min-h-0 w-full flex-1">
+      <section
+        aria-label={t('classic.career')}
+        className="scrollbar-hidden absolute inset-0 z-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-none"
+        ref={viewportRef}
+        style={{ maskImage: LEVEL_VIEWPORT_MASK, WebkitMaskImage: LEVEL_VIEWPORT_MASK }}
+      >
+        <div className="relative min-h-full" ref={canvasRef} style={{ height: canvasHeight }}>
         {canvasSize.width > 0 && canvasSize.height > 0 && <svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full overflow-visible" focusable="false" preserveAspectRatio="none" viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}>
           {levelPositions.slice(0, -1).map((level, index) => {
             const path = getConnectorPath(level, levelPositions[index + 1]!, canvasSize)
@@ -312,7 +313,8 @@ export function MainMenuCareerLevels() {
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-20">
           {[...lockPositions.entries()].map(([index, position]) => <LockedLevelBadge key={index} position={position} />)}
         </div>
-      </div>
-    </section>
+        </div>
+      </section>
+    </div>
   )
 }

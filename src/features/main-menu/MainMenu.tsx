@@ -33,11 +33,11 @@ export function MainMenu() {
       </div>
       <div className="relative z-10 flex h-full min-h-0 flex-col overflow-hidden py-3">
         <section className="flex h-full min-h-0 w-full flex-col items-center gap-3 pt-12 pb-7">
-          <div className="flex w-full max-w-[470px] shrink-0 flex-col items-center px-5">
+          <div className="relative z-10 flex w-full max-w-[470px] shrink-0 flex-col items-center px-5">
             <MainMenuTitle />
           </div>
           <MainMenuCareerLevels />
-          <div className="flex w-full max-w-[470px] shrink-0 flex-col items-center gap-3 px-5">
+          <div className="relative z-10 flex w-full max-w-[470px] shrink-0 flex-col items-center gap-3 px-5">
             {/* <AppNavigationButton
               className="w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
               size="lg"
