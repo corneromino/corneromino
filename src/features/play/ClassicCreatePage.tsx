@@ -152,9 +152,7 @@ export function ClassicCreatePage() {
   const initialDraftRef = useRef<ReturnType<typeof loadDraft> | null>(null)
   if (initialDraftRef.current === null) initialDraftRef.current = loadDraft()
   const initialDraft = initialDraftRef.current
-  const unsavedGameIdRef = useRef<string | null>(null)
-  if (unsavedGameIdRef.current === null) unsavedGameIdRef.current = `custom-${createRandomSeed()}`
-  const unsavedGameId = unsavedGameIdRef.current!
+  const [unsavedGameId, setUnsavedGameId] = useState(() => `custom-${createRandomSeed()}`)
   const [dimensions, setDimensions] = useState(initialDraft.dimensions)
   const [draftDimensions, setDraftDimensions] = useState(() => ({ columns: String(initialDraft.dimensions.columns), rows: String(initialDraft.dimensions.rows) }))
   const [dimensionsOpen, setDimensionsOpen] = useState(false)
@@ -306,6 +304,9 @@ export function ClassicCreatePage() {
   }
 
   function resetBoard() {
+    // A reset starts a distinct authored board, even when editing a prior save.
+    setUnsavedGameId(`custom-${createRandomSeed()}`)
+    setSavedGameId(null)
     setPieces([])
     setTemporaryCellKeys([])
   }

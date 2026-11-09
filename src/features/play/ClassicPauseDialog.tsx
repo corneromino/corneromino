@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 
 interface ClassicPauseDialogProps {
   gameMode: string
+  isCareerLevel?: boolean
   isSaving: boolean
   onOpenChange: (open: boolean) => void
   onQuitWithoutSaving: () => void
@@ -16,7 +17,7 @@ interface ClassicPauseDialogProps {
 }
 
 export function ClassicPauseDialog(props: ClassicPauseDialogProps) {
-  const { gameMode, isSaving, onOpenChange, onQuitWithoutSaving, onRestart, onResume, onSaveAndQuit, open, seed } = props
+  const { gameMode, isCareerLevel = false, isSaving, onOpenChange, onQuitWithoutSaving, onRestart, onResume, onSaveAndQuit, open, seed } = props
   const { t } = useTranslation()
 
   return (
@@ -32,17 +33,17 @@ export function ClassicPauseDialog(props: ClassicPauseDialogProps) {
           <Button className="w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={isSaving} onClick={onRestart} size="lg" type="button">
             <RotateCcw aria-hidden="true" /> {t('common.restart')}
           </Button>
-          <Button className="w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={isSaving} onClick={() => void navigator.clipboard.writeText(`${gameMode}:${seed}`)} size="lg" type="button">
+          {!isCareerLevel && <Button className="w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={isSaving} onClick={() => void navigator.clipboard.writeText(`${gameMode}:${seed}`)} size="lg" type="button">
             <Copy aria-hidden="true" /> {t('classic.copySeed')}
-          </Button>
-          <div className="mt-3 grid gap-2">
-            <DialogDescription className="text-center text-[18px]">{t('classic.savePrompt')}</DialogDescription>
+          </Button>}
+          <div className={isCareerLevel ? undefined : 'mt-3 grid gap-2'}>
+            {!isCareerLevel && <DialogDescription className="text-center text-[18px]">{t('classic.savePrompt')}</DialogDescription>}
             <Button className="w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={isSaving} onClick={onSaveAndQuit} size="lg" type="button">
               <Save aria-hidden="true" /> {t('common.saveAndQuit')}
             </Button>
-            <Button className="w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={isSaving} onClick={onQuitWithoutSaving} size="lg" type="button">
+            {!isCareerLevel && <Button className="w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={isSaving} onClick={onQuitWithoutSaving} size="lg" type="button">
               <LogOut aria-hidden="true" /> {t('common.quitWithoutSaving')}
-            </Button>
+            </Button>}
           </div>
         </DialogFooter>
       </DialogContent>

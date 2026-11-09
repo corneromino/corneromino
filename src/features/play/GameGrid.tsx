@@ -56,6 +56,8 @@ interface GameGridProps {
   disableUnlock?: boolean
   /** Destination for this game type after leaving its pause dialog. */
   exitPath?: string
+  /** Uses the streamlined pause menu for authored Career levels. */
+  isCareerLevel?: boolean
 }
 
 function createCellMap(pieces: readonly PlacedTetromino[]): Map<string, PlacedTetromino> {
@@ -761,7 +763,7 @@ export function GameGrid(props: GameGridProps) {
         </div>}
       </div>}
       <CorrectGameDialog onNext={props.onNextGame} onOpenChange={handleCompletionOpenChange} open={completionDialogOpen} screenshot={completionScreenshot} />
-      {props.pauseDialog ?? <ClassicPauseDialog gameMode={props.gameMode} isSaving={isExiting} onOpenChange={props.onPauseOpenChange} onQuitWithoutSaving={quitWithoutSavingFromPause} onRestart={requestRestart} onResume={() => props.onPauseOpenChange(false)} onSaveAndQuit={saveAndQuitFromPause} open={props.paused} seed={props.gameId} />}
+      {props.pauseDialog ?? <ClassicPauseDialog gameMode={props.gameMode} isCareerLevel={props.isCareerLevel} isSaving={isExiting} onOpenChange={props.onPauseOpenChange} onQuitWithoutSaving={quitWithoutSavingFromPause} onRestart={requestRestart} onResume={() => props.onPauseOpenChange(false)} onSaveAndQuit={saveAndQuitFromPause} open={props.paused} seed={props.gameId} />}
       <ClassicRestartDialog onOpenChange={setRestartConfirmationOpen} onRestart={confirmRestart} open={restartConfirmationOpen} />
     </div>
   )

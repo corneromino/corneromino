@@ -99,7 +99,7 @@ function GameSession(props: GameSessionProps) {
       <header className="relative z-10 mx-auto flex w-full max-w-[550px] flex-col gap-3 px-5 pb-6">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <h1 className="poster-title text-[33px] leading-none">{t('classic.title')}</h1>
+            <h1 className="poster-title text-[33px] leading-none">{gameTitle}</h1>
             <Button
               aria-label={t('classic.shapesTitle')}
               className="h-auto min-w-0 border-0 bg-transparent p-0 text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40 font-black shadow-none hover:opacity-70 focus-visible:opacity-100"
@@ -111,7 +111,7 @@ function GameSession(props: GameSessionProps) {
             >?</Button>
           </div>
           <Button
-            aria-label={`${t('common.pause')} ${t('classic.title')}`}
+            aria-label={`${t('common.pause')} ${gameTitle}`}
             className="size-10 shrink-0 text-[var(--canvas-foreground)]"
             onClick={() => setPauseOpen(true)}
             size="icon"
@@ -121,11 +121,7 @@ function GameSession(props: GameSessionProps) {
           </Button>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <div className="poster-kicker flex items-center gap-3 text-[11px] text-[var(--muted-text-color)]">
-            <p>{gameTitle}</p>
-            <span aria-hidden="true">/</span>
-            <p>{moveCount} moves</p>
-          </div>
+          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{moveCount} moves</p>
           <p className="poster-kicker shrink-0 text-[11px] text-[var(--muted-text-color)]">{formatElapsedTime(elapsedSeconds)}</p>
         </div>
       </header>
@@ -138,6 +134,7 @@ function GameSession(props: GameSessionProps) {
             gameDefinition={gameDefinition}
             gameId={seed}
             gameMode={props.gameMode}
+            isCareerLevel={!!props.careerLevel}
             key={`${props.gameMode}:${seed}:${gameDefinition.version}`}
             onElapsedSecondsChange={setElapsedSeconds}
             onMoveCountChange={setMoveCount}

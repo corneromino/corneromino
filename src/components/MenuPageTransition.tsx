@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { AnimatePresence, domAnimation, LazyMotion, m, useIsPresent, useReducedMotion, type Variants } from 'motion/react'
 
-const SLIDE_DURATION = 0.22
+/** Default duration, in seconds, for menu and game page transitions. */
+export const DEFAULT_PAGE_TRANSITION_DURATION = 0.22
 const PAGE_VARIANTS: Variants = {
   // Keep the outgoing menu underneath the incoming page until it covers it.
   covered: (duration: number) => ({ opacity: 1, transition: { duration } }),
@@ -9,11 +10,12 @@ const PAGE_VARIANTS: Variants = {
 
 interface MenuPageTransitionProps {
   children: ReactNode
+  duration?: number
   isMenu: boolean
   pageKey: string
 }
 
-function Page({ children, isMenu, reduceMotion }: Omit<MenuPageTransitionProps, 'pageKey'> & { reduceMotion: boolean }) {
+function Page({ children, duration, isMenu, reduceMotion }: Omit<MenuPageTransitionProps, 'pageKey'> & { duration: number; reduceMotion: boolean }) {
   const isPresent = useIsPresent()
 
   return (
@@ -25,7 +27,7 @@ function Page({ children, isMenu, reduceMotion }: Omit<MenuPageTransitionProps, 
       inert={!isPresent}
       initial={reduceMotion ? false : isMenu ? { x: '-100%' } : { y: '100%' }}
       style={{ zIndex: isPresent ? 1 : 0 }}
-      transition={{ duration: reduceMotion ? 0 : SLIDE_DURATION, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: reduceMotion ? 0 : duration, ease: [0.16, 1, 0.3, 1] }}
       variants={PAGE_VARIANTS}
     >
       {children}
@@ -33,14 +35,14 @@ function Page({ children, isMenu, reduceMotion }: Omit<MenuPageTransitionProps, 
   )
 }
 
-export function MenuPageTransition({ children, isMenu, pageKey }: MenuPageTransitionProps) {
+export function MenuPageTransition({ children, duration = DEFAULT_PAGE_TRANSITION_DURATION, isMenu, pageKey }: MenuPageTransitionProps) {
   const reduceMotion = useReducedMotion() === true
 
   return (
     <LazyMotion features={domAnimation} strict>
       <div className="relative isolate h-full min-h-0 min-w-0 overflow-hidden">
-        <AnimatePresence custom={reduceMotion ? 0 : SLIDE_DURATION} initial={false}>
-          <Page isMenu={isMenu} key={pageKey} reduceMotion={reduceMotion}>
+        <AnimatePresence custom={reduceMotion ? 0 : duration} initial={false}>
+          <Page duration={duration} isMenu={isMenu} key={pageKey} reduceMotion={reduceMotion}>
             {children}
           </Page>
         </AnimatePresence>

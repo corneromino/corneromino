@@ -225,11 +225,12 @@ export function MainMenuCareerLevels() {
               aria-label={t('career.level', { number })}
               borderWidth={CONNECTOR_BORDER_THICKNESS_PX}
               className="absolute z-10 text-[25px] font-black text-[var(--canvas-foreground)]"
+              color={level.bgColor}
               depth={4}
               key={data?.seed ?? `${level.x}:${level.y}:${index}`}
               onClick={data ? () => navigate(getCareerLevelPath({ ...level, data })) : undefined}
               radius={20}
-              shadowColor={PAPER_DEPTH_SHADOW_COLOR}
+              shadowColor={level.bgColor ? undefined : PAPER_DEPTH_SHADOW_COLOR}
               style={{
                 bottom: level.y + LEVEL_Y_OFFSET,
                 height: LEVEL_CARD_SIZE_PX,

@@ -14,16 +14,16 @@ const generatedServiceWorker = serviceWorkerSource.replaceAll('__APP_VERSION__',
 function versionedServiceWorker(): Plugin {
   return {
     name: 'game-versioned-service-worker',
-    transformIndexHtml(html) {
-      const title = manifest.name.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!)
-      return html.replace('%APP_NAME%', title)
-    },
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
         if (new URL(request.url ?? '/', 'http://localhost').pathname !== '/sw.js') return next()
         response.setHeader('Content-Type', 'text/javascript; charset=utf-8')
         response.end(generatedServiceWorker)
       })
+    },
+    transformIndexHtml(html) {
+      const title = manifest.name.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!)
+      return html.replace('%APP_NAME%', title)
     },
     generateBundle() {
       this.emitFile({ fileName: 'sw.js', source: generatedServiceWorker, type: 'asset' })

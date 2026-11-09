@@ -47,7 +47,8 @@ function AppRoutes() {
   const location = useLocation()
   const page = useRoutes(APP_ROUTES, location)
   const route = matchRoutes(APP_ROUTES, location)?.at(-1)?.route
-  const isClassicGame = route?.path === '/play' && isGameMode(new URLSearchParams(location.search).get('mode'))
+  const playParams = new URLSearchParams(location.search)
+  const isClassicGame = route?.path === '/play' && (isGameMode(playParams.get('mode')) || playParams.has('career'))
   const isMenu = route?.handle?.menu === true && !isClassicGame
   // Query changes within a game (including assigning its seed) keep the same wrapper.
   const pageKey = `${isMenu ? 'menu' : 'game'}:${location.pathname}`

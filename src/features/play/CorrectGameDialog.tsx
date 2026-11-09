@@ -19,7 +19,7 @@ export function CorrectGameDialog(props: CorrectGameDialogProps) {
         {props.screenshot && <img alt={t('classic.completedBoard')} className="mx-auto mt-4 block max-h-[max(0px,calc(var(--dialog-viewport-height,var(--app-height))-220px))] max-w-full object-contain" src={props.screenshot} />}
         <DialogFooter>
           <Button {...DEPTH_BUTTON_COLORS.green} className="text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={props.onNext} size="lg" type="button">{t('common.next')}</Button>
-          <DialogClose asChild><Button className="text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">{t('common.cancel')}</Button></DialogClose>
+          <DialogClose asChild><Button className="text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">{t('common.close')}</Button></DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>
