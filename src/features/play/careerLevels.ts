@@ -2,6 +2,7 @@ import type { ClassicGameDefinition } from '@/lib/db'
 import { LOCKED_CELL_COLOR_HEX } from '@/rendering/colors'
 
 export type CareerLevelEdge = 'top' | 'bottom' | 'left' | 'right'
+export type CareerLevelOrigin = 'absolute' | 'relative'
 
 /** A Career map position, which may be shown before it has an authored board. */
 export interface CareerLevel {
@@ -10,6 +11,8 @@ export interface CareerLevel {
   data?: ClassicGameDefinition
   /** Outgoing edge on this card, connecting it to the following level. */
   from?: CareerLevelEdge
+  /** Coordinates are absolute map positions by default, or offsets from the prior level. */
+  origin?: CareerLevelOrigin
   /** Edge on the following card where this card's connection arrives. */
   to?: CareerLevelEdge
   x: number
@@ -167,18 +170,119 @@ export const careerLevels: CareerLevel[] = [
   "seed": "custom-f989feff-c31d-4b39-9b2d-b1d2ec2e3fe3",
   "source": "custom"
 },
+    origin: 'relative',
     x: 0,
     y: 200,
     from: 'top',
     to: 'bottom'
   }, {
     bgColor: LOCKED_CELL_COLOR_HEX[5],
-    x: -0.7,
-    y: 400,
+    origin: 'relative',
+    x: 0,
+    y: 200,
+    from: 'left',
+    to: 'right'
+  }, {
+    bgColor: LOCKED_CELL_COLOR_HEX[6],
+    origin: 'relative',
+    x: -75,
+    y: 0,
+    from: 'top',
+    to: 'bottom'
+  }, {
+    bgColor: LOCKED_CELL_COLOR_HEX[2],
+    origin: 'relative',
+    x: -0,
+    y: 75,
+    from: 'top',
+    to: 'bottom'
+  }, {
+    bgColor: LOCKED_CELL_COLOR_HEX[3],
+    origin: 'relative',
+    x: -0,
+    y: 75,
+    from: 'right',
+    to: 'bottom'
+  },
+  // PART
+  {
+    bgColor: LOCKED_CELL_COLOR_HEX[4],
+    origin: 'relative',
+    x: 130,
+    y: 75,
+    from: 'right',
+    to: 'left'
+  }, {
+    bgColor: LOCKED_CELL_COLOR_HEX[5],
+    origin: 'relative',
+    x: 75,
+    y: 0,
+    from: 'top',
+    to: 'bottom'
+  }, {
+    bgColor: LOCKED_CELL_COLOR_HEX[6],
+    origin: 'relative',
+    x: -0,
+    y: 75,
+    from: 'left',
+    to: 'right'
+  }, {
+    bgColor: LOCKED_CELL_COLOR_HEX[7],
+    origin: 'relative',
+    x: -75,
+    y: 0,
+    from: 'left',
+    to: 'right'
+  },
+  // PART
+  {
+    bgColor: LOCKED_CELL_COLOR_HEX[8],
+    origin: 'relative',
+    x: -150,
+    y: 0,
+    from: 'top',
+    to: 'bottom'
+  }, {
+    bgColor: LOCKED_CELL_COLOR_HEX[9],
+    origin: 'relative',
+    x: 0,
+    y: 75,
+    from: 'top',
+    to: 'bottom'
+  }, {
+    bgColor: LOCKED_CELL_COLOR_HEX[10],
+    origin: 'relative',
+    x: 0,
+    y: 75,
+    from: 'top',
+    to: 'bottom'
+  }, {
+    bgColor: LOCKED_CELL_COLOR_HEX[0],
+    origin: 'relative',
+    x: 0,
+    y: 75,
     from: 'top',
     to: 'bottom'
   },
 ]
+
+export interface CareerLevelPosition {
+  level: CareerLevel
+  x: number
+  y: number
+}
+
+/** Resolves relative authored offsets into absolute map coordinates. */
+export function resolveCareerLevelPositions(levels: readonly CareerLevel[] = careerLevels): CareerLevelPosition[] {
+  let previous = { x: 0, y: 0 }
+  return levels.map((level) => {
+    const position = level.origin === 'relative'
+      ? { x: previous.x + level.x, y: previous.y + level.y }
+      : { x: level.x, y: level.y }
+    previous = position
+    return { level, ...position }
+  })
+}
 
 function resolveCareerLevel(level: PlayableCareerLevel, index: number): ResolvedCareerLevel {
   return { ...level, index, number: index + 1 }

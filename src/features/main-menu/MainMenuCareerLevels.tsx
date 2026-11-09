@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { DepthButton, PAPER_DEPTH_SHADOW_COLOR } from '@/components/ui/depth-surface'
-import { careerLevels, getCareerLevelPath, type CareerLevel, type CareerLevelEdge } from '@/features/play/careerLevels'
+import { getCareerLevelPath, resolveCareerLevelPositions, type CareerLevelEdge, type CareerLevelPosition } from '@/features/play/careerLevels'
 
 const LEVEL_Y_OFFSET = 50
 const LEVEL_CARD_SIZE_PX = 70
@@ -30,13 +30,11 @@ const EDGE_NORMALS: Record<CareerLevelEdge, Point> = {
   right: { x: 1, y: 0 },
 }
 
-function getCardLeft(level: CareerLevel, width: number) {
-  const x = Math.max(-1, Math.min(1, level.x))
-  const offset = (x + 1) * 50
-  return width * offset / 100 - LEVEL_CARD_SIZE_PX * offset / 100
+function getCardLeft(level: CareerLevelPosition, width: number) {
+  return width / 2 + level.x - LEVEL_CARD_SIZE_PX / 2
 }
 
-function getEdgeCenter(level: CareerLevel, edge: CareerLevelEdge, size: CanvasSize): Point {
+function getEdgeCenter(level: CareerLevelPosition, edge: CareerLevelEdge, size: CanvasSize): Point {
   const left = getCardLeft(level, size.width)
   const top = size.height - level.y - LEVEL_Y_OFFSET - LEVEL_CARD_SIZE_PX
   switch (edge) {
@@ -105,13 +103,13 @@ function roundedOrthogonalPath(points: readonly Point[]) {
   return `${path} L ${last.x} ${last.y}`
 }
 
-function getConnectorPath(level: CareerLevel, nextLevel: CareerLevel, size: CanvasSize) {
-  if (!level.from || !level.to) return null
+function getConnectorPath(level: CareerLevelPosition, nextLevel: CareerLevelPosition, size: CanvasSize) {
+  if (!level.level.from || !level.level.to) return null
 
-  const start = getEdgeCenter(level, level.from, size)
-  const end = getEdgeCenter(nextLevel, level.to, size)
-  const startNormal = EDGE_NORMALS[level.from]
-  const endNormal = EDGE_NORMALS[level.to]
+  const start = getEdgeCenter(level, level.level.from, size)
+  const end = getEdgeCenter(nextLevel, level.level.to, size)
+  const startNormal = EDGE_NORMALS[level.level.from]
+  const endNormal = EDGE_NORMALS[level.level.to]
   const incomingDirection = { x: -endNormal.x, y: -endNormal.y }
   const axesMatch = hasSameAxis(startNormal, incomingDirection)
 
@@ -177,7 +175,8 @@ export function MainMenuCareerLevels() {
   const viewportRef = useRef<HTMLElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const [canvasSize, setCanvasSize] = useState<CanvasSize>({ height: 0, width: 0 })
-  const highestLevelY = Math.max(0, ...careerLevels.map((level) => level.y)) + LEVEL_Y_OFFSET * 2
+  const levelPositions = resolveCareerLevelPositions()
+  const highestLevelY = Math.max(0, ...levelPositions.map((level) => level.y)) + LEVEL_Y_OFFSET * 2
   const canvasHeight = highestLevelY + LEVEL_CARD_SIZE_PX
 
   useLayoutEffect(() => {
@@ -205,20 +204,19 @@ export function MainMenuCareerLevels() {
     >
       <div className="relative min-h-full" ref={canvasRef} style={{ height: canvasHeight }}>
         {canvasSize.width > 0 && canvasSize.height > 0 && <svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full overflow-visible" focusable="false" preserveAspectRatio="none" viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}>
-          {careerLevels.slice(0, -1).map((level, index) => {
-            const path = getConnectorPath(level, careerLevels[index + 1]!, canvasSize)
+          {levelPositions.slice(0, -1).map((level, index) => {
+            const path = getConnectorPath(level, levelPositions[index + 1]!, canvasSize)
             if (!path) return null
-            return <g key={`${level.data?.seed ?? index}:${level.from}:${level.to}`}>
+            return <g key={`${level.level.data?.seed ?? index}:${level.level.from}:${level.level.to}`}>
               <path d={path} fill="none" stroke={PAPER_DEPTH_SHADOW_COLOR} strokeLinecap="round" strokeLinejoin="round" strokeWidth={CONNECTOR_THICKNESS_PX} transform="translate(0 3)" />
               <path d={path} fill="none" stroke="var(--outline-color)" strokeLinecap="round" strokeLinejoin="round" strokeWidth={CONNECTOR_THICKNESS_PX} />
               <path d={path} fill="none" stroke="var(--paper)" strokeLinecap="round" strokeLinejoin="round" strokeWidth={CONNECTOR_INTERIOR_THICKNESS_PX} />
             </g>
           })}
         </svg>}
-        {careerLevels.map((level, index) => {
+        {levelPositions.map((position, index) => {
+          const { level } = position
           const data = level.data
-          const x = Math.max(-1, Math.min(1, level.x))
-          const offset = (x + 1) * 50
           const number = index + 1
           return (
             <DepthButton
@@ -227,15 +225,15 @@ export function MainMenuCareerLevels() {
               className="absolute z-10 text-[25px] font-black text-[var(--canvas-foreground)]"
               color={level.bgColor}
               depth={4}
-              key={data?.seed ?? `${level.x}:${level.y}:${index}`}
+              key={data?.seed ?? `${position.x}:${position.y}:${index}`}
               onClick={data ? () => navigate(getCareerLevelPath({ ...level, data })) : undefined}
               radius={20}
               shadowColor={level.bgColor ? undefined : PAPER_DEPTH_SHADOW_COLOR}
               style={{
-                bottom: level.y + LEVEL_Y_OFFSET,
+                bottom: position.y + LEVEL_Y_OFFSET,
                 height: LEVEL_CARD_SIZE_PX,
-                left: `${offset}%`,
-                transform: `translateX(-${offset}%)`,
+                left: `calc(50% + ${position.x}px)`,
+                transform: 'translateX(-50%)',
                 width: LEVEL_CARD_SIZE_PX,
               }}
               title={t('career.level', { number })}

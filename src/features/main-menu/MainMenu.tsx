@@ -12,7 +12,7 @@ export function MainMenu() {
   const { t } = useTranslation()
 
   return (
-    <main className="poster-page app-page relative overflow-hidden px-5 text-[var(--canvas-foreground)]">
+    <main className="poster-page app-page relative overflow-hidden text-[var(--canvas-foreground)]">
       <TetrominoBackground />
       <div className="absolute top-5 right-5 left-5 z-20 flex items-start justify-between">
         <AppNavigationButton
@@ -32,12 +32,12 @@ export function MainMenu() {
         </div>
       </div>
       <div className="relative z-10 flex h-full min-h-0 flex-col overflow-hidden py-3">
-        <section className="mx-auto flex h-full min-h-0 w-full max-w-[430px] flex-col items-center gap-3 pt-12 pb-7">
-          <div className="flex w-full shrink-0 flex-col items-center">
+        <section className="flex h-full min-h-0 w-full flex-col items-center gap-3 pt-12 pb-7">
+          <div className="flex w-full max-w-[470px] shrink-0 flex-col items-center px-5">
             <MainMenuTitle />
           </div>
           <MainMenuCareerLevels />
-          <div className="flex w-full shrink-0 flex-col items-center gap-3">
+          <div className="flex w-full max-w-[470px] shrink-0 flex-col items-center gap-3 px-5">
             {/* <AppNavigationButton
               className="w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
               size="lg"

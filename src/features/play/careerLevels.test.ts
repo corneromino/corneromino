@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { careerLevels, getCareerLevel, getNextCareerLevel } from './careerLevels'
+import { careerLevels, getCareerLevel, getNextCareerLevel, resolveCareerLevelPositions } from './careerLevels'
 
 const initialLevels = [...careerLevels]
 
@@ -20,5 +20,21 @@ describe('Career levels', () => {
 
     expect(careerLevels[1]).toEqual({ x: 100, y: 200 })
     expect(next).toMatchObject({ index: 2, number: 3, data: { seed: 'next-level' } })
+  })
+
+  it('resolves pixel-relative positions from the preceding level', () => {
+    const positions = resolveCareerLevelPositions([
+      { x: 40, y: 100 },
+      { origin: 'relative', x: -80, y: 150 },
+      { origin: 'relative', x: 120, y: -50 },
+      { x: 0, y: 0 },
+    ])
+
+    expect(positions.map(({ x, y }) => ({ x, y }))).toEqual([
+      { x: 40, y: 100 },
+      { x: -40, y: 250 },
+      { x: 80, y: 200 },
+      { x: 0, y: 0 },
+    ])
   })
 })
