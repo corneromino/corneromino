@@ -6,7 +6,7 @@ import { PixelLockIcon } from '@/features/cascade/PixelLockIcon'
 import { loadCompletedCareerLevelSeeds } from '@/lib/db'
 import { getCareerLevelPath, getUnlockedCareerLevelSeeds, resolveCareerLevelPositions, type CareerLevelEdge, type CareerLevelPosition } from '@/features/play/careerLevels'
 
-const LEVEL_Y_OFFSET = 300
+const LEVEL_Y_OFFSET = 350
 const LEVEL_CARD_SIZE_PX = 70
 const LEVEL_VIEWPORT_MASK = 'linear-gradient(to bottom, transparent 5%, black 30%, black 60%, transparent)'
 const CONNECTOR_TURN_RADIUS_PX = 20
@@ -14,6 +14,8 @@ const CONNECTOR_THICKNESS_PX = 25
 const CONNECTOR_BORDER_THICKNESS_PX = 4
 const CONNECTOR_INTERIOR_THICKNESS_PX = CONNECTOR_THICKNESS_PX - CONNECTOR_BORDER_THICKNESS_PX * 2
 const CONNECTOR_MIN_SEGMENT_PX = 1
+const CURRENT_LEVEL_OUTLINE = '#FFFFFF'
+const COMPLETED_LEVEL_OUTLINE = '#8ACB7A'
 
 interface Point {
   x: number
@@ -275,6 +277,8 @@ export function MainMenuCareerLevels() {
           const { level } = position
           const data = level.data
           const isLocked = index > lastUnlockedLevelIndex
+          const isCurrentLevel = index === lastUnlockedLevelIndex
+          const isCompleted = data ? completedLevelSeeds.has(data.seed) : false
           const number = index + 1
           return (
             <div
@@ -300,6 +304,8 @@ export function MainMenuCareerLevels() {
                 depth={4}
                 disabled={isLocked || !data}
                 onClick={data && !isLocked ? () => navigate(getCareerLevelPath({ ...level, data })) : undefined}
+                outlineColor={isCompleted ? COMPLETED_LEVEL_OUTLINE : isCurrentLevel ? CURRENT_LEVEL_OUTLINE : undefined}
+                outlineWidth={isCompleted || isCurrentLevel ? 3 : undefined}
                 radius={20}
                 shadowColor={level.bgColor ? undefined : PAPER_DEPTH_SHADOW_COLOR}
                 title={t('career.level', { number })}
