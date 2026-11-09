@@ -66,6 +66,7 @@ export default {
         }
     },
     "settings": {
+        "resetCareerProgress": "Reset level progress",
         "language": "Language",
         "english": "English",
         "french": "Français"

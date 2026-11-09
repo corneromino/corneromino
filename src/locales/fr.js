@@ -61,6 +61,7 @@ export default {
         }
     },
     "settings": {
+        "resetCareerProgress": "Réinitialiser la progression",
         "language": "Langue",
         "english": "English",
         "french": "Français"

@@ -54,6 +54,7 @@ export function MainMenu() {
               size="lg"
               radius={20}
               to="/vs"
+              borderWidth={4}
             >
               <span>{t('mainMenu.versus')}</span>
               <img alt="" aria-hidden="true" className="vs-menu-graphic -rotate-12 scale-125" src={vsGraphic} />
@@ -63,6 +64,7 @@ export function MainMenu() {
               yPadding={30}
               radius={20}
               to="/mini-games"
+              borderWidth={4}
             >
               <span>{t('mainMenu.miniGames')}</span>
               <img alt="" aria-hidden="true" className="size-16 -rotate-12 scale-200 -translate-y-5 object-contain" src={cascadeGraphic} />

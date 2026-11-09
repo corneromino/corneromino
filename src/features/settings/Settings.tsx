@@ -1,14 +1,27 @@
+import { useState } from 'react'
 import { ArrowLeft, ChevronDown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { AppNavigationButton } from '@/components/ui/app-navigation-button'
 import { Button } from '@/components/ui/button'
+import { DEPTH_BUTTON_COLORS, DepthButton } from '@/components/ui/depth-surface'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
+import { resetCareerProgress } from '@/lib/db'
 
 export function Settings() {
   const { i18n, t } = useTranslation()
   const language = i18n.resolvedLanguage
   const currentLanguage = language === 'fr' ? t('settings.french') : t('settings.english')
+  const [isResettingProgress, setIsResettingProgress] = useState(false)
+
+  async function handleResetCareerProgress() {
+    setIsResettingProgress(true)
+    try {
+      await resetCareerProgress()
+    } finally {
+      setIsResettingProgress(false)
+    }
+  }
 
   return (
     <main className="poster-page app-page relative flex flex-col overflow-hidden px-5 py-5 text-[var(--canvas-foreground)]">
@@ -21,7 +34,7 @@ export function Settings() {
         <AppNavigationButton aria-label={t('common.backToMainMenu')} className="size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
       </header>
       <section aria-label={t('common.settings')} className="relative z-10 mx-auto flex w-full max-w-[550px] flex-1 items-start justify-center px-1 pb-1">
-        <div className="w-full max-w-[430px]">
+          <div className="w-full max-w-[430px]">
           <div className="flex h-[62px] items-center justify-between gap-3">
             <p className="poster-kicker text-[16px] text-[var(--canvas-foreground)]" id="language-label">{t('settings.language')}</p>
             <DropdownMenu>
@@ -40,6 +53,9 @@ export function Settings() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+          <DepthButton {...DEPTH_BUTTON_COLORS.red} className="mt-6 w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={isResettingProgress} onClick={() => void handleResetCareerProgress()} yPadding={12}>
+            {t('settings.resetCareerProgress')}
+          </DepthButton>
         </div>
       </section>
     </main>

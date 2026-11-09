@@ -8,7 +8,7 @@ import { getCareerLevelPath, getUnlockedCareerLevelSeeds, resolveCareerLevelPosi
 
 const LEVEL_Y_OFFSET = 300
 const LEVEL_CARD_SIZE_PX = 70
-const LEVEL_VIEWPORT_MASK = 'linear-gradient(to bottom, transparent 5%, black 35%, black 60%, transparent)'
+const LEVEL_VIEWPORT_MASK = 'linear-gradient(to bottom, transparent 5%, black 30%, black 60%, transparent)'
 const CONNECTOR_TURN_RADIUS_PX = 20
 const CONNECTOR_THICKNESS_PX = 25
 const CONNECTOR_BORDER_THICKNESS_PX = 4

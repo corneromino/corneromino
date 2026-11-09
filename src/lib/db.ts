@@ -519,6 +519,17 @@ export async function completeCareerLevel(seed: string): Promise<void> {
   })
 }
 
+/** Clears only dedicated Career progression records, leaving normal game saves untouched. */
+export async function resetCareerProgress(): Promise<void> {
+  const database = await db
+  const records = await database.getAll('games')
+  await Promise.all(records
+    .filter((record) => record.id.startsWith('career:')
+      && typeof record.state === 'object' && record.state !== null
+      && 'type' in record.state && record.state.type === 'career-progression')
+    .map((record) => database.delete('games', record.id)))
+}
+
 export async function deleteSavedGame(gameMode: GameMode, gameId: string): Promise<void> {
   await Promise.all([
     clearGameSelection(gameMode, gameId),
