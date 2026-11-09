@@ -11,6 +11,7 @@ export default {
         "discard": "Discard",
         "load": "Load",
         "loading": "Loading…",
+        "locked": "Locked",
         "new": "New",
         "ok": "Ok",
         "next": "Next",

@@ -1,8 +1,10 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { DepthButton, PAPER_DEPTH_SHADOW_COLOR } from '@/components/ui/depth-surface'
-import { getCareerLevelPath, resolveCareerLevelPositions, type CareerLevelEdge, type CareerLevelPosition } from '@/features/play/careerLevels'
+import { PixelLockIcon } from '@/features/cascade/PixelLockIcon'
+import { loadCompletedCareerLevelSeeds } from '@/lib/db'
+import { getCareerLevelPath, getUnlockedCareerLevelSeeds, resolveCareerLevelPositions, type CareerLevelEdge, type CareerLevelPosition } from '@/features/play/careerLevels'
 
 const LEVEL_Y_OFFSET = 50
 const LEVEL_CARD_SIZE_PX = 70
@@ -168,20 +170,52 @@ function getConnectorPath(level: CareerLevelPosition, nextLevel: CareerLevelPosi
   return roundedOrthogonalPath([start, startOuter, bend, endOuter, end])
 }
 
+function LockedLevelBadge({ position }: { position: Point }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute z-10 flex size-8 items-center justify-center rounded-[9px] bg-[var(--canvas-foreground)] text-[var(--paper)] after:absolute after:-bottom-1 after:left-1/2 after:size-3 after:-translate-x-1/2 after:rotate-45 after:bg-[var(--canvas-foreground)] after:content-[''] [&>svg]:relative [&>svg]:z-10 [&>svg]:size-4"
+      style={{ left: position.x, top: position.y, transform: 'translate(-50%, -50%)' }}>
+      <PixelLockIcon />
+    </span>
+  )
+}
+
 /** Positions authored Career level cards and their orthogonal connectors. */
 export function MainMenuCareerLevels() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const viewportRef = useRef<HTMLElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
+  const cardRefs = useRef(new Map<number, HTMLDivElement>())
   const [canvasSize, setCanvasSize] = useState<CanvasSize>({ height: 0, width: 0 })
+  const [completedLevelSeeds, setCompletedLevelSeeds] = useState<ReadonlySet<string>>(() => new Set())
+  const [lockPositions, setLockPositions] = useState<Map<number, Point>>(() => new Map())
   const levelPositions = resolveCareerLevelPositions()
+  const unlockedLevelSeeds = getUnlockedCareerLevelSeeds(completedLevelSeeds)
+  const lastUnlockedLevelIndex = Math.max(0, levelPositions.reduce((lastIndex, { level }, index) => (
+    level.data && unlockedLevelSeeds.has(level.data.seed) ? index : lastIndex
+  ), -1))
   const highestLevelY = Math.max(0, ...levelPositions.map((level) => level.y)) + LEVEL_Y_OFFSET * 2
   const canvasHeight = highestLevelY + LEVEL_CARD_SIZE_PX
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current
     if (viewport) viewport.scrollTop = viewport.scrollHeight - viewport.clientHeight
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    void loadCompletedCareerLevelSeeds(levelPositions.flatMap(({ level }) => level.data ? [level.data.seed] : []))
+      .then((completedSeeds) => {
+        if (active) setCompletedLevelSeeds(completedSeeds)
+      })
+      .catch(() => {
+        // Career progression remains usable from its initial state if persistence is unavailable.
+      })
+    return () => {
+      active = false
+    }
   }, [])
 
   useLayoutEffect(() => {
@@ -194,6 +228,28 @@ export function MainMenuCareerLevels() {
     observer.observe(canvas)
     return () => observer.disconnect()
   }, [])
+
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const measure = () => {
+      const canvasBounds = canvas.getBoundingClientRect()
+      const nextPositions = new Map<number, Point>()
+      for (const [index, card] of cardRefs.current) {
+        if (index <= lastUnlockedLevelIndex) continue
+        const bounds = card.getBoundingClientRect()
+        nextPositions.set(index, { x: bounds.left - canvasBounds.left + bounds.width / 2, y: bounds.top - canvasBounds.top })
+      }
+      setLockPositions(nextPositions)
+    }
+
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(canvas)
+    for (const card of cardRefs.current.values()) observer.observe(card)
+    return () => observer.disconnect()
+  }, [lastUnlockedLevelIndex, levelPositions.length])
 
   return (
     <section
@@ -217,18 +273,16 @@ export function MainMenuCareerLevels() {
         {levelPositions.map((position, index) => {
           const { level } = position
           const data = level.data
+          const isLocked = index > lastUnlockedLevelIndex
           const number = index + 1
           return (
-            <DepthButton
-              aria-label={t('career.level', { number })}
-              borderWidth={CONNECTOR_BORDER_THICKNESS_PX}
-              className="absolute z-10 text-[25px] font-black text-[var(--canvas-foreground)]"
-              color={level.bgColor}
-              depth={4}
+            <div
+              className="absolute z-10"
               key={data?.seed ?? `${position.x}:${position.y}:${index}`}
-              onClick={data ? () => navigate(getCareerLevelPath({ ...level, data })) : undefined}
-              radius={20}
-              shadowColor={level.bgColor ? undefined : PAPER_DEPTH_SHADOW_COLOR}
+              ref={(element) => {
+                if (element) cardRefs.current.set(index, element)
+                else cardRefs.current.delete(index)
+              }}
               style={{
                 bottom: position.y + LEVEL_Y_OFFSET,
                 height: LEVEL_CARD_SIZE_PX,
@@ -236,13 +290,28 @@ export function MainMenuCareerLevels() {
                 transform: 'translateX(-50%)',
                 width: LEVEL_CARD_SIZE_PX,
               }}
-              title={t('career.level', { number })}
-              yPadding={0}
             >
-              {number}
-            </DepthButton>
+              <DepthButton
+                aria-label={isLocked ? `${t('career.level', { number })} (${t('common.locked')})` : t('career.level', { number })}
+                borderWidth={CONNECTOR_BORDER_THICKNESS_PX}
+                className="size-full text-[25px] font-black text-[var(--canvas-foreground)] disabled:!opacity-100"
+                color={level.bgColor}
+                depth={4}
+                disabled={isLocked || !data}
+                onClick={data && !isLocked ? () => navigate(getCareerLevelPath({ ...level, data })) : undefined}
+                radius={20}
+                shadowColor={level.bgColor ? undefined : PAPER_DEPTH_SHADOW_COLOR}
+                title={t('career.level', { number })}
+                yPadding={0}
+              >
+                {number}
+              </DepthButton>
+            </div>
           )
         })}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-20">
+          {[...lockPositions.entries()].map(([index, position]) => <LockedLevelBadge key={index} position={position} />)}
+        </div>
       </div>
     </section>
   )

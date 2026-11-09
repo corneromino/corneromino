@@ -266,6 +266,36 @@ export const careerLevels: CareerLevel[] = [
     from: 'top',
     to: 'bottom'
   },
+  // PART
+  {
+    bgColor: LOCKED_CELL_COLOR_HEX[1],
+    origin: 'relative',
+    x: 200,
+    y: 200,
+    from: 'top',
+    to: 'bottom'
+  }, {
+    bgColor: LOCKED_CELL_COLOR_HEX[2],
+    origin: 'relative',
+    x: 0,
+    y: 75,
+    from: 'top',
+    to: 'bottom'
+  }, {
+    bgColor: LOCKED_CELL_COLOR_HEX[3],
+    origin: 'relative',
+    x: 0,
+    y: 75,
+    from: 'bottom',
+    to: 'right'
+  }, {
+    bgColor: LOCKED_CELL_COLOR_HEX[4],
+    origin: 'relative',
+    x: -75,
+    y: -75,
+    from: 'top',
+    to: 'bottom'
+  }
 ]
 
 export interface CareerLevelPosition {
@@ -284,6 +314,19 @@ export function resolveCareerLevelPositions(levels: readonly CareerLevel[] = car
     previous = position
     return { level, ...position }
   })
+}
+
+/** The first authored level is available initially; each completion unlocks the next authored level. */
+export function getUnlockedCareerLevelSeeds(completedSeeds: ReadonlySet<string>, levels: readonly CareerLevel[] = careerLevels): Set<string> {
+  const unlockedSeeds = new Set<string>()
+  let priorLevelCompleted = true
+  for (const level of levels) {
+    const seed = level.data?.seed
+    if (!seed) continue
+    if (priorLevelCompleted) unlockedSeeds.add(seed)
+    priorLevelCompleted = priorLevelCompleted && completedSeeds.has(seed)
+  }
+  return unlockedSeeds
 }
 
 function resolveCareerLevel(level: PlayableCareerLevel, index: number): ResolvedCareerLevel {

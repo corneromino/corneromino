@@ -81,6 +81,10 @@ const CASCADE_STORAGE_KEY = 'cascade:current'
 const CASCADE_BEST_SCORE_STORAGE_KEY = 'cascade:best-score'
 const VS_LOCAL_STORAGE_KEY = 'vs:local:current'
 
+function careerProgressStorageKey(seed: string): string {
+  return `career:${seed}`
+}
+
 function isVsPlayer(value: unknown): value is 0 | 1 {
   return value === 0 || value === 1
 }
@@ -490,6 +494,29 @@ export async function clearClassicGameDefinition(gameMode: ClassicGameMode, seed
 
 export async function clearGameSelection(gameMode: GameMode, gameId: string): Promise<void> {
   await (await db).delete('games', selectionStorageKey(gameMode, gameId))
+}
+
+/** Loads completed Career levels by their authored, stable board seeds. */
+export async function loadCompletedCareerLevelSeeds(seeds: Iterable<string>): Promise<Set<string>> {
+  const database = await db
+  const uniqueSeeds = [...new Set(seeds)]
+  const records = await Promise.all(uniqueSeeds.map(async (seed) => ({ record: await database.get('games', careerProgressStorageKey(seed)), seed })))
+  return new Set(records.flatMap(({ record, seed }) => (
+    typeof record?.state === 'object' && record.state !== null
+      && 'type' in record.state && record.state.type === 'career-progression'
+      && 'completed' in record.state && record.state.completed === true
+      ? [seed]
+      : []
+  )))
+}
+
+/** Marks an authored Career level as complete without exposing it in Saved Games. */
+export async function completeCareerLevel(seed: string): Promise<void> {
+  await (await db).put('games', {
+    id: careerProgressStorageKey(seed),
+    state: { completed: true, type: 'career-progression' },
+    updatedAt: Date.now(),
+  })
 }
 
 export async function deleteSavedGame(gameMode: GameMode, gameId: string): Promise<void> {

@@ -39,6 +39,8 @@ interface GameGridProps {
   onUnlocked?: () => void
   onMoveCountChange: (moveCount: number) => void
   onCorrectSolution?: () => void
+  /** Called once a successful board verification is complete. */
+  onGameCompleted?: () => void
   onVerifyAvailable?: () => void
   onNextGame: () => void
   onPauseOpenChange: (open: boolean) => void
@@ -310,6 +312,7 @@ export function GameGrid(props: GameGridProps) {
       cancelVerification()
     }
     if (verification.isCorrect) {
+      props.onGameCompleted?.()
       if (props.onCorrectSolution) props.onCorrectSolution()
       else setCompletionDialogOpen(true)
     } else {
@@ -461,6 +464,7 @@ export function GameGrid(props: GameGridProps) {
     setCompletionScreenshot(null)
     if (props.config.completionAnimationEnabled === false) {
       if (isCorrect) {
+        props.onGameCompleted?.()
         if (props.onCorrectSolution) {
           props.onCorrectSolution()
         } else {

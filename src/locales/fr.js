@@ -11,6 +11,7 @@ export default {
         "discard": "Ignorer",
         "load": "Charger",
         "loading": "Chargement…",
+        "locked": "Verrouillé",
         "new": "Nouveau",
         "ok": "Ok",
         "next": "Suivant",

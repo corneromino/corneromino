@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { careerLevels, getCareerLevel, getNextCareerLevel, resolveCareerLevelPositions } from './careerLevels'
+import { careerLevels, getCareerLevel, getNextCareerLevel, getUnlockedCareerLevelSeeds, resolveCareerLevelPositions } from './careerLevels'
 
 const initialLevels = [...careerLevels]
 
@@ -36,5 +36,18 @@ describe('Career levels', () => {
       { x: 80, y: 200 },
       { x: 0, y: 0 },
     ])
+  })
+
+  it('unlocks authored levels sequentially while skipping position-only entries', () => {
+    const levels = [
+      { data: { ...initialLevels[0]!.data!, seed: 'one' }, x: 0, y: 0 },
+      { x: 0, y: 100 },
+      { data: { ...initialLevels[0]!.data!, seed: 'two' }, x: 0, y: 200 },
+      { data: { ...initialLevels[0]!.data!, seed: 'three' }, x: 0, y: 300 },
+    ]
+
+    expect([...getUnlockedCareerLevelSeeds(new Set(), levels)]).toEqual(['one'])
+    expect([...getUnlockedCareerLevelSeeds(new Set(['one']), levels)]).toEqual(['one', 'two'])
+    expect([...getUnlockedCareerLevelSeeds(new Set(['one', 'two']), levels)]).toEqual(['one', 'two', 'three'])
   })
 })

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { createRandomSeed, createSeededRandom } from '@/game/random'
 import { GAME_CONFIGS, isGameMode, type ClassicGameMode } from '@/game/gameConfig'
-import { clearGameSelection, loadClassicGameDefinition, type ClassicGameDefinition } from '@/lib/db'
+import { clearGameSelection, completeCareerLevel, loadClassicGameDefinition, type ClassicGameDefinition } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
 import { getCareerGameId, getCareerLevel, getCareerLevelPath, getNextCareerLevel, type ResolvedCareerLevel } from './careerLevels'
 import { GameGrid } from './GameGrid'
@@ -137,6 +137,7 @@ function GameSession(props: GameSessionProps) {
             isCareerLevel={!!props.careerLevel}
             key={`${props.gameMode}:${seed}:${gameDefinition.version}`}
             onElapsedSecondsChange={setElapsedSeconds}
+            onGameCompleted={props.careerLevel ? () => { void completeCareerLevel(props.careerLevel!.data.seed) } : undefined}
             onMoveCountChange={setMoveCount}
             onNextGame={nextGame}
             onPauseOpenChange={setPauseOpen}
