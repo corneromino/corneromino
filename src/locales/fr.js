@@ -75,6 +75,8 @@ export default {
         "infiniteGenerationFailed": "Impossible de générer la section suivante. Recommencez pour réessayer.",
         "moves_one": "{{count}} coup",
         "moves_other": "{{count}} coups",
+        "unlocks_one": "{{count}} déverrouillage",
+        "unlocks_other": "{{count}} déverrouillages",
         "saved": "Sauvegardes",
         "create": "Créer",
         "custom": "Personnalisé",

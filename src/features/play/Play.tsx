@@ -21,6 +21,31 @@ function formatElapsedTime(elapsedSeconds: number) {
 }
 
 const EMPTY_CAREER_TUTORIAL_STEPS: readonly CareerTutorialStep[] = []
+const ATTEMPT_MOVE_COLOR = '#5fc47a'
+const ATTEMPT_UNLOCK_COLOR = '#e4555c'
+
+interface AttemptProgressBarProps {
+  ariaLabel: string
+  moveCount: number
+  requiredLockCount: number
+  unlockCount: number
+}
+
+function AttemptProgressBar({ ariaLabel, moveCount, requiredLockCount, unlockCount }: AttemptProgressBarProps) {
+  const total = Math.max(1, requiredLockCount + unlockCount * 2, moveCount + unlockCount)
+  const moveWidth = Math.min(100, moveCount / total * 100)
+  const unlockWidth = Math.min(100 - moveWidth, unlockCount / total * 100)
+  return (
+    <div
+      aria-label={ariaLabel}
+      className="relative h-5 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--outline-color)] border-3 border-(--outline-color)"
+      role="img"
+    >
+      <span className="absolute inset-y-0 left-0 transition-[width] duration-200" style={{ backgroundColor: ATTEMPT_MOVE_COLOR, width: `${moveWidth}%` }} />
+      <span className="absolute inset-y-0 right-0 transition-[width] duration-200" style={{ backgroundColor: ATTEMPT_UNLOCK_COLOR, width: `${unlockWidth}%` }} />
+    </div>
+  )
+}
 
 interface GameSessionProps {
   careerLevel?: ResolvedCareerLevel
@@ -36,6 +61,7 @@ function GameSession(props: GameSessionProps) {
   const [generationError, setGenerationError] = useState<string | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [moveCount, setMoveCount] = useState(0)
+  const [unlockCount, setUnlockCount] = useState(0)
   const [gameDefinition, setGameDefinition] = useState<ClassicGameDefinition | null>(null)
   const [pauseOpen, setPauseOpen] = useState(false)
   const [shapesOpen, setShapesOpen] = useState(false)
@@ -50,6 +76,8 @@ function GameSession(props: GameSessionProps) {
   const seed = props.careerLevel ? getCareerGameId(props.careerLevel.data) : props.requestedSeed || generatedSeed
   const modeConfig = GAME_CONFIGS[props.gameMode]
   const gameTitle = props.careerLevel ? t('career.level', { number: props.careerLevel.number }) : gameDefinition?.source === 'custom' && gameDefinition.customName ? gameDefinition.customName : t(modeConfig.title)
+  const requiredLockCount = gameDefinition?.config.tetrominoCount ?? modeConfig.tetrominoCount
+  const attemptAriaLabel = `${t('classic.moves', { count: moveCount })} / ${t('classic.unlocks', { count: unlockCount })}`
   const activeTutorialStep = tutorialOpen ? tutorialSteps[tutorialStepIndex] : undefined
   const tutorialBoardInteractive = activeTutorialStep?.boardInteractive !== false
   const tutorialShowsUI = activeTutorialStep?.showUI !== false
@@ -155,6 +183,7 @@ function GameSession(props: GameSessionProps) {
     setGenerationError(null)
     setElapsedSeconds(0)
     setMoveCount(0)
+    setUnlockCount(0)
     setGameDefinition(null)
 
     const definition = props.careerLevel
@@ -240,7 +269,7 @@ function GameSession(props: GameSessionProps) {
           </Button>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{moveCount} moves</p>
+          <AttemptProgressBar ariaLabel={attemptAriaLabel} moveCount={moveCount} requiredLockCount={requiredLockCount} unlockCount={unlockCount} />
           <p className="poster-kicker shrink-0 text-[11px] text-[var(--muted-text-color)]">{formatElapsedTime(elapsedSeconds)}</p>
         </div>
       </header>
@@ -261,7 +290,7 @@ function GameSession(props: GameSessionProps) {
             key={`${props.gameMode}:${seed}:${gameDefinition.version}`}
             onElapsedSecondsChange={setElapsedSeconds}
             onGameCompleted={props.careerLevel ? () => {
-              void completeCareerLevel(props.careerLevel!.data.seed)
+              void completeCareerLevel(props.careerLevel!.data.seed, unlockCount === 0 ? 2 : 1)
               advanceTutorial('complete')
             } : undefined}
             onLocked={() => advanceTutorial('lock')}
@@ -273,6 +302,7 @@ function GameSession(props: GameSessionProps) {
             onRestarted={handleTutorialRestarted}
             onSelected={() => advanceTutorial('select')}
             onUnlocked={() => advanceTutorial('unlock')}
+            onUnlockCountChange={setUnlockCount}
             paused={pauseOpen}
             persistSelection={careerTutorial ? false : undefined}
             pieces={gameDefinition.pieces}

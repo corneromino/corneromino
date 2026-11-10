@@ -165,6 +165,7 @@ export interface GameSelectionState {
   lockedCellGroups: LockedCellGroup[]
   markers: CellMarker[]
   moveCount: number
+  unlockCount: number
   savedAt: number | null
   selectedCellKeys: string[]
 }

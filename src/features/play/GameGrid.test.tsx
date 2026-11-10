@@ -71,7 +71,7 @@ const firstSquare = ['0,0', '1,0', '0,1', '1,1']
 const secondSquare = ['3,0', '4,0', '3,1', '4,1']
 
 function emptySave(): GameSelectionState {
-  return { selectedCellKeys: [], lockedCellGroups: [], markers: [], moveCount: 0, elapsedSeconds: 0, gameGridScreenshot: null, savedAt: null, isCompleted: false }
+  return { selectedCellKeys: [], lockedCellGroups: [], markers: [], moveCount: 0, unlockCount: 0, elapsedSeconds: 0, gameGridScreenshot: null, savedAt: null, isCompleted: false }
 }
 
 function board() {
@@ -444,7 +444,7 @@ describe('Classic locking modes', () => {
   })
 
   it('unlocks the entire group on two quick taps on cells within that group', () => {
-    const { props } = setup('auto', { onUnlocked: vi.fn() })
+    const { props } = setup('auto', { onUnlockCountChange: vi.fn(), onUnlocked: vi.fn() })
     tap(...firstSquare)
     tap('1,1') // The fourth selection must not have started a double-tap gesture.
     expect(board().locked).toHaveLength(1)
@@ -453,6 +453,7 @@ describe('Classic locking modes', () => {
     expect(board().locked).toHaveLength(0)
     expect(board().selected).toEqual([])
     expect(props.onMoveCountChange).toHaveBeenLastCalledWith(1)
+    expect(props.onUnlockCountChange).toHaveBeenLastCalledWith(1)
     expect(props.onUnlocked).toHaveBeenCalledOnce()
     tap('0,0') // No leftover gesture or automatic re-lock after unlocking.
     expect(board().selected).toEqual(['0,0'])

@@ -6,7 +6,11 @@ import { cn } from '@/lib/utils'
 const Dialog = DialogPrimitive.Root
 const DialogClose = DialogPrimitive.Close
 
-function DialogContent({ children, className, ...props }: React.ComponentProps<typeof DialogPrimitive.Content>) {
+interface DialogContentProps extends React.ComponentProps<typeof DialogPrimitive.Content> {
+  floatingContent?: React.ReactNode
+}
+
+function DialogContent({ children, className, floatingContent, ...props }: DialogContentProps) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="dialog-overlay fixed inset-0 z-50 bg-[#15100e]/60" />
@@ -15,11 +19,13 @@ function DialogContent({ children, className, ...props }: React.ComponentProps<t
         as={DialogPrimitive.Content}
         depth={8}
         shadowColor="#b95c2e"
-        className={cn(
-          'dialog-content fixed top-1/2 left-1/2 z-50 w-[calc(100%-2.5rem)] max-w-[340px] -translate-x-1/2 -translate-y-1/2 outline-none',
-          className,
-        )}
+          className={cn(
+            'dialog-content fixed top-1/2 left-1/2 z-50 w-[calc(100%-2.5rem)] max-w-[340px] -translate-x-1/2 -translate-y-1/2 outline-none',
+            floatingContent && '!overflow-visible',
+            className,
+          )}
       >
+        {floatingContent}
         <div className="dialog-content-surface">{children}</div>
       </DepthSurface>
     </DialogPrimitive.Portal>

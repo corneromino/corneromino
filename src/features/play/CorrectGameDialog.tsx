@@ -2,21 +2,23 @@ import { Button } from '@/components/ui/button'
 import { DEPTH_BUTTON_COLORS } from '@/components/ui/depth-surface'
 import { useTranslation } from 'react-i18next'
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { CareerStars } from '@/components/CareerStars'
 
 interface CorrectGameDialogProps {
   onNext: () => void
   onOpenChange: (open: boolean) => void
   open: boolean
   screenshot: string | null
+  stars?: 1 | 2 | 3
 }
 
 export function CorrectGameDialog(props: CorrectGameDialogProps) {
   const { t } = useTranslation()
   return (
     <Dialog onOpenChange={props.onOpenChange} open={props.open}>
-      <DialogContent aria-describedby={undefined} className="max-w-[430px]">
-        <DialogHeader><DialogTitle>{t('classic.correct')}</DialogTitle></DialogHeader>
-        {props.screenshot && <img alt={t('classic.completedBoard')} className="mx-auto mt-4 block max-h-[max(0px,calc(var(--dialog-viewport-height,var(--app-height))-220px))] max-w-full object-contain" src={props.screenshot} />}
+        <DialogContent aria-describedby={undefined} className="max-w-[430px]" floatingContent={props.stars !== undefined ? <CareerStars stars={props.stars} /> : undefined}>
+          <DialogHeader><DialogTitle>{t('classic.correct')}</DialogTitle></DialogHeader>
+          {props.screenshot && <img alt={t('classic.completedBoard')} className="mx-auto mt-4 block max-h-[max(0px,calc(var(--dialog-viewport-height,var(--app-height))-220px))] max-w-full object-contain" src={props.screenshot} />}
         <DialogFooter>
           <Button {...DEPTH_BUTTON_COLORS.green} className="text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" onClick={props.onNext} size="lg" type="button">{t('common.next')}</Button>
           <DialogClose asChild><Button className="text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" size="lg" type="button">{t('common.close')}</Button></DialogClose>

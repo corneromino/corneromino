@@ -342,6 +342,7 @@ export function ClassicCreatePage() {
         lockedCellGroups: [],
         markers: [],
         moveCount: 0,
+        unlockCount: 0,
         savedAt: Date.now(),
         selectedCellKeys: [],
       }

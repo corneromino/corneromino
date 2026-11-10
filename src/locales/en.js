@@ -80,6 +80,8 @@ export default {
         "infiniteGenerationFailed": "Could not generate the next section. Restart to try again.",
         "moves_one": "{{count}} move",
         "moves_other": "{{count}} moves",
+        "unlocks_one": "{{count}} unlock",
+        "unlocks_other": "{{count}} unlocks",
         "saved": "Saved",
         "create": "Create",
         "custom": "Custom",

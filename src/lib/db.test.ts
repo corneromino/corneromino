@@ -73,6 +73,7 @@ describe('Classic game definitions', () => {
       lockedCellGroups: [],
       markers: [],
       moveCount: 4,
+      unlockCount: 2,
       savedAt: 123,
       selectedCellKeys: ['1,1'],
     })
@@ -90,6 +91,7 @@ describe('Classic game definitions', () => {
       lockedCellGroups: [],
       markers: [],
       moveCount: 4,
+      unlockCount: 2,
       savedAt: 123,
       selectedCellKeys: ['1,1'],
     })
@@ -107,6 +109,7 @@ describe('Classic game definitions', () => {
       lockedCellGroups: [],
       markers: [],
       moveCount: 4,
+      unlockCount: 2,
       savedAt: 123,
       selectedCellKeys: [],
     })

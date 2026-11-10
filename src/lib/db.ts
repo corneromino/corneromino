@@ -15,7 +15,7 @@ export interface CareerLevelProgression {
   completed: boolean
   seed: string
   /** Omitted by progress records written before Career stars were introduced. */
-  stars?: 0 | 1 | 2 | 3
+  stars?: 1 | 2 | 3
   type: 'career-progression'
 }
 
@@ -103,7 +103,7 @@ function isCareerLevelProgressionState(value: unknown): value is Omit<CareerLeve
   return typeof value === 'object' && value !== null
     && 'type' in value && value.type === 'career-progression'
     && 'completed' in value && typeof value.completed === 'boolean'
-    && (!('stars' in value) || value.stars === 0 || value.stars === 1 || value.stars === 2 || value.stars === 3)
+    && (!('stars' in value) || value.stars === 1 || value.stars === 2 || value.stars === 3)
 }
 
 function isVsPlayer(value: unknown): value is 0 | 1 {
@@ -314,6 +314,7 @@ function isGameSelectionState(state: unknown): state is {
   lockedCellGroups?: LockedCellGroup[]
   markers?: CellMarker[]
   moveCount?: number
+  unlockCount?: number
   savedAt?: number | null
   selectedCellKeys: string[]
 } {
@@ -329,6 +330,7 @@ function isGameSelectionState(state: unknown): state is {
     (!('gameGridScreenshot' in state) || state.gameGridScreenshot === null || state.gameGridScreenshot instanceof Blob) &&
     (!('isCompleted' in state) || typeof state.isCompleted === 'boolean') &&
     (!('moveCount' in state) || (typeof state.moveCount === 'number' && state.moveCount >= 0)) &&
+    (!('unlockCount' in state) || (typeof state.unlockCount === 'number' && state.unlockCount >= 0)) &&
     (!('savedAt' in state) || state.savedAt === null || typeof state.savedAt === 'number')
   )
 }
@@ -430,7 +432,7 @@ function isClassicGameDefinition(value: unknown): value is ClassicGameDefinition
 export async function loadGameSelection(gameMode: GameMode, gameId: string): Promise<GameSelectionState> {
   const storedGame = await (await db).get('games', selectionStorageKey(gameMode, gameId))
   if (!storedGame || !isGameSelectionState(storedGame.state)) {
-    return { elapsedSeconds: 0, gameGridScreenshot: null, isCompleted: false, lockedCellGroups: [], markers: [], moveCount: 0, savedAt: null, selectedCellKeys: [] }
+    return { elapsedSeconds: 0, gameGridScreenshot: null, isCompleted: false, lockedCellGroups: [], markers: [], moveCount: 0, savedAt: null, selectedCellKeys: [], unlockCount: 0 }
   }
 
   return {
@@ -446,6 +448,7 @@ export async function loadGameSelection(gameMode: GameMode, gameId: string): Pro
     moveCount: 'moveCount' in storedGame.state && typeof storedGame.state.moveCount === 'number' ? storedGame.state.moveCount : 0,
     savedAt: 'savedAt' in storedGame.state && typeof storedGame.state.savedAt === 'number' ? storedGame.state.savedAt : null,
     selectedCellKeys: storedGame.state.selectedCellKeys,
+    unlockCount: 'unlockCount' in storedGame.state && typeof storedGame.state.unlockCount === 'number' ? storedGame.state.unlockCount : 0,
   }
 }
 
@@ -527,10 +530,10 @@ export async function loadCareerProgression(): Promise<CareerLevelProgression[]>
 }
 
 /** Marks an authored Career level as complete without exposing it in Saved Games. */
-export async function completeCareerLevel(seed: string): Promise<void> {
+export async function completeCareerLevel(seed: string, stars: 1 | 2 | 3): Promise<void> {
   await (await db).put('games', {
     id: careerProgressStorageKey(seed),
-    state: { completed: true, stars: 3, type: 'career-progression' },
+    state: { completed: true, stars, type: 'career-progression' },
     updatedAt: Date.now(),
   })
 }

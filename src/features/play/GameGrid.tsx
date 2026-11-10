@@ -52,6 +52,7 @@ interface GameGridProps {
   /** Called when the player adds an unlocked board cell to their selection. */
   onSelected?: () => void
   onUnlocked?: () => void
+  onUnlockCountChange?: (unlockCount: number) => void
   onMoveCountChange: (moveCount: number) => void
   onCorrectSolution?: () => void
   /** Called once a successful board verification is complete. */
@@ -126,6 +127,7 @@ export function GameGrid(props: GameGridProps) {
   const [completionScreenshot, setCompletionScreenshot] = useState<string | null>(null)
   const [restartConfirmationOpen, setRestartConfirmationOpen] = useState(false)
   const [moveCount, setMoveCount] = useState(0)
+  const [unlockCount, setUnlockCount] = useState(0)
   const [savedAt, setSavedAt] = useState<number | null>(null)
   const [previousScrollingPieces, setPreviousScrollingPieces] = useState(props.pieces)
   const gameBoardRef = useRef<HTMLElement>(null)
@@ -222,6 +224,10 @@ export function GameGrid(props: GameGridProps) {
     setCompletionPending(false)
     cancelVerification()
     setCompletionScreenshot(null)
+    setMoveCount(0)
+    props.onMoveCountChange(0)
+    setUnlockCount(0)
+    props.onUnlockCountChange?.(0)
     setSavedAt(null)
     savedSelectionRef.current = null
   }
@@ -284,6 +290,7 @@ export function GameGrid(props: GameGridProps) {
           lockedCellGroups,
           markers: [...markers].map(([cellKey, color]) => ({ cellKey, color })),
           moveCount,
+          unlockCount,
           savedAt: nextSavedAt,
           selectedCellKeys: [...selectedCellKeys],
         }
@@ -476,6 +483,9 @@ export function GameGrid(props: GameGridProps) {
     setSelectedCellKeys(new Set())
     setSelectedLockedGroupId(null)
     setValidationResult(null)
+    const nextUnlockCount = unlockCount + 1
+    setUnlockCount(nextUnlockCount)
+    props.onUnlockCountChange?.(nextUnlockCount)
     props.onUnlocked?.()
   }
 
@@ -585,6 +595,8 @@ export function GameGrid(props: GameGridProps) {
     cancelVerification()
     setMoveCount(0)
     props.onMoveCountChange(0)
+    setUnlockCount(0)
+    props.onUnlockCountChange?.(0)
     setSavedAt(null)
     savedSelectionRef.current = null
     setSelectionLoaded(false)
@@ -609,6 +621,8 @@ export function GameGrid(props: GameGridProps) {
           cancelVerification()
           setMoveCount(storedSelection.moveCount)
           props.onMoveCountChange(storedSelection.moveCount)
+          setUnlockCount(storedSelection.unlockCount)
+          props.onUnlockCountChange?.(storedSelection.unlockCount)
           setSavedAt(storedSelection.savedAt)
           savedSelectionRef.current = storedSelection.savedAt === null ? null : storedSelection
         }
@@ -656,10 +670,11 @@ export function GameGrid(props: GameGridProps) {
       moveCount,
       savedAt,
       selectedCellKeys: [...selectedCellKeys],
+      unlockCount,
     })).catch(() => {
       // Selection remains available for the current session if IndexedDB is unavailable.
     })
-  }, [elapsedSeconds, gameGridScreenshot, isCompleted, isExiting, lockedCellGroups, markers, moveCount, props.gameId, props.gameMode, props.persistSelection, savedAt, selectedCellKeys, selectionLoaded])
+  }, [elapsedSeconds, gameGridScreenshot, isCompleted, isExiting, lockedCellGroups, markers, moveCount, props.gameId, props.gameMode, props.persistSelection, savedAt, selectedCellKeys, selectionLoaded, unlockCount])
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 px-1">
@@ -809,7 +824,7 @@ export function GameGrid(props: GameGridProps) {
           } */}
         </div>}
       </div>}
-      <CorrectGameDialog onNext={props.onNextGame} onOpenChange={handleCompletionOpenChange} open={completionDialogOpen} screenshot={completionScreenshot} />
+      <CorrectGameDialog onNext={props.onNextGame} onOpenChange={handleCompletionOpenChange} open={completionDialogOpen} screenshot={completionScreenshot} stars={props.isCareerLevel ? unlockCount === 0 ? 2 : 1 : undefined} />
       {props.pauseDialog ?? <ClassicPauseDialog gameMode={props.gameMode} isCareerLevel={props.isCareerLevel} isSaving={isExiting} onOpenChange={props.onPauseOpenChange} onQuitWithoutSaving={quitWithoutSavingFromPause} onRestart={requestRestart} onResume={() => props.onPauseOpenChange(false)} onSaveAndQuit={saveAndQuitFromPause} open={props.paused} seed={props.gameId} />}
       <ClassicRestartDialog onOpenChange={(open) => {
         setRestartConfirmationOpen(open)
