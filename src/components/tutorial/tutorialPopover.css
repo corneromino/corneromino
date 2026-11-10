@@ -40,8 +40,12 @@
 
 /* Only the current Driver target may receive input. This keeps inactive
    tutorial hit regions from covering cells during a board-wide spotlight. */
-[id^='classic-tutorial-'].pointer-events-none:not(.driver-active-element) {
+.tutorial-board-area {
   pointer-events: none !important;
+}
+
+.tutorial-board-area.driver-active-element {
+  pointer-events: auto !important;
 }
 
 .game-tutorial .driver-popover-navigation-btns {

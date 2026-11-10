@@ -5,21 +5,35 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { GAME_CONFIGS, type PlacedTetromino } from '@/game/gameConfig'
 import { careerLevels } from './careerLevels'
 
-const gameGridProps = vi.hoisted(() => ({ current: undefined as { exitPath?: string; gameDefinition?: { seed: string }; gameId: string; pieces: readonly PlacedTetromino[] } | undefined }))
+const gameGridProps = vi.hoisted(() => ({ current: undefined as {
+  exitPath?: string
+  gameDefinition?: { seed: string }
+  gameId: string
+  boardInteractive?: boolean
+  hideGameControls?: boolean
+  highlightAreas?: readonly { height: number; id: string; left: number; top: number; width: number }[]
+  onLocked?: () => void
+  onSelected?: () => void
+  pieces: readonly PlacedTetromino[]
+  persistSelection?: boolean
+  tutorialControlIds?: { reset?: string }
+} | undefined }))
+const tutorialDriverMock = vi.hoisted(() => ({ destroy: vi.fn(), drive: vi.fn(), moveTo: vi.fn() }))
 const initialCareerLevels = [...careerLevels]
 
 vi.mock('@/lib/db', () => ({ clearGameSelection: vi.fn(), loadClassicGameDefinition: vi.fn() }))
 vi.mock('@/game/placementV2', () => ({ generateTetrominoPlacementsV2: vi.fn() }))
+vi.mock('@/components/tutorial/createTutorialDriver', () => ({ createTutorialDriver: vi.fn(() => tutorialDriverMock) }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: { number?: number }) => key === 'career.level' ? `LEVEL ${values?.number}` : key }) }))
 vi.mock('./GameGrid', () => ({
-  GameGrid: (props: { exitPath?: string; gameDefinition?: { seed: string }; gameId: string; pieces: readonly PlacedTetromino[] }) => {
+  GameGrid: (props: typeof gameGridProps.current extends infer Props ? NonNullable<Props> : never) => {
     gameGridProps.current = props
     return <output data-testid="game-grid">{props.pieces.length}</output>
   },
 }))
 vi.mock('./ClassicShapesDialog', () => ({ ClassicShapesDialog: () => null }))
 
-import { loadClassicGameDefinition } from '@/lib/db'
+import { clearGameSelection, loadClassicGameDefinition } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
 import { Play } from './Play'
 
@@ -40,6 +54,10 @@ function renderPlay(seed: string, gameMode = 'c001') {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    callback(performance.now())
+    return 1
+  })
   gameGridProps.current = undefined
 })
 
@@ -47,6 +65,7 @@ afterEach(() => {
   cleanup()
   careerLevels.splice(0, careerLevels.length, ...initialCareerLevels)
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 it('loads a stored board definition without running the seed generator', async () => {
@@ -102,6 +121,52 @@ it('plays a Career level from its authored data using its stable career save ID'
     gameId: 'career:authored-career-board',
   })
   expect(generateTetrominoPlacementsV2).not.toHaveBeenCalled()
+})
+
+it('maps authored Career tutorial board areas and advances from a cell selection', async () => {
+  careerLevels.splice(0, careerLevels.length, {
+    data: {
+      config: { ...GAME_CONFIGS.c003 },
+      gameMode: 'c003',
+      pieces,
+      seed: 'tutorial-career-board',
+      version: 1,
+    },
+    tutorial: {
+      steps: [{
+        advanceOn: ['select'],
+        area: 'board',
+        boardInteractive: true,
+        columns: 2,
+        content: 'Lock this shape.',
+        rows: 2,
+        showUI: false,
+        x: 0,
+        y: 0,
+      }, {
+        area: 'reset',
+        content: 'Restart the board.',
+        showUI: true,
+      }],
+    },
+    x: 0,
+    y: 0,
+  })
+
+  render(<MemoryRouter initialEntries={['/play?career=tutorial-career-board']}><Play /></MemoryRouter>)
+
+  await waitFor(() => expect(tutorialDriverMock.drive).toHaveBeenCalledWith(0))
+  expect(gameGridProps.current).toMatchObject({
+    boardInteractive: true,
+    hideGameControls: true,
+    highlightAreas: [{ height: 2, id: 'career-tutorial-board-0', left: 0, top: 0, width: 2 }],
+    persistSelection: false,
+    tutorialControlIds: { reset: 'career-tutorial-reset' },
+  })
+  expect(clearGameSelection).toHaveBeenCalledWith('c003', 'career:tutorial-career-board')
+
+  gameGridProps.current?.onSelected?.()
+  await waitFor(() => expect(tutorialDriverMock.moveTo).toHaveBeenCalledWith(1))
 })
 
 it('uses the seed generator for a legacy save with no board definition', async () => {

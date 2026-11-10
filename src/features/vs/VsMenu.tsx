@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppNavigationButton } from '@/components/ui/app-navigation-button'
-import { Button } from '@/components/ui/button'
+import { DepthButton, PAPER_DEPTH_SHADOW_COLOR } from '@/components/ui/depth-surface'
 import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
 import { VsLocalSetupDialog } from './VsLocalSetupDialog'
 import type { VsLocalBoardSize } from './vsLocalConfig'
@@ -32,12 +32,26 @@ export function VsMenu() {
         <AppNavigationButton aria-label={t('common.backToMainMenu')} className="size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMainMenu')} to="/"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
       </header>
       <section aria-label={t('versus.gameType')} className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain px-1 pb-1">
-        <Button className="h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase" onClick={() => setLocalSetupOpen(true)} size="lg" type="button">
+        <DepthButton
+          className="h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+          onClick={() => setLocalSetupOpen(true)}
+          shadowColor={PAPER_DEPTH_SHADOW_COLOR}
+          type="button"
+          radius={20}
+          borderWidth={4}
+        >
           <Users aria-hidden="true" /> {t('versus.local')}
-        </Button>
-        <Button className="h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase" disabled size="lg" type="button">
+        </DepthButton>
+        <DepthButton
+          className="h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+          disabled
+          shadowColor={PAPER_DEPTH_SHADOW_COLOR}
+          type="button"
+          radius={20}
+          borderWidth={4}
+        >
           <Wifi aria-hidden="true" /> {t('versus.online')}
-        </Button>
+        </DepthButton>
       </section>
       <VsLocalSetupDialog onContinue={continueLocalMatch} onOpenChange={setLocalSetupOpen} onStart={startLocalMatch} open={localSetupOpen} />
     </main>

@@ -42,11 +42,12 @@ function renderTutorialPopover(popover: PopoverDOM, options: HookOpts, labels: T
   styleButton(popover.closeButton, labels.close, false)
   styleButton(popover.previousButton, labels.previous, !options.driver.hasPreviousStep())
   const activeStep = options.driver.getActiveStep() as TutorialStep | undefined
-  styleButton(popover.nextButton, labels.next, !options.driver.hasNextStep() || activeStep?.nextLocked === true)
+  // An unlocked final step uses Next as its completion action.
+  styleButton(popover.nextButton, labels.next, activeStep?.nextLocked === true)
 }
 
-export function createTutorialDriver(steps: TutorialStep[], options: TutorialDriverOptions = {}): Driver {
-  const labels = options.labels ?? DEFAULT_LABELS
+export function createTutorialDriver(steps: TutorialStep[], tutorialOptions: TutorialDriverOptions = {}): Driver {
+  const labels = tutorialOptions.labels ?? DEFAULT_LABELS
   return driver({
     allowClose: true,
     animate: true,
@@ -62,11 +63,17 @@ export function createTutorialDriver(steps: TutorialStep[], options: TutorialDri
       // Handle dismissal even during the opening animation. Imperative cleanup
       // bypasses this hook, so route changes and StrictMode never trigger navigation.
       context.driver.destroy()
-      if (context.reason === 'close' || context.reason === 'escape') options.onClose?.()
+      if (context.reason === 'close' || context.reason === 'escape') tutorialOptions.onClose?.()
     },
-    // Guard keyboard navigation too: reaching an end does not close the tour.
+    // Keep keyboard navigation consistent with the visible Next button.
     onNextClick: (_element, step, options) => {
-      if (!(step as TutorialStep).nextLocked && options.driver.hasNextStep()) options.driver.moveNext()
+      if ((step as TutorialStep).nextLocked) return
+      if (options.driver.hasNextStep()) {
+        options.driver.moveNext()
+        return
+      }
+      options.driver.destroy()
+      tutorialOptions.onClose?.()
     },
     onPrevClick: (_element, _step, options) => {
       if (options.driver.hasPreviousStep()) options.driver.movePrevious()

@@ -1,7 +1,23 @@
 import type { ClassicGameDefinition } from '@/lib/db'
-import { LOCKED_CELL_COLOR_HEX } from '@/rendering/colors'
-import level1 from '@/assets/levels/1'
-import level2 from '@/assets/levels/2'
+import type { CareerTutorial } from './careerTutorial'
+import { level1 } from '@/assets/levels/1'
+import { level2 } from '@/assets/levels/2'
+import { level3 } from '@/assets/levels/3'
+import { level4 } from '@/assets/levels/4'
+import { level5 } from '@/assets/levels/5'
+import { level6 } from '@/assets/levels/6'
+import { level7 } from '@/assets/levels/7'
+import { level8 } from '@/assets/levels/8'
+import { level9 } from '@/assets/levels/9'
+import { level10 } from '@/assets/levels/10'
+import { level11 } from '@/assets/levels/11'
+import { level12 } from '@/assets/levels/12'
+import { level13 } from '@/assets/levels/13'
+import { level14 } from '@/assets/levels/14'
+import { level15 } from '@/assets/levels/15'
+import { level16 } from '@/assets/levels/16'
+import { level17 } from '@/assets/levels/17'
+import { level18 } from '@/assets/levels/18'
 
 export type CareerLevelEdge = 'top' | 'bottom' | 'left' | 'right'
 export type CareerLevelOrigin = 'absolute' | 'relative'
@@ -17,6 +33,8 @@ export interface CareerLevel {
   origin?: CareerLevelOrigin
   /** Edge on the following card where this card's connection arrives. */
   to?: CareerLevelEdge
+  /** Optional guided lesson that starts from its first step whenever the level opens. */
+  tutorial?: CareerTutorial
   x: number
   y: number
 }
@@ -32,142 +50,24 @@ export interface ResolvedCareerLevel extends PlayableCareerLevel {
 
 /** Career levels are played in this list order. */
 export const careerLevels: CareerLevel[] = [
-  {
-    bgColor: LOCKED_CELL_COLOR_HEX[7],
-    data: level1,
-    x: 0,
-    y: 0,
-    from: 'top',
-    to: 'bottom'
-  }, {
-    bgColor: LOCKED_CELL_COLOR_HEX[2],
-    data: level2,
-    origin: 'relative',
-    x: 0,
-    y: 200,
-    from: 'top',
-    to: 'bottom'
-  },
-  // PART
-  {
-    bgColor: LOCKED_CELL_COLOR_HEX[5],
-    origin: 'relative',
-    x: 0,
-    y: 200,
-    from: 'left',
-    to: 'right'
-  }, {
-    bgColor: LOCKED_CELL_COLOR_HEX[6],
-    origin: 'relative',
-    x: -75,
-    y: 0,
-    from: 'top',
-    to: 'bottom'
-  }, {
-    bgColor: LOCKED_CELL_COLOR_HEX[2],
-    origin: 'relative',
-    x: -0,
-    y: 75,
-    from: 'top',
-    to: 'bottom'
-  }, {
-    bgColor: LOCKED_CELL_COLOR_HEX[3],
-    origin: 'relative',
-    x: -0,
-    y: 75,
-    from: 'right',
-    to: 'bottom'
-  },
-  // PART
-  {
-    bgColor: LOCKED_CELL_COLOR_HEX[4],
-    origin: 'relative',
-    x: 130,
-    y: 75,
-    from: 'right',
-    to: 'left'
-  }, {
-    bgColor: LOCKED_CELL_COLOR_HEX[5],
-    origin: 'relative',
-    x: 75,
-    y: 0,
-    from: 'top',
-    to: 'bottom'
-  }, {
-    bgColor: LOCKED_CELL_COLOR_HEX[6],
-    origin: 'relative',
-    x: -0,
-    y: 75,
-    from: 'left',
-    to: 'right'
-  }, {
-    bgColor: LOCKED_CELL_COLOR_HEX[7],
-    origin: 'relative',
-    x: -75,
-    y: 0,
-    from: 'left',
-    to: 'right'
-  },
-  // PART
-  {
-    bgColor: LOCKED_CELL_COLOR_HEX[8],
-    origin: 'relative',
-    x: -150,
-    y: 0,
-    from: 'top',
-    to: 'bottom'
-  }, {
-    bgColor: LOCKED_CELL_COLOR_HEX[9],
-    origin: 'relative',
-    x: 0,
-    y: 75,
-    from: 'top',
-    to: 'bottom'
-  }, {
-    bgColor: LOCKED_CELL_COLOR_HEX[10],
-    origin: 'relative',
-    x: 0,
-    y: 75,
-    from: 'top',
-    to: 'bottom'
-  }, {
-    bgColor: LOCKED_CELL_COLOR_HEX[0],
-    origin: 'relative',
-    x: 0,
-    y: 75,
-    from: 'top',
-    to: 'bottom'
-  },
-  // PART
-  {
-    bgColor: LOCKED_CELL_COLOR_HEX[1],
-    origin: 'relative',
-    x: 200,
-    y: 200,
-    from: 'top',
-    to: 'bottom'
-  }, {
-    bgColor: LOCKED_CELL_COLOR_HEX[2],
-    origin: 'relative',
-    x: 0,
-    y: 75,
-    from: 'top',
-    to: 'bottom'
-  }, {
-    bgColor: LOCKED_CELL_COLOR_HEX[3],
-    origin: 'relative',
-    x: 0,
-    y: 75,
-    from: 'bottom',
-    to: 'right'
-  }, {
-    bgColor: LOCKED_CELL_COLOR_HEX[4],
-    origin: 'relative',
-    x: -75,
-    y: -75,
-    from: 'top',
-    to: 'bottom'
-  }
+  level1,
+  level2,
+  level3,
+  level4,
+  level5,
+  level6,
+  level7,
+  level8,
+  level9,
+  level10,
+  level11,
+  level12,
+  level13,
+  level14,
+  level15,
+  level16,
+  level17,
+  level18,
 ]
 
 export interface CareerLevelPosition {

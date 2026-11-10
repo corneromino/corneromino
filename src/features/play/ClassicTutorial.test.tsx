@@ -13,6 +13,7 @@ vi.mock('react-i18next', () => {
   const t = (key: string) => key
   return { useTranslation: () => ({ t }) }
 })
+vi.mock('@/components/toast', () => ({ useToast: () => ({ show: vi.fn() }) }))
 vi.mock('driver.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('driver.js')>()
   return { ...actual, driver: (options: Parameters<typeof actual.driver>[0]) => actual.driver({ ...options, animate: false }) }
@@ -116,6 +117,7 @@ describe('Automatic Classic tutorial', () => {
     solvePiece(8)
     await expectBubble('completed')
     expect(screen.getByTestId('lock-count').textContent).toBe('8')
+    expect(nextButton().disabled).toBe(false)
   }, 15000)
 
   it('resets the previous exercise and advances again only after solving it', async () => {

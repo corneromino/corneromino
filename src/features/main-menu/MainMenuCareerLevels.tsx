@@ -21,6 +21,7 @@ const STAR_EMPTY_COLOR = '#FFFFFF'
 const STAR_BORDER_COLOR = '#713324'
 const STAR_MIDDLE_SIZE_PX = 32
 const STAR_SIDE_SIZE_PX = 24
+const STAR_SIDE_HORIZONTAL_OFFSET_PX = 25
 const STAR_SIDE_VERTICAL_OFFSET_PX = -6
 
 interface Point {
@@ -222,12 +223,11 @@ function CareerLevelStar({ filled, id, size, style }: { filled: boolean; id: str
 }
 
 function CompletedLevelStars({ position, stars, levelIndex }: { position: Point; stars: 0 | 1 | 2 | 3; levelIndex: number }) {
-  const sideStarOffset = LEVEL_CARD_SIZE_PX / 2 - STAR_SIDE_SIZE_PX / 4
   const middleStarOffset = -STAR_MIDDLE_SIZE_PX / 3
   return (
     <span aria-hidden="true" className="absolute" style={{ left: position.x, top: position.y }}>
-      <CareerLevelStar filled={stars >= 1} id={`${levelIndex}-left`} size={STAR_SIDE_SIZE_PX} style={{ left: -sideStarOffset, top: STAR_SIDE_VERTICAL_OFFSET_PX, transform: 'translate(-50%, -50%)' }} />
-      <CareerLevelStar filled={stars >= 2} id={`${levelIndex}-right`} size={STAR_SIDE_SIZE_PX} style={{ left: sideStarOffset, top: STAR_SIDE_VERTICAL_OFFSET_PX, transform: 'translate(-50%, -50%)' }} />
+      <CareerLevelStar filled={stars >= 1} id={`${levelIndex}-left`} size={STAR_SIDE_SIZE_PX} style={{ left: -STAR_SIDE_HORIZONTAL_OFFSET_PX, top: STAR_SIDE_VERTICAL_OFFSET_PX, transform: 'translate(-50%, -50%)' }} />
+      <CareerLevelStar filled={stars >= 2} id={`${levelIndex}-right`} size={STAR_SIDE_SIZE_PX} style={{ left: STAR_SIDE_HORIZONTAL_OFFSET_PX, top: STAR_SIDE_VERTICAL_OFFSET_PX, transform: 'translate(-50%, -50%)' }} />
       <CareerLevelStar filled={stars >= 3} id={`${levelIndex}-middle`} size={STAR_MIDDLE_SIZE_PX} style={{ left: 0, top: middleStarOffset, transform: 'translate(-50%, -50%)' }} />
     </span>
   )
@@ -242,6 +242,7 @@ export function MainMenuCareerLevels() {
   const cardRefs = useRef(new Map<number, HTMLDivElement>())
   const [canvasSize, setCanvasSize] = useState<CanvasSize>({ height: 0, width: 0 })
   const [careerProgression, setCareerProgression] = useState<readonly CareerLevelProgression[]>([])
+  const [hasLoadedCareerProgression, setHasLoadedCareerProgression] = useState(false)
   const [cardAnchors, setCardAnchors] = useState<Map<number, CardAnchor>>(() => new Map())
   const levelPositions = resolveCareerLevelPositions()
   const lastUnlockedLevelIndex = getCurrentCareerLevelIndex(careerProgression)
@@ -254,13 +255,27 @@ export function MainMenuCareerLevels() {
   }, [])
 
   useEffect(() => {
+    const viewport = viewportRef.current
+    const currentLevelCard = cardRefs.current.get(lastUnlockedLevelIndex)
+    if (!hasLoadedCareerProgression || !viewport || !currentLevelCard) return
+
+    viewport.scrollTo({
+      behavior: 'smooth',
+      top: Math.max(0, currentLevelCard.offsetTop - (viewport.clientHeight - currentLevelCard.offsetHeight) / 2),
+    })
+  }, [hasLoadedCareerProgression, lastUnlockedLevelIndex])
+
+  useEffect(() => {
     let active = true
     void loadCareerProgression()
       .then((progression) => {
-        if (active) setCareerProgression(progression)
+        if (!active) return
+        setCareerProgression(progression)
+        setHasLoadedCareerProgression(true)
       })
       .catch(() => {
         // Career progression remains usable from its initial state if persistence is unavailable.
+        if (active) setHasLoadedCareerProgression(true)
       })
     return () => {
       active = false

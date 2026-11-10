@@ -131,6 +131,12 @@ afterEach(() => {
 })
 
 describe('Classic locking modes', () => {
+  it('disables canvas interaction when a tutorial step marks the board non-interactive', async () => {
+    setup('auto', { boardInteractive: false })
+
+    await waitFor(() => expect(canvasMock.props?.interactive).toBe(false))
+  })
+
   it.each(['auto', 'manual'] as const)('captures before the wave and waits for renderer completion with %s verification', async (finalVerificationMode) => {
     vi.useFakeTimers()
     try {

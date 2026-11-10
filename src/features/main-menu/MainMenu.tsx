@@ -63,8 +63,8 @@ export function MainMenu() {
               className="w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
               yPadding={30}
               radius={20}
-              to="/mini-games"
               borderWidth={4}
+              to="/mini-games"
             >
               <span>{t('mainMenu.miniGames')}</span>
               <img alt="" aria-hidden="true" className="size-16 -rotate-12 scale-200 -translate-y-5 object-contain" src={cascadeGraphic} />

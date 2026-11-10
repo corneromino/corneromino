@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Pause } from 'lucide-react'
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { createTutorialDriver } from '@/components/tutorial/createTutorialDriver'
 import { createRandomSeed, createSeededRandom } from '@/game/random'
 import { GAME_CONFIGS, isGameMode, type ClassicGameMode } from '@/game/gameConfig'
 import { clearGameSelection, completeCareerLevel, loadClassicGameDefinition, type ClassicGameDefinition } from '@/lib/db'
@@ -10,12 +11,16 @@ import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
 import { getCareerGameId, getCareerLevel, getCareerLevelPath, getNextCareerLevel, type ResolvedCareerLevel } from './careerLevels'
 import { GameGrid } from './GameGrid'
 import { ClassicShapesDialog } from './ClassicShapesDialog'
+import { getCareerTutorialTargetId, type CareerTutorialAction, type CareerTutorialStep } from './careerTutorial'
+import { cn } from '@/lib/utils'
 
 function formatElapsedTime(elapsedSeconds: number) {
   const minutes = Math.floor(elapsedSeconds / 60).toString().padStart(2, '0')
   const seconds = (elapsedSeconds % 60).toString().padStart(2, '0')
   return `${minutes}:${seconds}`
 }
+
+const EMPTY_CAREER_TUTORIAL_STEPS: readonly CareerTutorialStep[] = []
 
 interface GameSessionProps {
   careerLevel?: ResolvedCareerLevel
@@ -34,9 +39,78 @@ function GameSession(props: GameSessionProps) {
   const [gameDefinition, setGameDefinition] = useState<ClassicGameDefinition | null>(null)
   const [pauseOpen, setPauseOpen] = useState(false)
   const [shapesOpen, setShapesOpen] = useState(false)
+  const careerTutorial = props.careerLevel?.tutorial
+  const tutorialSteps = careerTutorial?.steps ?? EMPTY_CAREER_TUTORIAL_STEPS
+  const [tutorialSelectionReady, setTutorialSelectionReady] = useState(() => careerTutorial === undefined)
+  const [tutorialOpen, setTutorialOpen] = useState(() => tutorialSteps.length > 0)
+  const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
+  const [tutorialSuspended, setTutorialSuspended] = useState(false)
+  const tutorialRef = useRef<ReturnType<typeof createTutorialDriver> | null>(null)
+  const tutorialStepIndexRef = useRef(0)
   const seed = props.careerLevel ? getCareerGameId(props.careerLevel.data) : props.requestedSeed || generatedSeed
   const modeConfig = GAME_CONFIGS[props.gameMode]
   const gameTitle = props.careerLevel ? t('career.level', { number: props.careerLevel.number }) : gameDefinition?.source === 'custom' && gameDefinition.customName ? gameDefinition.customName : t(modeConfig.title)
+  const activeTutorialStep = tutorialOpen ? tutorialSteps[tutorialStepIndex] : undefined
+  const tutorialBoardInteractive = activeTutorialStep?.boardInteractive !== false
+  const tutorialShowsUI = activeTutorialStep?.showUI !== false
+  const tutorialHighlightAreas = tutorialSteps.flatMap((step, index) => step.area === 'board'
+    ? [{ height: step.rows, id: getCareerTutorialTargetId(step.area, index), left: step.x, top: step.y, width: step.columns }]
+    : [])
+  const tutorialControlIds = careerTutorial ? {
+    clear: getCareerTutorialTargetId('clear'),
+    lock: getCareerTutorialTargetId('lock'),
+    notes: getCareerTutorialTargetId('notes'),
+    reset: getCareerTutorialTargetId('reset'),
+    unlock: getCareerTutorialTargetId('unlock'),
+    verify: getCareerTutorialTargetId('verify'),
+  } : undefined
+
+  function setActiveTutorialStepIndex(index: number) {
+    tutorialStepIndexRef.current = index
+    setTutorialStepIndex(index)
+  }
+
+  function advanceTutorial(action: CareerTutorialAction) {
+    const step = tutorialSteps[tutorialStepIndex]
+    if (!tutorialOpen || !step?.advanceOn?.includes(action)) return
+
+    const nextStepIndex = tutorialStepIndex + 1
+    if (nextStepIndex >= tutorialSteps.length) {
+      tutorialRef.current?.destroy()
+      tutorialRef.current = null
+      setTutorialOpen(false)
+      return
+    }
+
+    // Render the next step's UI before Driver resolves its next target.
+    setActiveTutorialStepIndex(nextStepIndex)
+    if (tutorialSuspended) {
+      setTutorialSuspended(false)
+      return
+    }
+    requestAnimationFrame(() => tutorialRef.current?.moveTo(nextStepIndex))
+  }
+
+  function suspendTutorialForRestart() {
+    const step = tutorialSteps[tutorialStepIndex]
+    if (!tutorialOpen || (!step?.advanceOn?.includes('reset') && step?.area !== 'reset')) return
+    tutorialRef.current?.destroy()
+    tutorialRef.current = null
+    setTutorialSuspended(true)
+  }
+
+  function handleRestartDialogOpenChange(open: boolean) {
+    if (!open && tutorialSuspended) setTutorialSuspended(false)
+  }
+
+  function handleTutorialRestarted() {
+    const step = tutorialSteps[tutorialStepIndex]
+    if (step?.advanceOn?.includes('reset')) {
+      advanceTutorial('reset')
+    } else if (tutorialSuspended) {
+      setTutorialSuspended(false)
+    }
+  }
 
   function nextGame() {
     if (props.careerLevel) {
@@ -53,6 +127,28 @@ function GameSession(props: GameSessionProps) {
       navigate(`/play?mode=${props.gameMode}&seed=${encodeURIComponent(generatedSeed)}`, { replace: true, state: location.state })
     }
   }, [generatedSeed, location.state, navigate, props.careerLevel, props.gameMode, props.requestedSeed])
+
+  useEffect(() => {
+    if (!careerTutorial) {
+      setTutorialSelectionReady(true)
+      return
+    }
+
+    let active = true
+    setTutorialSelectionReady(false)
+    void (async () => {
+      try {
+        await clearGameSelection(props.gameMode, seed)
+      } catch {
+        // GameGrid still starts from a fresh in-memory selection below.
+      } finally {
+        if (active) setTutorialSelectionReady(true)
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [careerTutorial, props.gameMode, seed])
 
   useEffect(() => {
     let active = true
@@ -94,9 +190,32 @@ function GameSession(props: GameSessionProps) {
     }
   }, [modeConfig, props.careerLevel, props.gameMode, seed])
 
+  useEffect(() => {
+    if (!gameDefinition || !tutorialSelectionReady || !tutorialOpen || tutorialSuspended || tutorialSteps.length === 0) return
+    const tutorial = createTutorialDriver(tutorialSteps.map((step, index) => ({
+      element: `#${getCareerTutorialTargetId(step.area, index)}`,
+      nextLocked: step.advanceOn !== undefined && step.advanceOn.length > 0,
+      onHighlightStarted: () => setActiveTutorialStepIndex(index),
+      popover: { description: step.content, side: 'bottom' },
+    })), {
+      labels: {
+        close: t('common.close'),
+        next: t('common.next'),
+        previous: t('common.previous'),
+      },
+      onClose: () => setTutorialOpen(false),
+    })
+    tutorialRef.current = tutorial
+    tutorial.drive(tutorialStepIndexRef.current)
+    return () => {
+      if (tutorialRef.current === tutorial) tutorialRef.current = null
+      tutorial.destroy()
+    }
+  }, [gameDefinition, t, tutorialOpen, tutorialSelectionReady, tutorialSteps, tutorialSuspended])
+
   return (
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
-      <header className="relative z-10 mx-auto flex w-full max-w-[550px] flex-col gap-3 px-5 pb-6">
+      <header className={cn('relative z-10 mx-auto flex w-full max-w-[550px] flex-col gap-3 px-5 pb-6 transition-opacity', !tutorialShowsUI && 'pointer-events-none opacity-0')}>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <h1 className="poster-title text-[33px] leading-none">{gameTitle}</h1>
@@ -127,23 +246,38 @@ function GameSession(props: GameSessionProps) {
       </header>
 
       <div className="relative z-10 min-h-0 flex-1">
-        {gameDefinition &&
+        {gameDefinition && tutorialSelectionReady &&
           <GameGrid
+            boardInteractive={tutorialBoardInteractive}
             config={gameDefinition.config}
+            deferCompletionDialog={tutorialOpen}
             exitPath={props.careerLevel ? '/' : undefined}
             gameDefinition={gameDefinition}
             gameId={seed}
             gameMode={props.gameMode}
+            hideGameControls={!tutorialShowsUI}
+            highlightAreas={tutorialHighlightAreas}
             isCareerLevel={!!props.careerLevel}
             key={`${props.gameMode}:${seed}:${gameDefinition.version}`}
             onElapsedSecondsChange={setElapsedSeconds}
-            onGameCompleted={props.careerLevel ? () => { void completeCareerLevel(props.careerLevel!.data.seed) } : undefined}
+            onGameCompleted={props.careerLevel ? () => {
+              void completeCareerLevel(props.careerLevel!.data.seed)
+              advanceTutorial('complete')
+            } : undefined}
+            onLocked={() => advanceTutorial('lock')}
             onMoveCountChange={setMoveCount}
             onNextGame={nextGame}
             onPauseOpenChange={setPauseOpen}
+            onRestartDialogOpenChange={handleRestartDialogOpenChange}
+            onRestartRequested={suspendTutorialForRestart}
+            onRestarted={handleTutorialRestarted}
+            onSelected={() => advanceTutorial('select')}
+            onUnlocked={() => advanceTutorial('unlock')}
             paused={pauseOpen}
+            persistSelection={careerTutorial ? false : undefined}
             pieces={gameDefinition.pieces}
             suspended={shapesOpen}
+            tutorialControlIds={tutorialControlIds}
           />}
         {!gameDefinition && !generationError &&
           <p className="px-5 text-center text-[11px] font-bold uppercase">{t('classic.generating')}</p>

@@ -70,6 +70,8 @@ const TEXT_COLOR = GAME_COLORS.ink
 const CELL_BORDER_RATIO = 0.04
 /** Note-outline stroke thickness as a fraction of the smaller cell dimension. */
 const NOTE_OUTLINE_THICKNESS_RATIO = 0.1
+/** Outer radius of the note ring; kept independent from the shallow cell radius. */
+const NOTE_OUTLINE_CORNER_RADIUS_RATIO = 0.1
 /** Pulses per second for noted cells. Set to 0 for a static white outline. */
 const NOTE_OUTLINE_BEAT_FREQUENCY_HZ = 1.5
 /** Smallest scale reached by a pulsing note outline. */
@@ -88,9 +90,12 @@ const MINIMUM_MAX_ZOOM = 4
 
 function drawNoteOutline(graphics: Graphics, width: number, height: number) {
   const thickness = Math.max(1, Math.min(width, height) * NOTE_OUTLINE_THICKNESS_RATIO)
-  const inset = thickness / 2
-  graphics.roundRect(inset, inset, width - thickness, height - thickness, Math.max(0, getGridSquircleRadius(width, height) - inset))
-    .stroke({ color: NOTE_OUTLINE_COLOR, width: thickness })
+  const outerRadius = Math.max(thickness, Math.min(width, height) * NOTE_OUTLINE_CORNER_RADIUS_RATIO)
+  const innerRadius = Math.max(0, outerRadius - thickness)
+  // Filling a ring instead of stroking a shallow rounded rectangle avoids the
+  // overlapping stroke geometry that caused spikes at the inner corners.
+  graphics.roundRect(0, 0, width, height, outerRadius).fill(NOTE_OUTLINE_COLOR)
+  graphics.roundRect(thickness, thickness, width - thickness * 2, height - thickness * 2, innerRadius).cut()
 }
 
 function cellKey(x: number, y: number): string {

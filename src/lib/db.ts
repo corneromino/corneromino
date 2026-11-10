@@ -93,6 +93,12 @@ function careerProgressStorageKey(seed: string): string {
   return `career:${seed}`
 }
 
+function isCareerSelectionStorageKey(id: string): boolean {
+  const [prefix, gameMode, ...gameIdParts] = id.split(':')
+  return prefix === 'selection' && gameMode !== undefined && isGameMode(gameMode)
+    && gameIdParts.join(':').startsWith('career:')
+}
+
 function isCareerLevelProgressionState(value: unknown): value is Omit<CareerLevelProgression, 'seed'> {
   return typeof value === 'object' && value !== null
     && 'type' in value && value.type === 'career-progression'
@@ -529,14 +535,14 @@ export async function completeCareerLevel(seed: string): Promise<void> {
   })
 }
 
-/** Clears only dedicated Career progression records, leaving normal game saves untouched. */
+/** Clears Career completion and per-level player state, leaving authored boards and normal saves untouched. */
 export async function resetCareerProgress(): Promise<void> {
   const database = await db
   const records = await database.getAll('games')
   await Promise.all(records
-    .filter((record) => record.id.startsWith('career:')
-      && typeof record.state === 'object' && record.state !== null
-      && 'type' in record.state && record.state.type === 'career-progression')
+    .filter((record) => (
+      record.id.startsWith('career:') && isCareerLevelProgressionState(record.state)
+    ) || isCareerSelectionStorageKey(record.id))
     .map((record) => database.delete('games', record.id)))
 }
 

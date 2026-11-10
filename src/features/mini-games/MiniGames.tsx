@@ -23,6 +23,7 @@ export function MiniGames() {
           className="w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
           yPadding={40}
           radius={20}
+          borderWidth={4}
           to={"/cascade"}
         >
           <span>{t('mainMenu.cascade')}</span>
