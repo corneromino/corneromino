@@ -723,7 +723,7 @@ export function GameGrid(props: GameGridProps) {
             {verification?.phase === 'result' && (
               <button
                 aria-label={t('classic.revealBoard')}
-                className="absolute inset-0 size-full touch-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white"
+                className="absolute inset-0 z-30 size-full touch-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white"
                 disabled={isGameplayPaused || isExiting}
                 onClick={dismissVerificationResult}
                 type="button"

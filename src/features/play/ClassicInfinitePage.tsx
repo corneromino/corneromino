@@ -12,6 +12,7 @@ import { CLASSIC_INFINITE_HEALTH_SQUARE_COUNT, ClassicInfiniteHealthBar } from '
 import { CLASSIC_INFINITE_CONFIG, ClassicInfiniteStream, createInfiniteSectionGenerator, type ClassicInfiniteSection } from './classicInfiniteStream'
 import type { ClassicInfiniteCellExit } from './classicInfiniteCellExit'
 import { InfiniteEaterHead, InfiniteEaterMouth, INFINITE_EATER_HEIGHT_RATIO, INFINITE_EATER_WIDTH_RATIO } from './InfiniteEater'
+import { CLASSIC_INFINITE_VHS_CRT } from './classicInfiniteEffects'
 
 const BOARD_CONFIG = { ...CLASSIC_INFINITE_CONFIG, rows: CLASSIC_INFINITE_CONFIG.rows * 2 }
 const PAUSE_BUTTON_CLASS = 'h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase'
@@ -19,6 +20,7 @@ const ignoreElapsedSecondsChange = (_elapsedSeconds: number) => undefined
 const ignoreMoveCountChange = (_moveCount: number) => undefined
 const INITIAL_HEALTH = 1
 const HEALTH_PER_LOCKED_SHAPE = 4
+const SCORE_PER_CORRECT_LOCK = 10
 
 function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: ClassicInfiniteCellExit) => void; onRestart: () => void }) {
   const { t } = useTranslation()
@@ -28,6 +30,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
   const [shapesOpen, setShapesOpen] = useState(false)
   const [health, setHealth] = useState(INITIAL_HEALTH)
   const [healthAnimationKey, setHealthAnimationKey] = useState(0)
+  const [score, setScore] = useState(0)
   const [gameOver, setGameOver] = useState(false)
   const healthRef = useRef(INITIAL_HEALTH)
   const [generationFailed, setGenerationFailed] = useState(false)
@@ -64,6 +67,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
   function pause() { setPaused(true) }
   function handleLockedShape(_group: LockedCellGroup, hasUniqueCorners: boolean) {
     if (!hasUniqueCorners) return
+    setScore((currentScore) => currentScore + SCORE_PER_CORRECT_LOCK)
     const nextHealth = Math.min(CLASSIC_INFINITE_HEALTH_SQUARE_COUNT, healthRef.current + HEALTH_PER_LOCKED_SHAPE)
     healthRef.current = nextHealth
     setHealth(nextHealth)
@@ -119,7 +123,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
 
   return (
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
-      <header className="mx-auto flex w-full max-w-[550px] shrink-0 flex-col gap-3 px-5 pb-6">
+      <header className="relative mx-auto flex w-full max-w-[550px] shrink-0 flex-col gap-3 px-5 pb-10">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <h1 className="poster-title text-[33px] leading-none">{t('classic.infinite')}</h1>
@@ -127,7 +131,14 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
           </div>
           <Button aria-label={t('common.pause')} className="size-10 shrink-0 text-[var(--canvas-foreground)]" onClick={pause} size="icon" title={t('common.pause')} type="button"><Pause aria-hidden="true" /></Button>
         </div>
-        <ClassicInfiniteHealthBar fullBarAnimationKey={healthAnimationKey} redSquareCount={health} totalSquareCount={CLASSIC_INFINITE_HEALTH_SQUARE_COUNT} />
+        <ClassicInfiniteHealthBar
+          fullBarAnimationKey={healthAnimationKey}
+          redSquareCount={health}
+          totalSquareCount={CLASSIC_INFINITE_HEALTH_SQUARE_COUNT}
+        />
+        <div aria-label={String(score)} className="pointer-events-none absolute inset-x-5 bottom-0 flex py-1 items-center justify-center rounded-[8px] bg-[var(--outline-color)] text-[var(--paper)]">
+          <span className="poster-kicker text-[25px] leading-none font-black">{score}</span>
+        </div>
       </header>
       {generationFailed && (
         <div className="mx-auto mb-3 flex max-w-[550px] items-center gap-3 px-5">
