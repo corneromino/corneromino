@@ -81,6 +81,29 @@ it('loads a stored board definition without running the seed generator', async (
   expect(saveClassicGameDefinition).toHaveBeenCalledWith(gameGridProps.current?.gameDefinition)
 })
 
+it('regenerates and persists saved definitions with duplicate bonuses', async () => {
+  const definition = {
+    bonus: [
+      { count: 1, rotation: 0 as const, shape: 'O' as const },
+      { count: 1, rotation: 0 as const, shape: 'O' as const },
+    ],
+    config: { ...GAME_CONFIGS.c001, bonusMax: 2, bonusMin: 2 },
+    gameMode: 'c001' as const,
+    pieces,
+    seed: 'duplicate-bonuses',
+    version: 1 as const,
+  }
+  vi.mocked(loadClassicGameDefinition).mockResolvedValue(definition)
+
+  renderPlay(definition.seed)
+
+  await waitFor(() => expect(screen.getByTestId('game-grid').textContent).toBe('1'))
+  const regeneratedBonus = (gameGridProps.current?.gameDefinition as { bonus?: readonly { rotation?: number; shape: string }[] } | undefined)?.bonus
+  expect(regeneratedBonus).toHaveLength(2)
+  expect(new Set(regeneratedBonus?.map((bonus) => `${bonus.shape}:${bonus.rotation ?? 'any'}`)).size).toBe(2)
+  expect(saveClassicGameDefinition).toHaveBeenCalledWith(gameGridProps.current?.gameDefinition)
+})
+
 it('shows a custom board name instead of its original difficulty title', async () => {
   vi.mocked(loadClassicGameDefinition).mockResolvedValue({
     config: { ...GAME_CONFIGS.c003 },

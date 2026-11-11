@@ -46,6 +46,10 @@ function getRequirementKey(shape: TetrominoKind, rotation: BonusShapeRotation) {
   return `${shape}:${rotation}`
 }
 
+function getBonusRequirementKey(requirement: Pick<BonusRequirement, 'rotation' | 'shape'>) {
+  return `${requirement.shape}:${requirement.rotation ?? 'any'}`
+}
+
 function choose<T>(items: readonly T[], random: () => number): T {
   return items[Math.min(items.length - 1, Math.floor(random() * items.length))]!
 }
@@ -62,6 +66,17 @@ export function getBonusPercentage(bonus: readonly BonusRequirement[] | undefine
     return requirement.count === 0 ? matchingShapeCount === 0 : matchingShapeCount >= requirement.count
   }).length
   return fulfilledRequirementCount / bonus.length * 100
+}
+
+/** Whether a saved Classic board contains duplicate shape-and-rotation bonuses. */
+export function hasDuplicateBonusRequirements(bonus: readonly BonusRequirement[]) {
+  const requirementKeys = new Set<string>()
+  return bonus.some((requirement) => {
+    const key = getBonusRequirementKey(requirement)
+    if (requirementKeys.has(key)) return true
+    requirementKeys.add(key)
+    return false
+  })
 }
 
 /** Generates solution-achievable bonuses from a finished Classic board. */
@@ -82,20 +97,29 @@ export function generateBonusRequirements(
 
   const absentShapes = SHAPE_ROTATIONS.filter(({ rotation, shape }) => !shapeCounts.has(getRequirementKey(shape, rotation)))
   const bonusCount = getRandomInteger(bonusMin, bonusMax, random)
-  return Array.from({ length: bonusCount }, () => {
+  const selectedRequirementKeys = new Set<string>()
+  const bonus: BonusRequirement[] = []
+
+  while (bonus.length < bonusCount) {
+    const availableAbsentShapes = absentShapes.filter(({ rotation, shape }) => !selectedRequirementKeys.has(getRequirementKey(shape, rotation)))
+    // Keep individual piece occurrences here so positive requirements retain
+    // their natural frequency weighting while their resulting requirement stays unique.
+    const availablePlacedShapes = placedShapes.filter(({ rotation, shape }) => !selectedRequirementKeys.has(getRequirementKey(shape, rotation)))
+    if (availableAbsentShapes.length === 0 && availablePlacedShapes.length === 0) break
+
     const wantsZeroCount = random() < 0.5
-    if (wantsZeroCount && absentShapes.length > 0) {
-      const { rotation, shape } = choose(absentShapes, random)
-      return { count: 0, rotation, shape }
+    if ((wantsZeroCount && availableAbsentShapes.length > 0) || availablePlacedShapes.length === 0) {
+      const { rotation, shape } = choose(availableAbsentShapes, random)
+      selectedRequirementKeys.add(getRequirementKey(shape, rotation))
+      bonus.push({ count: 0, rotation, shape })
+      continue
     }
 
-    if (placedShapes.length > 0) {
-      const { rotation, shape } = choose(placedShapes, random)
-      return { count: shapeCounts.get(getRequirementKey(shape, rotation))!, rotation, shape }
-    }
+    const { rotation, shape } = choose(availablePlacedShapes, random)
+    selectedRequirementKeys.add(getRequirementKey(shape, rotation))
+    const matchingShapeCount = shapeCounts.get(getRequirementKey(shape, rotation))!
+    bonus.push({ count: getRandomInteger(1, matchingShapeCount, random), rotation, shape })
+  }
 
-    // A zero-piece board cannot create a positive-count requirement.
-    const { rotation, shape } = choose(absentShapes, random)
-    return { count: 0, rotation, shape }
-  })
+  return bonus
 }

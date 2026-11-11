@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { createTutorialDriver } from '@/components/tutorial/createTutorialDriver'
 import { createRandomSeed, createSeededRandom } from '@/game/random'
-import { generateBonusRequirements, getBonusPercentage } from '@/game/bonus'
+import { generateBonusRequirements, getBonusPercentage, hasDuplicateBonusRequirements } from '@/game/bonus'
 import { getPerfectionPercentage, type GameCompletionResult } from '@/game/completionProgress'
 import { GAME_CONFIGS, isGameMode, type ClassicGameMode, type GameConfig } from '@/game/gameConfig'
 import { clearGameSelection, completeCareerLevel, loadClassicGameDefinition, saveClassicGameDefinition, type ClassicGameDefinition } from '@/lib/db'
@@ -223,7 +223,7 @@ function GameSession(props: GameSessionProps) {
       .catch(() => null)
       .then(async (savedDefinition) => {
         if (savedDefinition) {
-          if (props.careerLevel || savedDefinition.bonus !== undefined) return savedDefinition
+          if (props.careerLevel || (savedDefinition.bonus !== undefined && !hasDuplicateBonusRequirements(savedDefinition.bonus))) return savedDefinition
           const definitionWithBonus = {
             ...savedDefinition,
             bonus: generateBonusRequirements(

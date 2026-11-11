@@ -72,7 +72,7 @@ export function BonusDialog(props: BonusDialogProps) {
         >
           {props.bonus.map((bonus, index) => (
             <li
-              className="flex min-h-12 items-center justify-center rounded-md border-2 border-[var(--outline-color)] bg-[var(--paper-muted)] px-3 py-2"
+              className="flex min-h-12 shrink-0 items-center justify-center rounded-md border-2 border-[var(--outline-color)] bg-[var(--paper-muted)] px-3 py-2"
               key={`${bonus.shape}:${bonus.rotation ?? 'any'}:${bonus.count}:${index}`}
             >
               <div className="flex items-center justify-center gap-3">

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { generateBonusRequirements } from './bonus'
-import { CELL_CORNERS, type PlacedTetromino } from './gameConfig'
+import { generateBonusRequirements, hasDuplicateBonusRequirements } from './bonus'
+import { CELL_CORNERS, GAME_CONFIGS, type PlacedTetromino } from './gameConfig'
+import { generateTetrominoPlacementsV2 } from './placementV2'
 import { createSeededRandom } from './random'
 import { createTetrominoCells, isTetrominoRotation, TETROMINOES, TETROMINO_KINDS, type TetrominoKind } from './tetrominoes'
 
@@ -57,16 +58,56 @@ describe('Classic bonus generation', () => {
     expect(bonus).toEqual({ count: 1, rotation: 0, shape: 'I' })
   })
 
-  it('uses the actual number of matching placed shapes for a counted requirement', () => {
+  it('chooses a positive count from one through the number of matching placed shapes', () => {
     const pieces = [
       placedTetromino('L', 1, 1),
       placedTetromino('L', 1, 2),
       placedTetromino('O', 0, 3),
     ]
 
-    expect(generateBonusRequirements(pieces, { bonusMax: 1, bonusMin: 1 }, randomSequence(0, 0.9, 0))).toEqual([
+    expect(generateBonusRequirements(pieces, { bonusMax: 1, bonusMin: 1 }, randomSequence(0, 0.9, 0, 0.999))).toEqual([
       { count: 2, rotation: 1, shape: 'L' },
     ])
+    expect(generateBonusRequirements(pieces, { bonusMax: 1, bonusMin: 1 }, randomSequence(0, 0.9, 0, 0))).toEqual([
+      { count: 1, rotation: 1, shape: 'L' },
+    ])
+  })
+
+  it('does not repeat a shape and rotation requirement', () => {
+    const pieces = [
+      placedTetromino('diagonal', 0, 1),
+      placedTetromino('diagonal', 0, 2),
+      placedTetromino('O', 0, 3),
+    ]
+    const bonuses = generateBonusRequirements(pieces, { bonusMax: 2, bonusMin: 2 }, randomSequence(0, 0.9, 0, 0.999, 0.9, 0, 0))
+
+    expect(bonuses).toHaveLength(2)
+    expect(hasDuplicateBonusRequirements(bonuses)).toBe(false)
+    expect(bonuses).toEqual([
+      { count: 2, rotation: 0, shape: 'diagonal' },
+      { count: 1, rotation: 0, shape: 'O' },
+    ])
+  })
+
+  it('recognizes duplicate saved requirements', () => {
+    expect(hasDuplicateBonusRequirements([
+      { count: 4, rotation: 0, shape: 'diagonal' },
+      { count: 4, rotation: 0, shape: 'diagonal' },
+    ])).toBe(true)
+  })
+
+  it('does not repeat bonuses for the reported c004 board seed', async () => {
+    const seed = 'c004:487e3f37-4948-4d15-9469-65dc1b37a5b4'
+    const config = { ...GAME_CONFIGS.c004, bonusMax: 2, bonusMin: 2 }
+    const pieces = await generateTetrominoPlacementsV2(config, {
+      random: createSeededRandom(seed),
+      yieldEvery: 250,
+    })
+
+    const bonuses = generateBonusRequirements(pieces, config, createSeededRandom(`${seed}:bonus`))
+
+    expect(bonuses).toHaveLength(2)
+    expect(hasDuplicateBonusRequirements(bonuses)).toBe(false)
   })
 
   it('is reproducible for the same board, bounds, and seed', () => {

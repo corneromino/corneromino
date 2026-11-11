@@ -88,19 +88,19 @@ export const GAME_CONFIGS = {
     finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
     completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
     finalLockAnimationEnabled: true,
-    bonusMin: 2,
-    bonusMax: 2
   },
   c004: {
     columns: 10,
     rows: 15,
-    spread: 0.5,
-    tetrominoCount: 20,
+    spread: 0,
+    tetrominoCount: 23,
     title: 'difficulty.hard',
     lockingMode: CLASSIC_LOCKING_MODE,
     finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
     completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
     finalLockAnimationEnabled: true,
+    bonusMin: 2,
+    bonusMax: 2
   },
   c005: {
     columns: 12,
@@ -112,6 +112,8 @@ export const GAME_CONFIGS = {
     finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
     completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
     finalLockAnimationEnabled: true,
+    bonusMin: 1,
+    bonusMax: 2
   },
   c006: {
     columns: 20,
@@ -123,6 +125,8 @@ export const GAME_CONFIGS = {
     finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
     completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
     finalLockAnimationEnabled: true,
+    bonusMin: 1,
+    bonusMax: 2
   },
 } satisfies Record<string, GameModeConfig>
 
