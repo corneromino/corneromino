@@ -104,7 +104,7 @@ export default {
         "saveFailed": "Could not save this board. Please try again.",
         "generating": "Generating game…",
         "gameOver": "GAME OVER",
-        "paused": "Paused",
+        "paused": "Pause",
         "copySeed": "Copy seed",
         "verify": "Verify",
         "revealBoard": "Show the board again",
@@ -127,7 +127,7 @@ export default {
         "newGame": "New game",
         "score": "Score",
         "loading": "Loading…",
-        "paused": "Paused",
+        "paused": "Pause",
         "lines": "Lines",
         "locked": "Locked",
         "dragInstructions": "← → to move · ↓ to drop",
@@ -165,7 +165,7 @@ export default {
         "deleteSavedGame": "Delete saved {{mode}} game"
     },
     "versusGame": {
-        "paused": "Paused",
+        "paused": "Pause",
         "mode": "Mode",
         "boardSize": "Board size {{size}} by {{size}}",
         "start": "Start",

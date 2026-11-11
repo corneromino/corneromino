@@ -47,6 +47,7 @@ vi.mock('./GameGridCanvas', () => ({
         pieceId: piece.id,
         pieceKind: piece.kind,
         locked: lockedGroup !== undefined,
+        lockedHasUniqueCorners: false,
         lockedGroupId: lockedGroup?.id ?? null,
         selected: props.selectedCellKeys.has(key) || lockedGroup?.id === props.selectedLockedGroupId,
       })}>Exit first cell</button>}
@@ -222,9 +223,10 @@ describe('Classic locking modes', () => {
 
   it('keeps repeated-corner groups lockable when immediate unlocking is disabled', () => {
     const repeatedCorners: PlacedTetromino[] = [{ ...pieces[0], cells: pieces[0].cells.map((cell) => ({ ...cell, corner: 'top-left' })) }]
-    setup('auto', { pieces: repeatedCorners })
+    const { props } = setup('auto', { pieces: repeatedCorners })
     tap(...firstSquare)
     expect(board().locked).toHaveLength(1)
+    expect(props.onLocked).toHaveBeenLastCalledWith(expect.objectContaining({ cellKeys: firstSquare }), false)
   })
 
   it('can skip verification animation for immediate correct results', () => {
@@ -378,6 +380,7 @@ describe('Classic locking modes', () => {
     expect(board().locked[0].cellKeys).toEqual(firstSquare)
     expect(board().selected).toEqual([])
     expect(props.onLocked).toHaveBeenCalledTimes(1)
+    expect(props.onLocked).toHaveBeenLastCalledWith(expect.objectContaining({ cellKeys: firstSquare }), true)
     expect(props.onMoveCountChange).toHaveBeenLastCalledWith(1)
   })
 
@@ -454,6 +457,7 @@ describe('Classic locking modes', () => {
     expect(board().selected).toEqual([])
     expect(props.onMoveCountChange).toHaveBeenLastCalledWith(1)
     expect(props.onUnlockCountChange).toHaveBeenLastCalledWith(1)
+    expect(props.onUnlocked).toHaveBeenLastCalledWith(expect.objectContaining({ cellKeys: firstSquare }), true)
     expect(props.onUnlocked).toHaveBeenCalledOnce()
     tap('0,0') // No leftover gesture or automatic re-lock after unlocking.
     expect(board().selected).toEqual(['0,0'])

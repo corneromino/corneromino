@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Infinity as InfinityIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { AppNavigationButton } from '@/components/ui/app-navigation-button'
 import cascadeGraphic from '@/assets/cascade-graphic.svg'
@@ -28,6 +28,16 @@ export function MiniGames() {
         >
           <span>{t('mainMenu.cascade')}</span>
           <img alt="" aria-hidden="true" className="size-16 -rotate-12 scale-170 object-contain" src={cascadeGraphic} />
+        </AppNavigationButton>
+        <AppNavigationButton
+          className="w-full gap-10 text-[25px] font-black text-[var(--canvas-foreground)] uppercase"
+          yPadding={40}
+          radius={20}
+          borderWidth={4}
+          to="/play/infinite"
+        >
+          <span>{t('classic.infinite')}</span>
+          <InfinityIcon aria-hidden="true" className="size-16 -rotate-12 scale-125 stroke-[3]" />
         </AppNavigationButton>
       </section>
     </main>

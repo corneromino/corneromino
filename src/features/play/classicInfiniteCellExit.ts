@@ -9,6 +9,8 @@ export interface ClassicInfiniteCellExit {
   pieceId: number
   pieceKind: TetrominoKind
   locked: boolean
+  /** A locked group protects health only when it has all four corner types. */
+  lockedHasUniqueCorners: boolean
   lockedGroupId: string | null
   selected: boolean
 }
@@ -27,6 +29,12 @@ function cellKey(x: number, y: number): string {
   return `${x},${y}`
 }
 
+function hasUniqueCorners(cellKeys: readonly string[], pieces: readonly PlacedTetromino[]) {
+  const cornerByCellKey = new Map(pieces.flatMap((piece) => piece.cells.map((cell) => [cellKey(cell.x, cell.y), cell.corner] as const)))
+  const corners = cellKeys.map((key) => cornerByCellKey.get(key))
+  return corners.length === 4 && corners.every((corner) => corner !== undefined) && new Set(corners).size === 4
+}
+
 /**
  * Report each individual cell once its top edge reaches the viewport bottom.
  * Cells above the viewport are intentionally ignored: Infinite only flows down.
@@ -43,6 +51,7 @@ export function collectExitedInfiniteCells(options: CollectExitedCellsOptions): 
       if (options.reportedCellKeys.has(key) || cell.y + options.offsetRows < options.visibleRows) continue
 
       const lockedGroup = lockedCells.get(key)
+      const lockedHasUniqueCorners = lockedGroup !== undefined && hasUniqueCorners(lockedGroup.cellKeys, options.pieces)
       options.reportedCellKeys.add(key)
       exited.push({
         cell,
@@ -52,6 +61,7 @@ export function collectExitedInfiniteCells(options: CollectExitedCellsOptions): 
         pieceId: piece.id,
         pieceKind: piece.kind,
         locked: lockedGroup !== undefined,
+        lockedHasUniqueCorners,
         lockedGroupId: lockedGroup?.id ?? null,
         selected: options.selectedCellKeys.has(key) || lockedGroup?.id === options.selectedLockedGroupId,
       })

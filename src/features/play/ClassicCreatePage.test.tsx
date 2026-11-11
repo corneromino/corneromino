@@ -69,7 +69,7 @@ it('applies configured row and column counts to the board', () => {
   expect(canvasProps.current?.config).toMatchObject({ columns: 8, rows: 6, tetrominoCount: 0 })
 })
 
-it('removes an entire Cantomino if reducing the board would put any of its cells outside', () => {
+  it('removes an entire shape if reducing the board would put any of its cells outside', () => {
   render(<MemoryRouter><ClassicCreatePage /></MemoryRouter>)
 
   fireEvent.click(screen.getByRole('button', { name: 'classic.placeCells' }))
@@ -88,7 +88,7 @@ it('removes an entire Cantomino if reducing the board would put any of its cells
   ]))
 })
 
-it('places valid temporary cells as a Cantomino and rotates its corners in placement mode', () => {
+  it('places valid temporary cells as a shape and rotates its corners in placement mode', () => {
   render(<MemoryRouter><ClassicCreatePage /></MemoryRouter>)
 
   fireEvent.click(screen.getByRole('button', { name: 'classic.placeCells' }))
@@ -144,7 +144,7 @@ it('resets confirmed and unfinished placements without changing the board size',
   expect(canvasProps.current?.config).toMatchObject({ columns: 5, rows: 5 })
 })
 
-it('erases an entire Cantomino in erase mode and exits the mode when toggled again', () => {
+  it('erases an entire shape in erase mode and exits the mode when toggled again', () => {
   render(<MemoryRouter><ClassicCreatePage /></MemoryRouter>)
 
   fireEvent.click(screen.getByRole('button', { name: 'classic.placeCells' }))

@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { LogOut, Pause, Play, RotateCcw } from 'lucide-react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { createRandomSeed } from '@/game/random'
+import type { LockedCellGroup } from '@/game/gameConfig'
 import { GameGrid } from './GameGrid'
 import { ClassicShapesDialog } from './ClassicShapesDialog'
 import { CLASSIC_INFINITE_HEALTH_SQUARE_COUNT, ClassicInfiniteHealthBar } from './ClassicInfiniteHealthBar'
 import { CLASSIC_INFINITE_CONFIG, ClassicInfiniteStream, createInfiniteSectionGenerator, type ClassicInfiniteSection } from './classicInfiniteStream'
 import type { ClassicInfiniteCellExit } from './classicInfiniteCellExit'
-import { CLASSIC_INFINITE_EXIT_DISTORTION } from './classicInfiniteEffects'
+import { InfiniteEaterHead, InfiniteEaterMouth, INFINITE_EATER_HEIGHT_RATIO, INFINITE_EATER_WIDTH_RATIO } from './InfiniteEater'
 
 const BOARD_CONFIG = { ...CLASSIC_INFINITE_CONFIG, rows: CLASSIC_INFINITE_CONFIG.rows * 2 }
 const PAUSE_BUTTON_CLASS = 'h-[42px] w-full text-[11px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase'
@@ -21,7 +22,6 @@ const HEALTH_PER_LOCKED_SHAPE = 4
 
 function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: ClassicInfiniteCellExit) => void; onRestart: () => void }) {
   const { t } = useTranslation()
-  const location = useLocation()
   const navigate = useNavigate()
   const [seed] = useState(createRandomSeed)
   const [paused, setPaused] = useState(false)
@@ -62,7 +62,8 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
 
   function resume() { setPaused(false) }
   function pause() { setPaused(true) }
-  function handleLockedShape() {
+  function handleLockedShape(_group: LockedCellGroup, hasUniqueCorners: boolean) {
+    if (!hasUniqueCorners) return
     const nextHealth = Math.min(CLASSIC_INFINITE_HEALTH_SQUARE_COUNT, healthRef.current + HEALTH_PER_LOCKED_SHAPE)
     healthRef.current = nextHealth
     setHealth(nextHealth)
@@ -78,17 +79,17 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
     setHealth(nextHealth)
   }
   function handleCellExit(event: ClassicInfiniteCellExit) {
-    if (!event.locked) {
+    if (!event.lockedHasUniqueCorners) {
       decreaseHealth(1)
     }
     onCellExit?.(event)
   }
-  function handleUnlockedShape() {
+  function handleUnlockedShape(_group: LockedCellGroup, hasUniqueCorners: boolean) {
+    if (!hasUniqueCorners) return
     decreaseHealth(HEALTH_PER_LOCKED_SHAPE)
   }
   function quit() {
-    if (location.state?.returnToClassicMenu === true) navigate(-1)
-    else navigate('/play/modes', { replace: true })
+    navigate('/mini-games', { replace: true })
   }
 
   const pauseDialog = (
@@ -121,7 +122,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
       <header className="mx-auto flex w-full max-w-[550px] shrink-0 flex-col gap-3 px-5 pb-6">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <h1 className="poster-title text-[33px] leading-none">{t('classic.title')}</h1>
+            <h1 className="poster-title text-[33px] leading-none">{t('classic.infinite')}</h1>
             <Button aria-label={t('classic.shapesTitle')} className="h-auto min-w-0 border-0 bg-transparent p-0 text-[24px] leading-none text-[var(--canvas-foreground)] opacity-40 font-black shadow-none hover:opacity-70 focus-visible:opacity-100" onClick={() => setShapesOpen(true)} size="icon" title={t('classic.shapesTitle')} type="button" variant="ghost">?</Button>
           </div>
           <Button aria-label={t('common.pause')} className="size-10 shrink-0 text-[var(--canvas-foreground)]" onClick={pause} size="icon" title={t('common.pause')} type="button"><Pause aria-hidden="true" /></Button>
@@ -136,6 +137,10 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
       )}
       <div className="relative min-h-0 flex-1">
         {session && scrolling ? <GameGrid
+          boardBehindAdornment={<InfiniteEaterMouth />}
+          boardAdornmentWidthRatio={INFINITE_EATER_WIDTH_RATIO}
+          boardBottomAdornmentHeightRatio={INFINITE_EATER_HEIGHT_RATIO}
+          boardForegroundAdornment={<InfiniteEaterHead paused={paused || shapesOpen || gameOver || generationFailed} />}
           config={BOARD_CONFIG}
           gameId={seed}
           gameMode="infinite"
@@ -148,12 +153,13 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
           onRestart={onRestart}
           onUnlocked={handleUnlockedShape}
           paused={paused || generationFailed}
+          disableUnlock={true}
+          hideGameControls={true}
           pauseDialog={pauseDialog}
           persistSelection={false}
           pieces={pieces}
           scrolling={scrolling}
           suspended={shapesOpen || gameOver}
-          exitDistortion={CLASSIC_INFINITE_EXIT_DISTORTION}
           // vhsCrt={CLASSIC_INFINITE_VHS_CRT}
         /> : <>
           {!generationFailed && <p className="px-5 text-center text-[11px] font-bold uppercase">{t('classic.generating')}</p>}

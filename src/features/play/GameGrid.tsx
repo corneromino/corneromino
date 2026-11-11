@@ -26,6 +26,14 @@ const DOUBLE_TAP_UNLOCK_MS = 200
 interface GameGridProps {
   /** Disables only board-cell interaction, leaving tutorial UI targets available. */
   boardInteractive?: boolean
+  /** Decorative content positioned behind the board's scrolling canvas. */
+  boardBehindAdornment?: ReactNode
+  /** Decorative content positioned in front of the board's scrolling canvas. */
+  boardForegroundAdornment?: ReactNode
+  /** The widest decorative layer divided by board width, used to avoid horizontal clipping. */
+  boardAdornmentWidthRatio?: number
+  /** Space reserved under the board for its decorative layers, divided by board width. */
+  boardBottomAdornmentHeightRatio?: number
   boardId?: string
   boardResetKey?: string
   /** Holds the victory dialog until a Career tutorial is dismissed. */
@@ -42,7 +50,7 @@ interface GameGridProps {
   gameMode: GameMode
   onElapsedSecondsChange: (elapsedSeconds: number) => void
   onLockAvailable?: () => void
-  onLocked?: () => void
+  onLocked?: (group: LockedCellGroup, hasUniqueCorners: boolean) => void
   /** Allows a tutorial overlay to yield before the restart confirmation opens. */
   onRestartRequested?: () => void
   /** Reports restart confirmation dialog visibility to a tutorial overlay. */
@@ -51,7 +59,7 @@ interface GameGridProps {
   onRestarted?: () => void
   /** Called when the player adds an unlocked board cell to their selection. */
   onSelected?: () => void
-  onUnlocked?: () => void
+  onUnlocked?: (group: LockedCellGroup, hasUniqueCorners: boolean) => void
   onUnlockCountChange?: (unlockCount: number) => void
   onMoveCountChange: (moveCount: number) => void
   onCorrectSolution?: () => void
@@ -151,9 +159,11 @@ export function GameGrid(props: GameGridProps) {
     // : 0
   const verificationLabel = t('classic.verify')
   const visibleRows = props.scrolling?.visibleRows ?? props.config.rows
+  const boardHeightRatio = visibleRows / props.config.columns
+  const boardAdornmentWidthRatio = Math.max(1, props.boardAdornmentWidthRatio ?? 1)
+  const boardBottomAdornmentHeightRatio = props.boardBottomAdornmentHeightRatio === undefined ? 0 : Math.max(0, props.boardBottomAdornmentHeightRatio)
   const boardStyle = {
-    aspectRatio: `${props.config.columns} / ${visibleRows}`,
-    width: `min(100%, calc(100cqh * ${props.config.columns} / ${visibleRows}))`,
+    width: `min(${100 / boardAdornmentWidthRatio}%, calc(100cqh / ${boardHeightRatio + boardBottomAdornmentHeightRatio}))`,
   }
 
   // Prune a recycled section before its replacement reaches the canvas. Cells
@@ -189,7 +199,7 @@ export function GameGrid(props: GameGridProps) {
       && isTetrominoShape(parseCellKeys(selection))
   }
 
-  function hasUniqueCorners(cellKeys: Iterable<string>) {
+  function hasAllUniqueCorners(cellKeys: Iterable<string>) {
     const corners = [...cellKeys].map((cellKey) => {
       const piece = cellMap.get(cellKey)
       const [x, y] = cellKey.split(',').map(Number)
@@ -440,7 +450,7 @@ export function GameGrid(props: GameGridProps) {
 
   function lockCells(selection: ReadonlySet<string>, fullSelection: ReadonlySet<string> = selection) {
     if (verification || !canLockCells(selection)) return false
-    if (props.config.unlockRepeatedCornerLocks === true && !hasUniqueCorners(selection)) {
+    if (props.config.unlockRepeatedCornerLocks === true && !hasAllUniqueCorners(selection)) {
       // Do not leave a repeated-corner shape locked. Keeping its cells selected
       // lets the player immediately correct the attempted group.
       setSelectedCellKeys(new Set(fullSelection))
@@ -451,8 +461,10 @@ export function GameGrid(props: GameGridProps) {
 
     const cellKeys = [...selection]
     const color = chooseLockColor(cellKeys, lockedCellGroups)
+    const group = { cellKeys, color, id: crypto.randomUUID() }
+    const hasUniqueCorners = hasAllUniqueCorners(cellKeys)
     const nextMoveCount = moveCount + 1
-    setLockedCellGroups((groups) => [...groups, { cellKeys, color, id: crypto.randomUUID() }])
+    setLockedCellGroups((groups) => [...groups, group])
     setIsCompleted(false)
     setCompletionDialogOpen(false)
     setCompletionScreenshot(null)
@@ -462,7 +474,7 @@ export function GameGrid(props: GameGridProps) {
     setValidationResult(null)
     setMoveCount(nextMoveCount)
     props.onMoveCountChange(nextMoveCount)
-    props.onLocked?.()
+    props.onLocked?.(group, hasUniqueCorners)
     return true
   }
 
@@ -476,6 +488,7 @@ export function GameGrid(props: GameGridProps) {
     lastLockedTapRef.current = null
     const group = lockedCellGroups.find((lockedGroup) => lockedGroup.id === groupId)
     if (!group) return
+    const hasUniqueCorners = hasAllUniqueCorners(group.cellKeys)
 
     setLockedCellGroups((groups) => groups.filter((lockedGroup) => lockedGroup.id !== group.id))
     setIsCompleted(false)
@@ -486,14 +499,14 @@ export function GameGrid(props: GameGridProps) {
     const nextUnlockCount = unlockCount + 1
     setUnlockCount(nextUnlockCount)
     props.onUnlockCountChange?.(nextUnlockCount)
-    props.onUnlocked?.()
+    props.onUnlocked?.(group, hasUniqueCorners)
   }
 
   function validateLockedCells() {
     lastLockedTapRef.current = null
     if (!canValidate || verification || isGameplayPaused || isExiting || !selectionLoaded) return
 
-    const validGroups = lockedCellGroups.filter((group) => hasUniqueCorners(group.cellKeys))
+    const validGroups = lockedCellGroups.filter((group) => hasAllUniqueCorners(group.cellKeys))
     const validLockCount = validGroups.length
 
     const isCorrect = validLockCount === lockedCellGroups.length
@@ -680,29 +693,33 @@ export function GameGrid(props: GameGridProps) {
     <div className="flex h-full min-h-0 flex-col gap-4 px-1">
       <div className="flex min-h-0 flex-1 items-start justify-center [container-type:size]">
         <section aria-label="Game board" className="mx-auto max-w-[550px]" id={props.boardId} ref={gameBoardRef} style={boardStyle}>
-          <div className={cn('relative size-full', props.scrolling && 'border-2 border-[#773526] bg-[#773526]')}>
-            <GameGridCanvas
-              config={props.config}
-              interactive={props.boardInteractive !== false && selectionLoaded && !isGameplayPaused && !isExiting && !isCompleted && !verification}
-              lockedCellGroups={lockedCellGroups}
-              markers={markers}
-              onNavigate={handleGridNavigation}
-              onCellExit={props.onCellExit}
-              vhsCrt={props.vhsCrt}
-              exitDistortion={props.exitDistortion}
-              onToggle={toggleCellSelection}
-              pieces={props.pieces}
-              ref={gameCanvasRef}
-              selectedCellKeys={selectedCellKeys}
-              selectedLockedGroupId={selectedLockedGroupId}
-              showCellIds={showCellIds}
-              scrolling={props.scrolling}
-              verificationRequest={verification && verification.phase !== 'screenshot' ? verification : undefined}
-              verificationRestoring={verification?.phase === 'restoring'}
-              verificationPaused={isGameplayPaused || isExiting}
-              onVerificationComplete={handleVerificationComplete}
-              onVerificationRestored={handleVerificationRestored}
-            />
+          <div className={cn('relative w-full', props.scrolling && 'border-2 border-[#773526] bg-[#773526]')} style={{ aspectRatio: `${props.config.columns} / ${visibleRows}` }}>
+            {props.boardBehindAdornment}
+            <div className="relative z-10 size-full">
+              <GameGridCanvas
+                config={props.config}
+                interactive={props.boardInteractive !== false && selectionLoaded && !isGameplayPaused && !isExiting && !isCompleted && !verification}
+                lockedCellGroups={lockedCellGroups}
+                markers={markers}
+                onNavigate={handleGridNavigation}
+                onCellExit={props.onCellExit}
+                vhsCrt={props.vhsCrt}
+                exitDistortion={props.exitDistortion}
+                onToggle={toggleCellSelection}
+                pieces={props.pieces}
+                ref={gameCanvasRef}
+                selectedCellKeys={selectedCellKeys}
+                selectedLockedGroupId={selectedLockedGroupId}
+                showCellIds={showCellIds}
+                scrolling={props.scrolling}
+                verificationRequest={verification && verification.phase !== 'screenshot' ? verification : undefined}
+                verificationRestoring={verification?.phase === 'restoring'}
+                verificationPaused={isGameplayPaused || isExiting}
+                onVerificationComplete={handleVerificationComplete}
+                onVerificationRestored={handleVerificationRestored}
+              />
+            </div>
+            {props.boardForegroundAdornment}
             {verification?.phase === 'result' && (
               <button
                 aria-label={t('classic.revealBoard')}
@@ -728,6 +745,7 @@ export function GameGrid(props: GameGridProps) {
               />
             ))}
           </div>
+          {boardBottomAdornmentHeightRatio > 0 && <div aria-hidden="true" style={{ aspectRatio: `1 / ${boardBottomAdornmentHeightRatio}` }} />}
         </section>
       </div>
       {!props.config.hideGameControls && <div className={cn('mx-auto flex w-full max-w-[550px] shrink-0 flex-nowrap justify-center gap-1 transition-opacity sm:gap-2', props.hideGameControls && 'pointer-events-none opacity-0')}>

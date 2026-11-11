@@ -63,4 +63,23 @@ describe('Classic Infinite cell exits', () => {
     pruneReportedInfiniteCells(reportedCellKeys, [])
     expect(reportedCellKeys.size).toBe(0)
   })
+
+  it('marks a locked group with all four unique corner types', () => {
+    const baseOptions = {
+      lockedCellGroups: [{ id: 'locked-shape', color: '#000000', cellKeys: piece.cells.map((cell) => `${cell.x},${cell.y}`) }],
+      reportedCellKeys: new Set<string>(),
+      selectedCellKeys: new Set<string>(),
+      selectedLockedGroupId: null,
+      visibleRows: 10,
+    }
+
+    const validExits = collectExitedInfiniteCells({ ...baseOptions, offsetRows: 0, pieces: [piece] })
+    expect(validExits).toHaveLength(2)
+    expect(validExits.every((event) => event.lockedHasUniqueCorners)).toBe(true)
+
+    const repeatedCornerPiece: PlacedTetromino = { ...piece, cells: piece.cells.map((cell) => ({ ...cell, corner: 'top-left' })) }
+    const invalidExits = collectExitedInfiniteCells({ ...baseOptions, pieces: [repeatedCornerPiece], reportedCellKeys: new Set(), offsetRows: 0 })
+    expect(invalidExits).toHaveLength(2)
+    expect(invalidExits.every((event) => !event.lockedHasUniqueCorners)).toBe(true)
+  })
 })

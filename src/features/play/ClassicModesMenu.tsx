@@ -32,7 +32,6 @@ export function ClassicModesMenu() {
               {t(config.title)}
             </AppNavigationButton>
           ))}
-          <AppNavigationButton className={MODE_BUTTON_CLASS} navigationOptions={{ state: { returnToClassicMenu: true } }} size="lg" to="/play/infinite">{t('classic.infinite')}</AppNavigationButton>
         </div>
         <div className="flex w-full shrink-0 gap-3 pt-3">
           <AppNavigationButton borderColor="var(--canvas-foreground)" className="mode-menu-button flex-1 text-[11px] font-black tracking-[0.2em] text-[var(--paper)] uppercase" color="var(--coral)" hoverColor="#b73a2c" size="lg" to="/saved">

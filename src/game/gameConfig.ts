@@ -33,6 +33,8 @@ export interface GameConfig {
   completionScreenshotDelayMs?: number
   /** Tutorials disable navigation so their cell highlights stay aligned. Defaults to true. */
   navigationEnabled?: boolean
+  /** Reserves transparent space above the board for raised selected cells. Defaults to true. */
+  topSelectionOverflowEnabled?: boolean
   columns: number
   rows: number
   /** 0 uses the full board; 1 strongly favors placements around its center. */

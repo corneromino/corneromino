@@ -99,7 +99,7 @@ export default {
         "saveFailed": "Impossible de sauvegarder ce plateau. Réessayez.",
         "generating": "Génération de la partie…",
         "gameOver": "PERDU",
-        "paused": "En pause",
+        "paused": "Pause",
         "copySeed": "Copier le seed",
         "verify": "Vérifier",
         "revealBoard": "Afficher à nouveau la grille",
@@ -122,7 +122,7 @@ export default {
         "newGame": "Nouvelle partie",
         "score": "Score",
         "loading": "Chargement…",
-        "paused": "En pause",
+        "paused": "Pause",
         "lines": "Lignes",
         "locked": "Verrouillés",
         "dragInstructions": "← → pour déplacer · ↓ pour lâcher",
@@ -160,7 +160,7 @@ export default {
         "deleteSavedGame": "Supprimer la partie {{mode}} sauvegardée"
     },
     "versusGame": {
-        "paused": "En pause",
+        "paused": "Pause",
         "mode": "Mode",
         "boardSize": "Plateau {{size}} par {{size}}",
         "start": "Démarrer",

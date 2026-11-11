@@ -88,6 +88,10 @@ const SELECTED_CELL_SCALE = 0.85
 const NAVIGATION_TARGET_CELL_SIZE_PX = 160
 const MINIMUM_MAX_ZOOM = 4
 
+function getTopSelectionOverflow(config: GameConfig) {
+  return config.topSelectionOverflowEnabled === false ? 0 : TOP_SELECTION_OVERFLOW_PX
+}
+
 function drawNoteOutline(graphics: Graphics, width: number, height: number) {
   const thickness = Math.max(1, Math.min(width, height) * NOTE_OUTLINE_THICKNESS_RATIO)
   const outerRadius = Math.max(thickness, Math.min(width, height) * NOTE_OUTLINE_CORNER_RADIUS_RATIO)
@@ -171,9 +175,13 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     let verificationId: number | undefined
     let capturingGameplayPreview = false
 
+    function topSelectionOverflow() {
+      return getTopSelectionOverflow(propsRef.current.config)
+    }
+
     function boardSize() {
       return {
-        height: Math.max(1, app.screen.height - TOP_SELECTION_OVERFLOW_PX),
+        height: Math.max(1, app.screen.height - topSelectionOverflow()),
         width: app.screen.width,
       }
     }
@@ -190,7 +198,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       const { width } = boardSize()
       return surface!.screenToCell(
         (event.clientX - rect.left) * width / rect.width,
-        (event.clientY - rect.top) * app.screen.height / rect.height - TOP_SELECTION_OVERFLOW_PX,
+        (event.clientY - rect.top) * app.screen.height / rect.height - topSelectionOverflow(),
       )
     }
 
@@ -213,7 +221,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       // shake is active. Keep those sprites on the replacement zoom texture
       // before Pixi renders again; GridSurface releases the old one on update.
       for (const tile of emptyCellSprites.values()) tile.texture = surface.texture
-      surface.root.position.set(0, TOP_SELECTION_OVERFLOW_PX)
+      surface.root.position.set(0, topSelectionOverflow())
       board.position.set(view.offsetX, view.offsetY)
       board.scale.set(view.zoom)
       lockedShine.setBounds(columns * cellSize, (scrolling?.visibleRows ?? rows) * cellSize, cellSize)
@@ -750,10 +758,11 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
 
     void start()
     return () => host?.destroy()
-  }, [props.config.columns, props.config.rows, props.config.navigationEnabled])
+  }, [props.config.columns, props.config.rows, props.config.navigationEnabled, props.config.topSelectionOverflowEnabled])
 
+  const topSelectionOverflow = getTopSelectionOverflow(props.config)
   return <div className="relative size-full overflow-visible">
-    <div className={props.interactive === false ? 'pointer-events-none absolute inset-x-0 overflow-hidden' : 'absolute inset-x-0 overflow-hidden touch-none'} ref={containerRef} style={{ height: `calc(100% + ${TOP_SELECTION_OVERFLOW_PX}px)`, top: `-${TOP_SELECTION_OVERFLOW_PX}px` }}>
+    <div className={props.interactive === false ? 'pointer-events-none absolute inset-x-0 overflow-hidden' : 'absolute inset-x-0 overflow-hidden touch-none'} ref={containerRef} style={{ height: `calc(100% + ${topSelectionOverflow}px)`, top: `-${topSelectionOverflow}px` }}>
       {startupFailed && <CanvasStartupError />}
     </div>
   </div>
