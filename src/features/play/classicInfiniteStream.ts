@@ -11,8 +11,8 @@ export interface ClassicInfiniteConfig extends GameConfig {
 export const CLASSIC_INFINITE_CONFIG: ClassicInfiniteConfig = {
   columns: 8,
   rows: 20,
-  tetrominoCount: 10,
-  spread: 0.2,
+  tetrominoCount: 5,
+  spread: 0,
   lockingMode: 'auto',
   finalVerificationMode: 'auto',
   navigationEnabled: false,

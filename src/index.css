@@ -323,14 +323,14 @@
   .dropdown-menu-chevron { transition: none; }
 }
 
-@keyframes cascade-score-shake {
+@keyframes animated-score-shake {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-2px); }
   75% { transform: translateX(2px); }
 }
 
-.cascade-score-shake {
-  animation: cascade-score-shake 55ms steps(2, end) infinite;
+.animated-score-shake {
+  animation: animated-score-shake 55ms steps(2, end) infinite;
 }
 
 .dialog-content {

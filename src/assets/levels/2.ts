@@ -3,6 +3,15 @@ import { LOCKED_CELL_COLOR_HEX } from "@/rendering/colors"
 
 export const level2: CareerLevel = {
   bgColor: LOCKED_CELL_COLOR_HEX[2],
+  origin: 'relative',
+  x: 0,
+  y: 200,
+  from: 'top',
+  to: 'bottom',
+  bonus: [
+    { shape: 'O', count: 0 }
+  ],
+
   data: {
     "config": {
       "columns": 5,
@@ -84,9 +93,4 @@ export const level2: CareerLevel = {
     "seed": "custom-f989feff-c31d-4b39-9b2d-b1d2ec3fe3",
     "source": "custom"
   },
-  origin: 'relative',
-  x: 0,
-  y: 200,
-  from: 'top',
-  to: 'bottom'
 }

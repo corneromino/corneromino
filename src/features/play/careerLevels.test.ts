@@ -1,7 +1,17 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { getBonusPercentage } from '@/game/bonus'
+import { createTetrominoCells } from '@/game/tetrominoes'
 import { careerLevels, getCareerLevel, getCurrentCareerLevelIndex, getNextCareerLevel, resolveCareerLevelPositions } from './careerLevels'
 
 const initialLevels = [...careerLevels]
+
+function lockedShape(id: string, shape: 'I' | 'L' | 'O', rotation = 0, offsetX = 0) {
+  return {
+    cellKeys: createTetrominoCells(shape, rotation).map((cell) => `${cell.x + offsetX},${cell.y}`),
+    color: '#000000',
+    id,
+  }
+}
 
 afterEach(() => {
   careerLevels.splice(0, careerLevels.length, ...initialLevels)
@@ -47,7 +57,43 @@ describe('Career levels', () => {
     ]
 
     expect(getCurrentCareerLevelIndex([], levels)).toBe(0)
-    expect(getCurrentCareerLevelIndex([{ completed: true, seed: 'one' }], levels)).toBe(2)
-    expect(getCurrentCareerLevelIndex([{ completed: true, seed: 'one' }, { completed: true, seed: 'two' }], levels)).toBe(3)
+    expect(getCurrentCareerLevelIndex([{ seed: 'one' }], levels)).toBe(2)
+    expect(getCurrentCareerLevelIndex([{ seed: 'one' }, { seed: 'two' }], levels)).toBe(3)
+  })
+
+  it('awards a bonus only when every shape requirement is fulfilled', () => {
+    const groups = [
+      lockedShape('first-l', 'L', 1),
+      lockedShape('second-l', 'L', 1, 4),
+      lockedShape('o', 'O', 0, 8),
+    ]
+
+    expect(getBonusPercentage([
+      { count: 2, rotation: 1, shape: 'L' },
+      { count: 1, shape: 'O' },
+      { count: 0, shape: 'I' },
+    ], groups)).toBe(100)
+    expect(getBonusPercentage([{ count: 3, rotation: 1, shape: 'L' }], groups)).toBe(0)
+    expect(getBonusPercentage([{ count: 0, shape: 'L' }], groups)).toBe(0)
+    expect(getBonusPercentage([
+      { count: 2, rotation: 1, shape: 'L' },
+      { count: 2, shape: 'O' },
+    ], groups)).toBe(50)
+  })
+
+  it('matches symmetric rotations by their visible shape', () => {
+    const groups = [
+      lockedShape('horizontal-i', 'I', 0),
+      lockedShape('vertical-i', 'I', 1, 5),
+      lockedShape('o', 'O', 0, 10),
+    ]
+
+    expect(getBonusPercentage([{ count: 1, rotation: 2, shape: 'I' }], groups)).toBe(100)
+    expect(getBonusPercentage([{ count: 1, rotation: 3, shape: 'I' }], groups)).toBe(100)
+    expect(getBonusPercentage([{ count: 1, rotation: 3, shape: 'O' }], groups)).toBe(100)
+  })
+
+  it('returns no bonus progress when a level has no bonus requirements', () => {
+    expect(getBonusPercentage(undefined, [lockedShape('l', 'L')])).toBe(0)
   })
 })

@@ -3,6 +3,7 @@ import { Pause } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { AnimatedScore } from '@/components/AnimatedScore'
 import { clearCascadeGameState, loadCascadeGameState, recordCascadeBestScore, type CascadeGameSaveState } from '@/lib/db'
 import type { CascadeCorner, CascadeCornerSpawnMode } from './cascadeGame'
 import { CascadeCanvas, type CascadeCanvasHandle } from './CascadeCanvas'
@@ -10,6 +11,7 @@ import { CascadePauseDialog } from './CascadePauseDialog'
 import { PixelLinesIcon } from './PixelLinesIcon'
 import { PixelLockIcon } from './PixelLockIcon'
 import { PixelNextIcon } from './PixelNextIcon'
+import { TetrominoBackground } from '../main-menu/TetrominoBackground'
 
 interface CascadeConfig {
   cornerDifficulty: number
@@ -37,32 +39,6 @@ const CASCADE_CONFIG: CascadeConfig = {
   scoreIncrementAnimationStep: 3,
   scorePointsPerLockedShape: 10,
   scorePointsPerLine: 100,
-}
-
-function AnimatedScore(props: { step: number; targetScore: number }) {
-  const [displayedScore, setDisplayedScore] = useState(props.targetScore)
-
-  useEffect(() => {
-    if (displayedScore === props.targetScore) return
-    const step = Math.max(1, props.step)
-    const timer = window.setInterval(() => {
-      setDisplayedScore((currentScore) => {
-        const difference = props.targetScore - currentScore
-        if (difference === 0) {
-          window.clearInterval(timer)
-          return currentScore
-        }
-
-        const nextScore = currentScore + Math.sign(difference) * Math.min(step, Math.abs(difference))
-        if (nextScore === props.targetScore) window.clearInterval(timer)
-        return nextScore
-      })
-    }, 4)
-
-    return () => window.clearInterval(timer)
-  }, [props.step, props.targetScore])
-
-  return <span className={displayedScore < props.targetScore ? 'cascade-score-shake inline-block' : 'inline-block'}>{displayedScore}</span>
 }
 
 function CornerPreview(props: { corner: CascadeCorner }) {
@@ -190,6 +166,7 @@ export function Cascade(props: { startNew?: boolean }) {
 
   return (
     <main className="poster-page app-page flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
+      <TetrominoBackground />
       <header className="mx-auto flex w-full max-w-[550px] items-end justify-between gap-4 px-5 pb-5">
         <div>
           <p className="poster-kicker text-[11px] text-[var(--muted-text-color)]">{t('mainMenu.title')}</p>

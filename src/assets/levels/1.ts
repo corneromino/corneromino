@@ -3,6 +3,41 @@ import { LOCKED_CELL_COLOR_HEX } from "@/rendering/colors"
 
 export const level1: CareerLevel = {
   bgColor: LOCKED_CELL_COLOR_HEX[7],
+  x: 0,
+  y: 0,
+  from: 'top',
+  to: 'bottom',
+  /*tutorial: {
+    steps: [
+      {
+        content: '0',
+        area: 'board',
+        x: 0, y: 0,
+        columns: 4, rows: 5,
+        boardInteractive: false,
+      },
+      {
+        content: "A",
+        advanceOn: ['select'],
+        area: 'board',
+        x: 1, y: 1,
+        columns: 1, rows: 1,
+      }, {
+        content: "B",
+        advanceOn: ['select'],
+        area: 'board',
+        x: 1, y: 2,
+        columns: 1, rows: 1,
+      }, {
+        content: "C",
+        // advanceOn: ['select'],
+        area: 'board',
+        x: 1, y: 3,
+        columns: 1, rows: 1,
+        showUI: false
+      },
+    ]
+  },*/
   data: {
     "config": {
       "columns": 4,
@@ -54,39 +89,4 @@ export const level1: CareerLevel = {
     "seed": "custom-35fc886e-50e3-46d3-9e9d-052d7fb71509",
     "source": "custom"
   },
-  x: 0,
-  y: 0,
-  from: 'top',
-  to: 'bottom',
-  tutorial: {
-    steps: [
-      {
-        content: '0',
-        area: 'board',
-        x: 0, y: 0,
-        columns: 4, rows: 5,
-        boardInteractive: false,
-      },
-      {
-        content: "A",
-        advanceOn: ['select'],
-        area: 'board',
-        x: 1, y: 1,
-        columns: 1, rows: 1,
-      }, {
-        content: "B",
-        advanceOn: ['select'],
-        area: 'board',
-        x: 1, y: 2,
-        columns: 1, rows: 1,
-      }, {
-        content: "C",
-        // advanceOn: ['select'],
-        area: 'board',
-        x: 1, y: 3,
-        columns: 1, rows: 1,
-        showUI: false
-      },
-    ]
-  }
 }

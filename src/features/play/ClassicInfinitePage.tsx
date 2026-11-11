@@ -3,15 +3,18 @@ import { LogOut, Pause, Play, RotateCcw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { AnimatedScore } from '@/components/AnimatedScore'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { createRandomSeed } from '@/game/random'
 import type { LockedCellGroup } from '@/game/gameConfig'
+import { recordInfiniteBestScore } from '@/lib/db'
 import { GameGrid } from './GameGrid'
 import { ClassicShapesDialog } from './ClassicShapesDialog'
 import { CLASSIC_INFINITE_HEALTH_SQUARE_COUNT, ClassicInfiniteHealthBar } from './ClassicInfiniteHealthBar'
 import { CLASSIC_INFINITE_CONFIG, ClassicInfiniteStream, createInfiniteSectionGenerator, type ClassicInfiniteSection } from './classicInfiniteStream'
 import type { ClassicInfiniteCellExit } from './classicInfiniteCellExit'
 import { InfiniteEaterHead, InfiniteEaterMouth, INFINITE_EATER_HEIGHT_RATIO, INFINITE_EATER_WIDTH_RATIO } from './InfiniteEater'
+import { TetrominoBackground } from '../main-menu/TetrominoBackground'
 // import { CLASSIC_INFINITE_VHS_CRT } from './classicInfiniteEffects'
 
 const BOARD_CONFIG = { ...CLASSIC_INFINITE_CONFIG, rows: CLASSIC_INFINITE_CONFIG.rows * 2 }
@@ -21,6 +24,7 @@ const ignoreMoveCountChange = (_moveCount: number) => undefined
 const INITIAL_HEALTH = 1
 const HEALTH_PER_LOCKED_SHAPE = 4
 const SCORE_PER_CORRECT_LOCK = 10
+const SCORE_ANIMATION_STEP = 1
 
 function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: ClassicInfiniteCellExit) => void; onRestart: () => void }) {
   const { t } = useTranslation()
@@ -63,6 +67,10 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
     advance: session.stream.advance,
   } : undefined, [session])
 
+  useEffect(() => {
+    void recordInfiniteBestScore(score)
+  }, [score])
+
   function resume() { setPaused(false) }
   function pause() { setPaused(true) }
   function handleLockedShape(_group: LockedCellGroup, hasUniqueCorners: boolean) {
@@ -93,7 +101,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
     decreaseHealth(HEALTH_PER_LOCKED_SHAPE)
   }
   function quit() {
-    navigate('/mini-games', { replace: true })
+    navigate('/infinite', { replace: true })
   }
 
   const pauseDialog = (
@@ -123,6 +131,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
 
   return (
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
+      <TetrominoBackground />
       <header className="relative mx-auto flex w-full max-w-[550px] shrink-0 flex-col gap-3 px-5 pb-10">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -137,7 +146,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
           totalSquareCount={CLASSIC_INFINITE_HEALTH_SQUARE_COUNT}
         />
         <div aria-label={String(score)} className="pointer-events-none absolute inset-x-5 bottom-0 flex py-1 items-center justify-center rounded-[8px] bg-[var(--outline-color)] text-[var(--paper)]">
-          <span className="poster-kicker text-[25px] leading-none font-black">{score}</span>
+          <span className="poster-kicker text-[25px] leading-none font-black"><AnimatedScore step={SCORE_ANIMATION_STEP} targetScore={score} /></span>
         </div>
       </header>
       {generationFailed && (

@@ -3,20 +3,33 @@ import { DEPTH_BUTTON_COLORS } from '@/components/ui/depth-surface'
 import { useTranslation } from 'react-i18next'
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { CareerStars } from '@/components/CareerStars'
+import type { GameCompletionResult } from '@/game/completionProgress'
 
 interface CorrectGameDialogProps {
+  hasBonus: boolean
   onNext: () => void
   onOpenChange: (open: boolean) => void
   open: boolean
   screenshot: string | null
-  stars?: 1 | 2 | 3
+  result?: GameCompletionResult
 }
 
 export function CorrectGameDialog(props: CorrectGameDialogProps) {
   const { t } = useTranslation()
   return (
     <Dialog onOpenChange={props.onOpenChange} open={props.open}>
-        <DialogContent aria-describedby={undefined} className="max-w-[430px]" floatingContent={props.stars !== undefined ? <CareerStars stars={props.stars} /> : undefined}>
+        <DialogContent
+          aria-describedby={undefined}
+          className="max-w-[430px]"
+          floatingContent={props.result !== undefined
+            ? (
+                <CareerStars
+                  hasBonus={props.hasBonus}
+                  result={props.result}
+                />
+              )
+            : undefined}
+        >
           <DialogHeader><DialogTitle>{t('classic.correct')}</DialogTitle></DialogHeader>
           {props.screenshot && <img alt={t('classic.completedBoard')} className="mx-auto mt-4 block max-h-[max(0px,calc(var(--dialog-viewport-height,var(--app-height))-220px))] max-w-full object-contain" src={props.screenshot} />}
         <DialogFooter>

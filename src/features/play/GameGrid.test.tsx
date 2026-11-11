@@ -72,7 +72,7 @@ const firstSquare = ['0,0', '1,0', '0,1', '1,1']
 const secondSquare = ['3,0', '4,0', '3,1', '4,1']
 
 function emptySave(): GameSelectionState {
-  return { selectedCellKeys: [], lockedCellGroups: [], markers: [], moveCount: 0, unlockCount: 0, elapsedSeconds: 0, gameGridScreenshot: null, savedAt: null, isCompleted: false }
+  return { completionResult: null, selectedCellKeys: [], lockedCellGroups: [], markers: [], moveCount: 0, unlockCount: 0, elapsedSeconds: 0, gameGridScreenshot: null, savedAt: null, isCompleted: false }
 }
 
 function board() {
@@ -237,6 +237,28 @@ describe('Classic locking modes', () => {
     expect(canvasMock.props!.verificationRequest).toBeUndefined()
     expect(props.onCorrectSolution).toHaveBeenCalledOnce()
 
+  })
+
+  it('records computed completion progress for a successful game', async () => {
+    const result = { bonusPercentage: 0, perfectionPercentage: 100 }
+    const getCompletionResult = vi.fn(() => result)
+    const onGameCompleted = vi.fn()
+    const config = { ...GAME_CONFIGS.c003, completionAnimationEnabled: false, completionScreenshotDelayMs: 0, finalVerificationMode: 'manual' as const }
+    setup('auto', {
+      config,
+      getCompletionResult,
+      onCorrectSolution: undefined,
+      onGameCompleted,
+      persistSelection: true,
+    })
+
+    await waitFor(() => expect(canvasMock.props?.interactive).toBe(true))
+    tap(...firstSquare, ...secondSquare)
+    fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
+
+    expect(getCompletionResult).toHaveBeenCalledWith(expect.any(Array), 0)
+    expect(onGameCompleted).toHaveBeenCalledWith(result)
+    await waitFor(() => expect(saveGameSelection).toHaveBeenLastCalledWith('c003', 'locking-test', expect.objectContaining({ completionResult: result })))
   })
 
   it.each(['flip', 'wave'] as const)('keeps a correctly verified board editable after dismissing its %s result', (verificationEffect) => {

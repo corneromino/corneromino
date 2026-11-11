@@ -1,4 +1,5 @@
 import { useId, type CSSProperties } from 'react'
+import type { GameCompletionResult } from '@/game/completionProgress'
 import { cn } from '@/lib/utils'
 
 const FILLED_COLOR = '#F5BC6A'
@@ -21,13 +22,22 @@ interface CareerStarProps {
   style: CSSProperties
 }
 
-function CareerStar(props: CareerStarProps) {
-  const pathId = `stroke0_2299_5664-${props.id}`
-  const maskId = `stroke1_2299_5664-${props.id}`
+interface CareerStarIconProps {
+  className?: string
+  filled: boolean
+  size: number
+  style?: CSSProperties
+}
+
+/** Reusable Career star artwork with the shared paper outline treatment. */
+export function CareerStarIcon(props: CareerStarIconProps) {
+  const id = useId()
+  const pathId = `stroke0_2299_5664-${id}`
+  const maskId = `stroke1_2299_5664-${id}`
   return (
     <svg
       aria-hidden="true"
-      className="absolute overflow-visible"
+      className={cn('overflow-visible', props.className)}
       fill="none"
       height={props.size * 23 / 24}
       opacity={props.filled ? 1 : 0.30}
@@ -50,14 +60,19 @@ function CareerStar(props: CareerStarProps) {
   )
 }
 
+function CareerStar(props: CareerStarProps) {
+  return <CareerStarIcon className="absolute" filled={props.filled} size={props.size} style={props.style} />
+}
+
 interface CareerStarsProps {
   className?: string
+  hasBonus: boolean
   layout?: 'dialog' | 'map'
-  stars: 0 | 1 | 2 | 3
+  result?: GameCompletionResult
   style?: CSSProperties
 }
 
-/** Three Career stars in earned order: left, right, then the larger middle star. */
+/** Three Career stars: completion left, perfection right, then bonus in the middle. */
 export function CareerStars(props: CareerStarsProps) {
   const id = useId()
   const isMapLayout = props.layout === 'map'
@@ -73,7 +88,7 @@ export function CareerStars(props: CareerStarsProps) {
       style={layoutStyle}
     >
       <CareerStar
-        filled={props.stars >= 1}
+        filled={props.result !== undefined}
         id={`${id}-left`}
         size={sideSize}
         style={isMapLayout
@@ -81,20 +96,20 @@ export function CareerStars(props: CareerStarsProps) {
                 : { left: -DIALOG_SIDE_HORIZONTAL_OFFSET_PX - sideSize / 2, top: DIALOG_SIDE_VERTICAL_OFFSET_PX }}
       />
       <CareerStar
-        filled={props.stars >= 2}
+        filled={props.result?.perfectionPercentage === 100}
         id={`${id}-right`}
         size={sideSize}
         style={isMapLayout
                 ? { left: MAP_SIDE_HORIZONTAL_OFFSET_PX, top: MAP_SIDE_VERTICAL_OFFSET_PX, transform: 'translate(-50%, -50%)' }
                 : { left: DIALOG_SIDE_HORIZONTAL_OFFSET_PX - sideSize / 2, top: DIALOG_SIDE_VERTICAL_OFFSET_PX }} />
-      <CareerStar
-        filled={props.stars >= 3}
+      {props.hasBonus && <CareerStar
+        filled={props.result?.bonusPercentage === 100}
         id={`${id}-middle`}
         size={middleSize}
         style={isMapLayout
                 ? { left: 0, top: -middleSize / 3, transform: 'translate(-50%, -50%)' }
                 : { left: -middleSize / 2, top: 0 }}
-      />
+      />}
     </span>
   )
 }

@@ -1,4 +1,5 @@
 import type { CellId, TetrominoKind } from './tetrominoes'
+import type { GameCompletionResult } from './completionProgress'
 
 /** Switch all Classic difficulties between automatic and button-driven locking. */
 export const CLASSIC_LOCKING_MODE: GameConfig['lockingMode'] = 'auto'
@@ -13,6 +14,9 @@ export const VERIFICATION_FLIP_BATCH_SIZE = 5
 const COMPLETION_SCREENSHOT_DELAY_MS = 400;
 
 export interface GameConfig {
+  /** Inclusive bounds for generated Classic bonus requirements. Both are required to enable bonuses. */
+  bonusMax?: number
+  bonusMin?: number
   /** Removes the shared game control bar; tutorials can then present only the board. */
   hideGameControls?: boolean
   lockingMode: 'manual' | 'auto'
@@ -84,6 +88,8 @@ export const GAME_CONFIGS = {
     finalVerificationMode: CLASSIC_FINAL_VERIFICATION_MODE,
     completionScreenshotDelayMs: COMPLETION_SCREENSHOT_DELAY_MS,
     finalLockAnimationEnabled: true,
+    bonusMin: 2,
+    bonusMax: 2
   },
   c004: {
     columns: 10,
@@ -161,6 +167,7 @@ export interface CellMarker {
 }
 
 export interface GameSelectionState {
+  completionResult: GameCompletionResult | null
   elapsedSeconds: number
   gameGridScreenshot: Blob | null
   isCompleted: boolean

@@ -300,7 +300,7 @@ export function MainMenuCareerLevels() {
           const isLocked = index > lastUnlockedLevelIndex
           const isCurrentLevel = index === lastUnlockedLevelIndex
           const progression = data ? careerProgression.find((entry) => entry.seed === data.seed) : undefined
-          const isCompleted = progression?.completed ?? false
+          const isCompleted = progression !== undefined
           const number = index + 1
           return (
             <div
@@ -343,8 +343,16 @@ export function MainMenuCareerLevels() {
             const level = levelPositions[index]?.level
             const progression = level?.data ? careerProgression.find((entry) => entry.seed === level.data!.seed) : undefined
             const isCurrentLevel = index === lastUnlockedLevelIndex
-            const stars = progression?.completed ? progression.stars ?? 1 : isCurrentLevel ? 0 : null
-            return stars === null ? null : <CareerStars key={index} layout="map" stars={stars} style={{ left: anchor.bottomCenter.x, top: anchor.bottomCenter.y }} />
+            if (!progression && !isCurrentLevel) return null
+            return (
+              <CareerStars
+                hasBonus={(level?.bonus?.length ?? 0) > 0}
+                key={index}
+                layout="map"
+                result={progression}
+                style={{ left: anchor.bottomCenter.x, top: anchor.bottomCenter.y }}
+              />
+            )
           })}
           {[...cardAnchors.entries()]
             .filter(([index]) => index > lastUnlockedLevelIndex)

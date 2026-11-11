@@ -1,4 +1,6 @@
 import { openGameDatabase } from './gameDatabase'
+import type { BonusRequirement } from '@/game/bonus'
+import { mergeCompletionResults, type GameCompletionResult } from '@/game/completionProgress'
 import { CELL_CORNERS, isGameMode, type CellMarker, type CellCorner, type ClassicGameMode, type GameConfig, type GameMode, type GameSelectionState, type LockedCellGroup, type PlacedTetromino } from '@/game/gameConfig'
 import { TETROMINOES, TETROMINO_KINDS, type CellId, type TetrominoKind } from '@/game/tetrominoes'
 import { isVsLocalBoardSize, isVsTrapResolution, isVsWinCount,  } from '@/features/vs/vsLocalConfig'
@@ -11,11 +13,8 @@ export interface StoredGame {
 }
 
 /** Persisted completion state for one authored Career level. */
-export interface CareerLevelProgression {
-  completed: boolean
+export interface CareerLevelProgression extends GameCompletionResult {
   seed: string
-  /** Omitted by progress records written before Career stars were introduced. */
-  stars?: 1 | 2 | 3
   type: 'career-progression'
 }
 
@@ -30,6 +29,8 @@ export interface SavedGame {
 
 /** Immutable, versioned board data kept separately from player progress. */
 export interface ClassicGameDefinition {
+  /** Generated Classic bonus requirements. Absent only on older saved boards. */
+  bonus?: readonly BonusRequirement[]
   config: GameConfig
   gameMode: ClassicGameMode
   pieces: readonly PlacedTetromino[]
@@ -87,6 +88,7 @@ function classicDefinitionStorageKey(gameMode: ClassicGameMode, seed: string): s
 
 const CASCADE_STORAGE_KEY = 'cascade:current'
 const CASCADE_BEST_SCORE_STORAGE_KEY = 'cascade:best-score'
+const INFINITE_BEST_SCORE_STORAGE_KEY = 'infinite:best-score'
 const VS_LOCAL_STORAGE_KEY = 'vs:local:current'
 
 function careerProgressStorageKey(seed: string): string {
@@ -99,11 +101,28 @@ function isCareerSelectionStorageKey(id: string): boolean {
     && gameIdParts.join(':').startsWith('career:')
 }
 
+function isCareerPercentage(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100
+}
+
+function isBonusRequirement(value: unknown): value is BonusRequirement {
+  return typeof value === 'object' && value !== null
+    && 'shape' in value && isTetrominoKind(value.shape)
+    && 'count' in value && isNonNegativeInteger(value.count)
+    && (!('rotation' in value) || value.rotation === 0 || value.rotation === 1 || value.rotation === 2 || value.rotation === 3)
+}
+
+function isGameCompletionResult(value: unknown): value is GameCompletionResult {
+  return typeof value === 'object' && value !== null
+    && 'bonusPercentage' in value && isCareerPercentage(value.bonusPercentage)
+    && 'perfectionPercentage' in value && isCareerPercentage(value.perfectionPercentage)
+}
+
 function isCareerLevelProgressionState(value: unknown): value is Omit<CareerLevelProgression, 'seed'> {
   return typeof value === 'object' && value !== null
     && 'type' in value && value.type === 'career-progression'
-    && 'completed' in value && typeof value.completed === 'boolean'
-    && (!('stars' in value) || value.stars === 1 || value.stars === 2 || value.stars === 3)
+    && 'bonusPercentage' in value && isCareerPercentage(value.bonusPercentage)
+    && 'perfectionPercentage' in value && isCareerPercentage(value.perfectionPercentage)
 }
 
 function isVsPlayer(value: unknown): value is 0 | 1 {
@@ -308,6 +327,7 @@ function isCellMarker(value: unknown): value is CellMarker {
 }
 
 function isGameSelectionState(state: unknown): state is {
+  completionResult?: GameCompletionResult | null
   elapsedSeconds?: number
   gameGridScreenshot?: Blob | null
   isCompleted?: boolean
@@ -324,6 +344,7 @@ function isGameSelectionState(state: unknown): state is {
     'selectedCellKeys' in state &&
     Array.isArray(state.selectedCellKeys) &&
     state.selectedCellKeys.every((cellKey) => typeof cellKey === 'string') &&
+    (!('completionResult' in state) || state.completionResult === null || isGameCompletionResult(state.completionResult)) &&
     (!('elapsedSeconds' in state) || (typeof state.elapsedSeconds === 'number' && state.elapsedSeconds >= 0)) &&
     (!('lockedCellGroups' in state) || (Array.isArray(state.lockedCellGroups) && state.lockedCellGroups.every(isLockedCellGroup))) &&
     (!('markers' in state) || (Array.isArray(state.markers) && state.markers.every(isCellMarker))) &&
@@ -365,6 +386,8 @@ function isGameConfig(value: unknown): value is GameConfig {
   if (!isPositiveInteger(config.columns) || !isPositiveInteger(config.rows)) return false
   if (typeof config.spread !== 'number' || !Number.isFinite(config.spread) || config.spread < 0 || config.spread > 1) return false
   if (!isNonNegativeInteger(config.tetrominoCount)) return false
+  if ((config.bonusMin === undefined) !== (config.bonusMax === undefined)) return false
+  if (config.bonusMin !== undefined && (!isNonNegativeInteger(config.bonusMin) || !isNonNegativeInteger(config.bonusMax) || config.bonusMin > config.bonusMax)) return false
   if (config.lockingMode !== 'manual' && config.lockingMode !== 'auto') return false
   if (config.finalVerificationMode !== undefined && config.finalVerificationMode !== 'manual' && config.finalVerificationMode !== 'auto') return false
   if (config.completionAnimationEnabled !== undefined && typeof config.completionAnimationEnabled !== 'boolean') return false
@@ -421,6 +444,7 @@ function isClassicGameDefinition(value: unknown): value is ClassicGameDefinition
     || typeof definition.seed !== 'string' || definition.seed.length === 0
     || (definition.source !== undefined && definition.source !== 'custom')
     || (definition.customName !== undefined && (typeof definition.customName !== 'string' || definition.customName.trim().length === 0))
+    || (definition.bonus !== undefined && (!Array.isArray(definition.bonus) || !definition.bonus.every(isBonusRequirement)))
     || !isGameConfig(config)
     || !Array.isArray(pieces) || pieces.length !== config.tetrominoCount) return false
 
@@ -432,10 +456,13 @@ function isClassicGameDefinition(value: unknown): value is ClassicGameDefinition
 export async function loadGameSelection(gameMode: GameMode, gameId: string): Promise<GameSelectionState> {
   const storedGame = await (await db).get('games', selectionStorageKey(gameMode, gameId))
   if (!storedGame || !isGameSelectionState(storedGame.state)) {
-    return { elapsedSeconds: 0, gameGridScreenshot: null, isCompleted: false, lockedCellGroups: [], markers: [], moveCount: 0, savedAt: null, selectedCellKeys: [], unlockCount: 0 }
+    return { completionResult: null, elapsedSeconds: 0, gameGridScreenshot: null, isCompleted: false, lockedCellGroups: [], markers: [], moveCount: 0, savedAt: null, selectedCellKeys: [], unlockCount: 0 }
   }
 
   return {
+    completionResult: 'completionResult' in storedGame.state && isGameCompletionResult(storedGame.state.completionResult)
+      ? storedGame.state.completionResult
+      : null,
     elapsedSeconds: 'elapsedSeconds' in storedGame.state && typeof storedGame.state.elapsedSeconds === 'number' ? storedGame.state.elapsedSeconds : 0,
     gameGridScreenshot: 'gameGridScreenshot' in storedGame.state && storedGame.state.gameGridScreenshot instanceof Blob
       ? storedGame.state.gameGridScreenshot
@@ -525,15 +552,28 @@ export async function loadCareerProgression(): Promise<CareerLevelProgression[]>
   const database = await db
   return (await database.getAll('games')).flatMap((record) => {
     if (!record.id.startsWith('career:') || !isCareerLevelProgressionState(record.state)) return []
-    return [{ ...record.state, seed: record.id.slice('career:'.length) }]
+    return [{
+      bonusPercentage: record.state.bonusPercentage,
+      perfectionPercentage: record.state.perfectionPercentage,
+      seed: record.id.slice('career:'.length),
+      type: 'career-progression',
+    }]
   })
 }
 
 /** Marks an authored Career level as complete without exposing it in Saved Games. */
-export async function completeCareerLevel(seed: string, stars: 1 | 2 | 3): Promise<void> {
-  await (await db).put('games', {
+export async function completeCareerLevel(seed: string, result: GameCompletionResult): Promise<void> {
+  const database = await db
+  const existingRecord = await database.get('games', careerProgressStorageKey(seed))
+  const existingResult = existingRecord && isCareerLevelProgressionState(existingRecord.state)
+    ? existingRecord.state
+    : undefined
+  await database.put('games', {
     id: careerProgressStorageKey(seed),
-    state: { completed: true, stars, type: 'career-progression' },
+    state: {
+      ...mergeCompletionResults(existingResult ?? null, result),
+      type: 'career-progression',
+    },
     updatedAt: Date.now(),
   })
 }
@@ -544,7 +584,7 @@ export async function resetCareerProgress(): Promise<void> {
   const records = await database.getAll('games')
   await Promise.all(records
     .filter((record) => (
-      record.id.startsWith('career:') && isCareerLevelProgressionState(record.state)
+      record.id.startsWith('career:')
     ) || isCareerSelectionStorageKey(record.id))
     .map((record) => database.delete('games', record.id)))
 }
@@ -596,6 +636,19 @@ export async function recordCascadeBestScore(score: number): Promise<number> {
   const currentBestScore = await loadCascadeBestScore()
   if (score <= currentBestScore) return currentBestScore
   await (await db).put('games', { id: CASCADE_BEST_SCORE_STORAGE_KEY, state: score, updatedAt: Date.now() })
+  return score
+}
+
+export async function loadInfiniteBestScore(): Promise<number> {
+  const storedScore = await (await db).get('games', INFINITE_BEST_SCORE_STORAGE_KEY)
+  return storedScore && typeof storedScore.state === 'number' && storedScore.state >= 0 ? storedScore.state : 0
+}
+
+/** Returns the recorded best Infinite score, preserving a higher score from another session. */
+export async function recordInfiniteBestScore(score: number): Promise<number> {
+  const currentBestScore = await loadInfiniteBestScore()
+  if (score <= currentBestScore) return currentBestScore
+  await (await db).put('games', { id: INFINITE_BEST_SCORE_STORAGE_KEY, state: score, updatedAt: Date.now() })
   return score
 }
 

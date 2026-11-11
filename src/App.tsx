@@ -9,6 +9,7 @@ import { ClassicModesMenu } from '@/features/play/ClassicModesMenu'
 import { ClassicCreatePage } from '@/features/play/ClassicCreatePage'
 import { ClassicTutorial } from '@/features/play/ClassicTutorial'
 import { ClassicInfinitePage } from '@/features/play/ClassicInfinitePage'
+import { InfiniteMenu } from '@/features/play/InfiniteMenu'
 import { MainMenu } from '@/features/main-menu/MainMenu'
 import { MiniGames } from '@/features/mini-games/MiniGames'
 import { SavedGames } from '@/features/saved-games/SavedGames'
@@ -30,6 +31,7 @@ const APP_ROUTES = [
   { path: '/play/create', element: <ClassicCreatePage /> },
   { path: '/play/tutorial', element: <ClassicTutorial /> },
   { path: '/play/infinite', element: <ClassicInfinitePage /> },
+  { path: '/infinite', element: <InfiniteMenu />, handle: { menu: true } },
   { path: '/sandbox', element: <Sandbox />, handle: { menu: true } },
   { path: '/sandbox/new', element: <SandboxWorld /> },
   { path: '/sandbox/:worldId', element: <SandboxWorld /> },

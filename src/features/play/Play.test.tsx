@@ -21,9 +21,10 @@ const gameGridProps = vi.hoisted(() => ({ current: undefined as {
 const tutorialDriverMock = vi.hoisted(() => ({ destroy: vi.fn(), drive: vi.fn(), moveTo: vi.fn() }))
 const initialCareerLevels = [...careerLevels]
 
-vi.mock('@/lib/db', () => ({ clearGameSelection: vi.fn(), loadClassicGameDefinition: vi.fn() }))
+vi.mock('@/lib/db', () => ({ clearGameSelection: vi.fn(), loadClassicGameDefinition: vi.fn(), saveClassicGameDefinition: vi.fn() }))
 vi.mock('@/game/placementV2', () => ({ generateTetrominoPlacementsV2: vi.fn() }))
 vi.mock('@/components/tutorial/createTutorialDriver', () => ({ createTutorialDriver: vi.fn(() => tutorialDriverMock) }))
+vi.mock('../main-menu/TetrominoBackground', () => ({ TetrominoBackground: () => null }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: { number?: number }) => key === 'career.level' ? `LEVEL ${values?.number}` : key }) }))
 vi.mock('./GameGrid', () => ({
   GameGrid: (props: typeof gameGridProps.current extends infer Props ? NonNullable<Props> : never) => {
@@ -33,7 +34,7 @@ vi.mock('./GameGrid', () => ({
 }))
 vi.mock('./ClassicShapesDialog', () => ({ ClassicShapesDialog: () => null }))
 
-import { clearGameSelection, loadClassicGameDefinition } from '@/lib/db'
+import { clearGameSelection, loadClassicGameDefinition, saveClassicGameDefinition } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
 import { Play } from './Play'
 
@@ -76,7 +77,8 @@ it('loads a stored board definition without running the seed generator', async (
 
   await waitFor(() => expect(screen.getByTestId('game-grid').textContent).toBe('1'))
   expect(generateTetrominoPlacementsV2).not.toHaveBeenCalled()
-  expect(gameGridProps.current?.gameDefinition).toEqual(definition)
+  expect(gameGridProps.current?.gameDefinition).toEqual(expect.objectContaining({ ...definition, bonus: expect.any(Array) }))
+  expect(saveClassicGameDefinition).toHaveBeenCalledWith(gameGridProps.current?.gameDefinition)
 })
 
 it('shows a custom board name instead of its original difficulty title', async () => {

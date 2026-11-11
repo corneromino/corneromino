@@ -336,6 +336,7 @@ export function ClassicCreatePage() {
         gameDefinitionData, gameId, name,
       )
       const selection: GameSelectionState = {
+        completionResult: null,
         elapsedSeconds: 0,
         gameGridScreenshot: screenshot,
         isCompleted: false,

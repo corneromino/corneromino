@@ -34,7 +34,7 @@ export function MiniGames() {
           yPadding={40}
           radius={20}
           borderWidth={4}
-          to="/play/infinite"
+          to="/infinite"
         >
           <span>{t('classic.infinite')}</span>
           <InfinityIcon aria-hidden="true" className="size-16 -rotate-12 scale-125 stroke-[3]" />

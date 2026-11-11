@@ -5,14 +5,20 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { createTutorialDriver } from '@/components/tutorial/createTutorialDriver'
 import { createRandomSeed, createSeededRandom } from '@/game/random'
-import { GAME_CONFIGS, isGameMode, type ClassicGameMode } from '@/game/gameConfig'
-import { clearGameSelection, completeCareerLevel, loadClassicGameDefinition, type ClassicGameDefinition } from '@/lib/db'
+import { generateBonusRequirements, getBonusPercentage } from '@/game/bonus'
+import { getPerfectionPercentage, type GameCompletionResult } from '@/game/completionProgress'
+import { GAME_CONFIGS, isGameMode, type ClassicGameMode, type GameConfig } from '@/game/gameConfig'
+import { clearGameSelection, completeCareerLevel, loadClassicGameDefinition, saveClassicGameDefinition, type ClassicGameDefinition } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
+import type { LockedCellGroup } from '@/game/gameConfig'
 import { getCareerGameId, getCareerLevel, getCareerLevelPath, getNextCareerLevel, type ResolvedCareerLevel } from './careerLevels'
 import { GameGrid } from './GameGrid'
 import { ClassicShapesDialog } from './ClassicShapesDialog'
+import { BonusDialog } from './BonusDialog'
+import { CareerStarIcon } from '@/components/CareerStars'
 import { getCareerTutorialTargetId, type CareerTutorialAction, type CareerTutorialStep } from './careerTutorial'
 import { cn } from '@/lib/utils'
+import { TetrominoBackground } from '../main-menu/TetrominoBackground'
 
 function formatElapsedTime(elapsedSeconds: number) {
   const minutes = Math.floor(elapsedSeconds / 60).toString().padStart(2, '0')
@@ -35,14 +41,21 @@ function AttemptProgressBar({ ariaLabel, moveCount, requiredLockCount, unlockCou
   const total = Math.max(1, requiredLockCount + unlockCount * 2, moveCount + unlockCount)
   const moveWidth = Math.min(100, moveCount / total * 100)
   const unlockWidth = Math.min(100 - moveWidth, unlockCount / total * 100)
+  const progressBarsMeet = moveWidth + unlockWidth >= 100
   return (
     <div
       aria-label={ariaLabel}
       className="relative h-5 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--outline-color)] border-3 border-(--outline-color)"
       role="img"
     >
-      <span className="absolute inset-y-0 left-0 transition-[width] duration-200" style={{ backgroundColor: ATTEMPT_MOVE_COLOR, width: `${moveWidth}%` }} />
-      <span className="absolute inset-y-0 right-0 transition-[width] duration-200" style={{ backgroundColor: ATTEMPT_UNLOCK_COLOR, width: `${unlockWidth}%` }} />
+      <span
+        className={cn('absolute inset-y-0 left-0 transition-[width] duration-150', !progressBarsMeet && 'rounded-full')}
+        style={{ backgroundColor: ATTEMPT_MOVE_COLOR, width: `${moveWidth}%` }}
+      />
+      <span
+        className={cn('absolute inset-y-0 right-0 transition-[width] duration-150', !progressBarsMeet && 'rounded-full')}
+        style={{ backgroundColor: ATTEMPT_UNLOCK_COLOR, width: `${unlockWidth}%` }}
+      />
     </div>
   )
 }
@@ -64,6 +77,7 @@ function GameSession(props: GameSessionProps) {
   const [unlockCount, setUnlockCount] = useState(0)
   const [gameDefinition, setGameDefinition] = useState<ClassicGameDefinition | null>(null)
   const [pauseOpen, setPauseOpen] = useState(false)
+  const [bonusOpen, setBonusOpen] = useState(false)
   const [shapesOpen, setShapesOpen] = useState(false)
   const careerTutorial = props.careerLevel?.tutorial
   const tutorialSteps = careerTutorial?.steps ?? EMPTY_CAREER_TUTORIAL_STEPS
@@ -77,6 +91,7 @@ function GameSession(props: GameSessionProps) {
   const modeConfig = GAME_CONFIGS[props.gameMode]
   const gameTitle = props.careerLevel ? t('career.level', { number: props.careerLevel.number }) : gameDefinition?.source === 'custom' && gameDefinition.customName ? gameDefinition.customName : t(modeConfig.title)
   const requiredLockCount = gameDefinition?.config.tetrominoCount ?? modeConfig.tetrominoCount
+  const bonus = props.careerLevel?.bonus ?? gameDefinition?.bonus ?? []
   const attemptAriaLabel = `${t('classic.moves', { count: moveCount })} / ${t('classic.unlocks', { count: unlockCount })}`
   const activeTutorialStep = tutorialOpen ? tutorialSteps[tutorialStepIndex] : undefined
   const tutorialBoardInteractive = activeTutorialStep?.boardInteractive !== false
@@ -149,6 +164,21 @@ function GameSession(props: GameSessionProps) {
     navigate(`/play?mode=${props.gameMode}&seed=${encodeURIComponent(createRandomSeed())}`)
   }
 
+  function getCompletionResult(lockedGroups: readonly LockedCellGroup[], completedUnlockCount: number): GameCompletionResult {
+    const cantominoCount = gameDefinition?.pieces.length ?? 0
+    const bonus = props.careerLevel?.bonus ?? gameDefinition?.bonus
+    return {
+      bonusPercentage: getBonusPercentage(bonus, lockedGroups),
+      perfectionPercentage: getPerfectionPercentage(cantominoCount, completedUnlockCount),
+    }
+  }
+
+  function handleCareerGameCompleted(result: GameCompletionResult | undefined) {
+    if (!props.careerLevel || !result) return
+    void completeCareerLevel(props.careerLevel.data.seed, result)
+    advanceTutorial('complete')
+  }
+
   useEffect(() => {
     if (!props.requestedSeed && !props.careerLevel) {
       void clearGameSelection(props.gameMode, generatedSeed)
@@ -192,13 +222,26 @@ function GameSession(props: GameSessionProps) {
     void definition
       .catch(() => null)
       .then(async (savedDefinition) => {
-        if (savedDefinition) return savedDefinition
+        if (savedDefinition) {
+          if (props.careerLevel || savedDefinition.bonus !== undefined) return savedDefinition
+          const definitionWithBonus = {
+            ...savedDefinition,
+            bonus: generateBonusRequirements(
+              savedDefinition.pieces,
+              savedDefinition.config,
+              createSeededRandom(`${savedDefinition.gameMode}:${savedDefinition.seed}:bonus`),
+            ),
+          }
+          await saveClassicGameDefinition(definitionWithBonus)
+          return definitionWithBonus
+        }
         const pieces = await generateTetrominoPlacementsV2(modeConfig, {
           random: createSeededRandom(`${props.gameMode}:${seed}`),
           yieldEvery: 250,
         })
         return {
           config: { ...modeConfig },
+          bonus: generateBonusRequirements(pieces, modeConfig as GameConfig, createSeededRandom(`${props.gameMode}:${seed}:bonus`)),
           gameMode: props.gameMode,
           pieces,
           seed,
@@ -244,6 +287,7 @@ function GameSession(props: GameSessionProps) {
 
   return (
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
+      <TetrominoBackground />
       <header className={cn('relative z-10 mx-auto flex w-full max-w-[550px] flex-col gap-3 px-5 pb-6 transition-opacity', !tutorialShowsUI && 'pointer-events-none opacity-0')}>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -270,6 +314,17 @@ function GameSession(props: GameSessionProps) {
         </div>
         <div className="flex items-center justify-between gap-4">
           <AttemptProgressBar ariaLabel={attemptAriaLabel} moveCount={moveCount} requiredLockCount={requiredLockCount} unlockCount={unlockCount} />
+          {bonus.length > 0 && <Button
+            aria-label={t('bonus.title')}
+            className="size-8 shrink-0 border-0 bg-transparent p-0 shadow-none"
+            onClick={() => setBonusOpen(true)}
+            size="icon"
+            title={t('bonus.title')}
+            type="button"
+            variant="ghost"
+          >
+            <CareerStarIcon filled size={28} />
+          </Button>}
           <p className="poster-kicker shrink-0 text-[11px] text-[var(--muted-text-color)]">{formatElapsedTime(elapsedSeconds)}</p>
         </div>
       </header>
@@ -279,8 +334,10 @@ function GameSession(props: GameSessionProps) {
           <GameGrid
             boardInteractive={tutorialBoardInteractive}
             config={gameDefinition.config}
+            getCompletionResult={getCompletionResult}
             deferCompletionDialog={tutorialOpen}
             exitPath={props.careerLevel ? '/' : undefined}
+            hasBonus={bonus.length > 0}
             gameDefinition={gameDefinition}
             gameId={seed}
             gameMode={props.gameMode}
@@ -289,10 +346,7 @@ function GameSession(props: GameSessionProps) {
             isCareerLevel={!!props.careerLevel}
             key={`${props.gameMode}:${seed}:${gameDefinition.version}`}
             onElapsedSecondsChange={setElapsedSeconds}
-            onGameCompleted={props.careerLevel ? () => {
-              void completeCareerLevel(props.careerLevel!.data.seed, unlockCount === 0 ? 2 : 1)
-              advanceTutorial('complete')
-            } : undefined}
+            onGameCompleted={props.careerLevel ? handleCareerGameCompleted : undefined}
             onLocked={() => advanceTutorial('lock')}
             onMoveCountChange={setMoveCount}
             onNextGame={nextGame}
@@ -306,7 +360,7 @@ function GameSession(props: GameSessionProps) {
             paused={pauseOpen}
             persistSelection={careerTutorial ? false : undefined}
             pieces={gameDefinition.pieces}
-            suspended={shapesOpen}
+            suspended={shapesOpen || bonusOpen}
             tutorialControlIds={tutorialControlIds}
           />}
         {!gameDefinition && !generationError &&
@@ -316,6 +370,7 @@ function GameSession(props: GameSessionProps) {
           <p className="px-5 text-center text-[11px] font-bold text-[var(--coral)]" role="alert">{generationError}</p>
         }
       </div>
+      <BonusDialog bonus={bonus} onOpenChange={setBonusOpen} open={bonusOpen} />
       <ClassicShapesDialog onOpenChange={setShapesOpen} open={shapesOpen} />
     </main>
   )

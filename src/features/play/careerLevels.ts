@@ -1,4 +1,5 @@
 import type { ClassicGameDefinition } from '@/lib/db'
+import { getBonusPercentage, type BonusRequirement, type BonusShapeRotation } from '@/game/bonus'
 import type { CareerTutorial } from './careerTutorial'
 import { level1 } from '@/assets/levels/1'
 import { level2 } from '@/assets/levels/2'
@@ -21,11 +22,15 @@ import { level18 } from '@/assets/levels/18'
 
 export type CareerLevelEdge = 'top' | 'bottom' | 'left' | 'right'
 export type CareerLevelOrigin = 'absolute' | 'relative'
+export type CareerShapeRotation = BonusShapeRotation
+export type CareerBonusRequirement = BonusRequirement
 
 /** A Career map position, which may be shown before it has an authored board. */
 export interface CareerLevel {
   /** Optional face color for the level card. */
   bgColor?: string
+  /** Optional third-star requirements, all of which must be met on completion. */
+  bonus?: readonly CareerBonusRequirement[]
   data?: ClassicGameDefinition
   /** Outgoing edge on this card, connecting it to the following level. */
   from?: CareerLevelEdge
@@ -38,6 +43,9 @@ export interface CareerLevel {
   x: number
   y: number
 }
+
+/** @deprecated Use the shared getBonusPercentage helper for Career and Classic games. */
+export const getCareerBonusPercentage = getBonusPercentage
 
 interface PlayableCareerLevel extends CareerLevel {
   data: ClassicGameDefinition
@@ -89,15 +97,15 @@ export function resolveCareerLevelPositions(levels: readonly CareerLevel[] = car
 }
 
 /** Returns the map index of the current playable Career level. */
-export function getCurrentCareerLevelIndex(progression: readonly { completed: boolean; seed: string }[], levels: readonly CareerLevel[] = careerLevels): number {
-  let priorLevelCompleted = true
+export function getCurrentCareerLevelIndex(progression: readonly { seed: string }[], levels: readonly CareerLevel[] = careerLevels): number {
+  let priorLevelHasProgress = true
   let currentLevelIndex = 0
   for (const [index, level] of levels.entries()) {
     const seed = level.data?.seed
     if (!seed) continue
-    if (!priorLevelCompleted) break
+    if (!priorLevelHasProgress) break
     currentLevelIndex = index
-    priorLevelCompleted = progression.some((levelProgression) => levelProgression.seed === seed && levelProgression.completed)
+    priorLevelHasProgress = progression.some((levelProgression) => levelProgression.seed === seed)
   }
   return currentLevelIndex
 }

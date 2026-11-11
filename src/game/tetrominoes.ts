@@ -146,6 +146,16 @@ export function getTetrominoKind(cells: readonly GridPosition[]): TetrominoKind 
   return TETROMINO_SHAPE_KINDS.get(rotationKey(normalizedCells)) ?? null
 }
 
+/** Checks whether cells match a tetromino's specified quarter-turn rotation. */
+export function isTetrominoRotation(cells: readonly GridPosition[], kind: TetrominoKind, turns: number): boolean {
+  if (cells.length !== 4 || new Set(cells.map((cell) => `${cell.x},${cell.y}`)).size !== 4) return false
+
+  const minX = Math.min(...cells.map((cell) => cell.x))
+  const minY = Math.min(...cells.map((cell) => cell.y))
+  const normalizedCells = cells.map((cell) => ({ x: cell.x - minX, y: cell.y - minY }))
+  return rotationKey(normalizedCells) === rotationKey(createTetrominoCells(kind, turns))
+}
+
 /** Checks whether four coordinates match a tetromino rotation after translation. */
 export function isTetrominoShape(cells: readonly GridPosition[]): boolean {
   return getTetrominoKind(cells) !== null

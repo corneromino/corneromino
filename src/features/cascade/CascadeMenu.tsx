@@ -3,10 +3,10 @@ import { ArrowLeft, Play, Plus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppNavigationButton } from '@/components/ui/app-navigation-button'
-import { Button } from '@/components/ui/button'
 import { loadCascadeBestScore, loadCascadeGameState } from '@/lib/db'
 import { TetrominoBackground } from '@/features/main-menu/TetrominoBackground'
 import { PixelTrophyIcon } from './PixelTrophyIcon'
+import { DepthButton, PAPER_DEPTH_SHADOW_COLOR } from '@/components/ui/depth-surface'
 
 export function CascadeMenu() {
   const { t } = useTranslation()
@@ -39,24 +39,30 @@ export function CascadeMenu() {
         <AppNavigationButton aria-label={t('common.backToMiniGames')} className="size-[42px] shrink-0 text-[var(--canvas-foreground)]" size="icon" title={t('common.backToMiniGames')} to="/mini-games"><ArrowLeft aria-hidden="true" /></AppNavigationButton>
       </header>
       <section className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col gap-4 overflow-hidden px-1 pb-1">
-        <Button
-          className="w-full h-[70px] text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+        <DepthButton
+          className="w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
           onClick={() => navigate('/cascade/game/new', { state: { returnToCascadeMenu: true } })}
-          size="lg"
           type="button"
+          radius={20}
+          borderWidth={4}
+          yPadding={20}
+          shadowColor={PAPER_DEPTH_SHADOW_COLOR}
         >
           <Plus aria-hidden="true" /> {t('cascade.newGame')}
-        </Button>
+        </DepthButton>
         <div className="relative shrink-0">
-          <Button
-            className="w-full h-[70px] text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+          <DepthButton
+            className="w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
             disabled={hasSavedGame !== true}
             onClick={() => navigate('/cascade/game/continue', { state: { returnToCascadeMenu: true } })}
-            size="lg"
             type="button"
+            radius={20}
+            borderWidth={4}
+            yPadding={20}
+            shadowColor={PAPER_DEPTH_SHADOW_COLOR}
           >
             <Play aria-hidden="true" /> {hasSavedGame === null ? t('cascade.loading') : t('common.continue')}
-          </Button>
+          </DepthButton>
           {hasSavedGame && <span className="pointer-events-none absolute z-10 -right-1 -bottom-4 rotate-3 whitespace-nowrap text-[40px] leading-none font-black tracking-normal text-[var(--outline-color)] normal-case [text-shadow:4px_4px_0_var(--paper)]">{currentScore}</span>}
         </div>
         <div className="flex flex-1 items-center justify-center [@media(max-height:420px)]:hidden">

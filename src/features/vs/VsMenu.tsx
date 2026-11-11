@@ -33,22 +33,24 @@ export function VsMenu() {
       </header>
       <section aria-label={t('versus.gameType')} className="relative z-10 mx-auto flex min-h-0 w-full max-w-[550px] flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain px-1 pb-1">
         <DepthButton
-          className="h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+          className="w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
           onClick={() => setLocalSetupOpen(true)}
           shadowColor={PAPER_DEPTH_SHADOW_COLOR}
           type="button"
           radius={20}
           borderWidth={4}
+          yPadding={20}
         >
           <Users aria-hidden="true" /> {t('versus.local')}
         </DepthButton>
         <DepthButton
-          className="h-[70px] w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
+          className="w-full text-[14px] font-black tracking-[0.2em] text-[var(--canvas-foreground)] uppercase"
           disabled
           shadowColor={PAPER_DEPTH_SHADOW_COLOR}
           type="button"
           radius={20}
           borderWidth={4}
+          yPadding={20}
         >
           <Wifi aria-hidden="true" /> {t('versus.online')}
         </DepthButton>

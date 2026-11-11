@@ -11,7 +11,7 @@ vi.mock('./gameDatabase', () => ({
   }),
 }))
 
-import { clearVsLocalGameState, db, loadClassicGameDefinition, loadSavedGames, loadVsLocalGameState, saveClassicGameDefinition, saveGameSelection, saveVsLocalGameState, type ClassicGameDefinition, type VsLocalGameSaveState } from './db'
+import { clearVsLocalGameState, completeCareerLevel, db, loadCareerProgression, loadClassicGameDefinition, loadGameSelection, loadInfiniteBestScore, loadSavedGames, loadVsLocalGameState, recordInfiniteBestScore, saveClassicGameDefinition, saveGameSelection, saveVsLocalGameState, type ClassicGameDefinition, type VsLocalGameSaveState } from './db'
 import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsHistoryPosition, goToVsHistory, selectVsCell, toggleVsMoveDirection } from '@/features/vs/vsLocalGame'
 import type { VsTrapResolution } from '@/features/vs/vsLocalConfig'
 
@@ -67,6 +67,7 @@ describe('Classic game definitions', () => {
     const definition = classicDefinition()
     await saveClassicGameDefinition(definition)
     await saveGameSelection('c001', definition.seed, {
+      completionResult: null,
       elapsedSeconds: 12,
       gameGridScreenshot: null,
       isCompleted: false,
@@ -85,6 +86,7 @@ describe('Classic game definitions', () => {
 
   it('does not create a definition while reading a legacy progress-only save', async () => {
     await saveGameSelection('c001', 'legacy-seed', {
+      completionResult: null,
       elapsedSeconds: 12,
       gameGridScreenshot: null,
       isCompleted: false,
@@ -101,8 +103,21 @@ describe('Classic game definitions', () => {
     expect(records.size).toBe(recordCount)
   })
 
+  it('preserves generated bonus requirements with the board definition', async () => {
+    const definition = {
+      ...classicDefinition(),
+      bonus: [{ count: 1, rotation: 0, shape: 'O' }] as const,
+      config: { ...classicDefinition().config, bonusMax: 2, bonusMin: 1 },
+    }
+
+    await saveClassicGameDefinition(definition)
+
+    await expect(loadClassicGameDefinition('c001', definition.seed)).resolves.toEqual(definition)
+  })
+
   it('keeps Career progress out of the general saved-game list', async () => {
     await saveGameSelection('c001', 'career:authored-level', {
+      completionResult: null,
       elapsedSeconds: 12,
       gameGridScreenshot: new Blob(['board'], { type: 'image/png' }),
       isCompleted: false,
@@ -115,6 +130,88 @@ describe('Classic game definitions', () => {
     })
 
     await expect(loadSavedGames()).resolves.toEqual([])
+  })
+})
+
+describe('Infinite best score persistence', () => {
+  beforeEach(() => records.clear())
+
+  it('keeps the highest recorded score', async () => {
+    await expect(loadInfiniteBestScore()).resolves.toBe(0)
+    await expect(recordInfiniteBestScore(50)).resolves.toBe(50)
+    await expect(recordInfiniteBestScore(10)).resolves.toBe(50)
+    await expect(recordInfiniteBestScore(100)).resolves.toBe(100)
+    await expect(loadInfiniteBestScore()).resolves.toBe(100)
+  })
+
+  it('ignores malformed stored scores', async () => {
+    await (await db).put('games', { id: 'infinite:best-score', state: '100', updatedAt: Date.now() })
+    await expect(loadInfiniteBestScore()).resolves.toBe(0)
+  })
+})
+
+describe('Career progression persistence', () => {
+  beforeEach(() => records.clear())
+
+  it('keeps the best perfection and bonus percentages from separate completions', async () => {
+    await completeCareerLevel('career-level', { bonusPercentage: 50, perfectionPercentage: 100 })
+    await completeCareerLevel('career-level', { bonusPercentage: 100, perfectionPercentage: 75 })
+
+    await expect(loadCareerProgression()).resolves.toEqual([{
+      bonusPercentage: 100,
+      perfectionPercentage: 100,
+      seed: 'career-level',
+      type: 'career-progression',
+    }])
+  })
+
+  it('overwrites an older progression record with percentage data', async () => {
+    await (await db).put('games', {
+      id: 'career:legacy-level',
+      state: { completed: true, stars: 2, type: 'career-progression' },
+      updatedAt: Date.now(),
+    })
+    await completeCareerLevel('legacy-level', { bonusPercentage: 25, perfectionPercentage: 80 })
+
+    await expect(loadCareerProgression()).resolves.toEqual([{
+      bonusPercentage: 25,
+      perfectionPercentage: 80,
+      seed: 'legacy-level',
+      type: 'career-progression',
+    }])
+  })
+})
+
+describe('Game completion progress persistence', () => {
+  beforeEach(() => records.clear())
+
+  it('restores saved completion percentages', async () => {
+    await saveGameSelection('c001', 'completed-board', {
+      completionResult: { bonusPercentage: 0, perfectionPercentage: 100 },
+      elapsedSeconds: 0,
+      gameGridScreenshot: null,
+      isCompleted: true,
+      lockedCellGroups: [],
+      markers: [],
+      moveCount: 3,
+      savedAt: null,
+      selectedCellKeys: [],
+      unlockCount: 0,
+    })
+
+    await expect(loadGameSelection('c001', 'completed-board')).resolves.toMatchObject({
+      completionResult: { bonusPercentage: 0, perfectionPercentage: 100 },
+    })
+  })
+
+  it('treats legacy selections without completion progress as uncompleted', async () => {
+    await (await db).put('games', {
+      id: 'selection:c001:legacy-board',
+      state: { selectedCellKeys: [] },
+      updatedAt: Date.now(),
+    })
+
+    await expect(loadGameSelection('c001', 'legacy-board')).resolves.toMatchObject({ completionResult: null })
   })
 })
 

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { DEPTH_BUTTON_COLORS } from '@/components/ui/depth-surface'
 import type { CellMarkerColor, GameConfig, GameMode, GameSelectionState, LockedCellGroup, PlacedTetromino } from '@/game/gameConfig'
 import { CLASSIC_VERIFICATION_EFFECT } from '@/game/gameConfig'
+import { mergeCompletionResults, type GameCompletionResult } from '@/game/completionProgress'
 import { isTetrominoShape } from '@/game/tetrominoes'
 import { clearGameSelection, loadGameSelection, saveClassicGameDefinition, saveGameSelection, type ClassicGameDefinition } from '@/lib/db'
 import { cn } from '@/lib/utils'
@@ -63,8 +64,12 @@ interface GameGridProps {
   onUnlockCountChange?: (unlockCount: number) => void
   onMoveCountChange: (moveCount: number) => void
   onCorrectSolution?: () => void
+  /** Builds completion metrics for the completed board. */
+  getCompletionResult?: (lockedGroups: readonly LockedCellGroup[], unlockCount: number) => GameCompletionResult
+  /** Whether the active game defines a bonus star. */
+  hasBonus?: boolean
   /** Called once a successful board verification is complete. */
-  onGameCompleted?: () => void
+  onGameCompleted?: (completionResult: GameCompletionResult | undefined) => void
   onVerifyAvailable?: () => void
   onNextGame: () => void
   onPauseOpenChange: (open: boolean) => void
@@ -131,6 +136,7 @@ export function GameGrid(props: GameGridProps) {
   const [isCompleted, setIsCompleted] = useState(false)
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false)
   const [completionPending, setCompletionPending] = useState(false)
+  const [completionResult, setCompletionResult] = useState<GameCompletionResult | null>(null)
   const [verification, setVerification] = useState<VerificationRun | null>(null)
   const [completionScreenshot, setCompletionScreenshot] = useState<string | null>(null)
   const [restartConfirmationOpen, setRestartConfirmationOpen] = useState(false)
@@ -294,6 +300,7 @@ export function GameGrid(props: GameGridProps) {
         const screenshot = (await captureGameGridScreenshot()) ?? gameGridScreenshot
         const nextSavedAt = Date.now()
         const savedSelection: GameSelectionState = {
+          completionResult,
           elapsedSeconds,
           gameGridScreenshot: screenshot,
           isCompleted,
@@ -347,6 +354,14 @@ export function GameGrid(props: GameGridProps) {
     setCompletionDialogOpen(true)
   }
 
+  function completeGame() {
+    const nextCompletionResult = props.getCompletionResult?.(lockedCellGroups, unlockCount)
+    if (nextCompletionResult) {
+      setCompletionResult((currentResult) => mergeCompletionResults(currentResult, nextCompletionResult))
+    }
+    props.onGameCompleted?.(nextCompletionResult)
+  }
+
   function handleVerificationComplete(id: number) {
     if (verification?.phase !== 'animation' || verification.id !== id || verificationIdRef.current !== id) return
     if ((props.config.verificationEffect ?? CLASSIC_VERIFICATION_EFFECT) === 'flip' && !(verification.isCorrect && props.onCorrectSolution)) {
@@ -358,7 +373,7 @@ export function GameGrid(props: GameGridProps) {
       cancelVerification()
     }
     if (verification.isCorrect) {
-      props.onGameCompleted?.()
+      completeGame()
       if (props.onCorrectSolution) props.onCorrectSolution()
       else openCompletionDialog()
     } else {
@@ -519,7 +534,7 @@ export function GameGrid(props: GameGridProps) {
     setCompletionScreenshot(null)
     if (props.config.completionAnimationEnabled === false) {
       if (isCorrect) {
-        props.onGameCompleted?.()
+        completeGame()
         if (props.onCorrectSolution) {
           props.onCorrectSolution()
         } else {
@@ -605,6 +620,7 @@ export function GameGrid(props: GameGridProps) {
     props.onElapsedSecondsChange(0)
     setIsCompleted(false)
     setCompletionPending(false)
+    setCompletionResult(null)
     cancelVerification()
     setMoveCount(0)
     props.onMoveCountChange(0)
@@ -628,6 +644,7 @@ export function GameGrid(props: GameGridProps) {
           setMarkers(new Map(storedSelection.markers.map((marker) => [marker.cellKey, marker.color])))
           setSelectedCellKeys(new Set(storedSelection.selectedCellKeys))
           setGameGridScreenshot(storedSelection.gameGridScreenshot)
+          setCompletionResult(storedSelection.completionResult)
           setElapsedSeconds(storedSelection.elapsedSeconds)
           props.onElapsedSecondsChange(storedSelection.elapsedSeconds)
           setIsCompleted(false)
@@ -675,6 +692,7 @@ export function GameGrid(props: GameGridProps) {
   useEffect(() => {
     if (!selectionLoaded || isExiting || props.persistSelection === false) return
     void queuePersistence(() => saveGameSelection(props.gameMode, props.gameId, {
+      completionResult,
       elapsedSeconds,
       gameGridScreenshot,
       isCompleted,
@@ -687,15 +705,15 @@ export function GameGrid(props: GameGridProps) {
     })).catch(() => {
       // Selection remains available for the current session if IndexedDB is unavailable.
     })
-  }, [elapsedSeconds, gameGridScreenshot, isCompleted, isExiting, lockedCellGroups, markers, moveCount, props.gameId, props.gameMode, props.persistSelection, savedAt, selectedCellKeys, selectionLoaded, unlockCount])
+  }, [completionResult, elapsedSeconds, gameGridScreenshot, isCompleted, isExiting, lockedCellGroups, markers, moveCount, props.gameId, props.gameMode, props.persistSelection, savedAt, selectedCellKeys, selectionLoaded, unlockCount])
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 px-1">
       <div className="flex min-h-0 flex-1 items-start justify-center [container-type:size]">
         <section aria-label="Game board" className="mx-auto max-w-[550px]" id={props.boardId} ref={gameBoardRef} style={boardStyle}>
-          <div className={cn('relative w-full', props.scrolling && 'border-2 border-[#773526] bg-[#773526]')} style={{ aspectRatio: `${props.config.columns} / ${visibleRows}` }}>
+          <div className="relative w-full" style={{ aspectRatio: `${props.config.columns} / ${visibleRows}` }}>
             {props.boardBehindAdornment}
-            <div className="relative z-10 size-full">
+            <div className={cn('relative z-10 size-full', props.scrolling && 'border-2 border-[#773526] bg-[#773526]')}>
               <GameGridCanvas
                 config={props.config}
                 interactive={props.boardInteractive !== false && selectionLoaded && !isGameplayPaused && !isExiting && !isCompleted && !verification}
@@ -842,7 +860,14 @@ export function GameGrid(props: GameGridProps) {
           } */}
         </div>}
       </div>}
-      <CorrectGameDialog onNext={props.onNextGame} onOpenChange={handleCompletionOpenChange} open={completionDialogOpen} screenshot={completionScreenshot} stars={props.isCareerLevel ? unlockCount === 0 ? 2 : 1 : undefined} />
+      <CorrectGameDialog
+        hasBonus={props.hasBonus === true}
+        result={completionResult ?? undefined}
+        onNext={props.onNextGame}
+        onOpenChange={handleCompletionOpenChange}
+        open={completionDialogOpen}
+        screenshot={completionScreenshot}
+      />
       {props.pauseDialog ?? <ClassicPauseDialog gameMode={props.gameMode} isCareerLevel={props.isCareerLevel} isSaving={isExiting} onOpenChange={props.onPauseOpenChange} onQuitWithoutSaving={quitWithoutSavingFromPause} onRestart={requestRestart} onResume={() => props.onPauseOpenChange(false)} onSaveAndQuit={saveAndQuitFromPause} open={props.paused} seed={props.gameId} />}
       <ClassicRestartDialog onOpenChange={(open) => {
         setRestartConfirmationOpen(open)

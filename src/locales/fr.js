@@ -13,6 +13,7 @@ export default {
         "loading": "Chargement…",
         "locked": "Verrouillé",
         "new": "Nouveau",
+        "newGame": "Nouvelle partie",
         "ok": "Ok",
         "next": "Suivant",
         "previous": "Precedent",
@@ -31,6 +32,10 @@ export default {
     },
     "miniGames": {
         "title": "Mini-jeux"
+    },
+    "bonus": {
+        "anyRotation": "Toutes rotations",
+        "title": "BONUS"
     },
     "difficulty": {
         "veryEasy": "Très facile",
