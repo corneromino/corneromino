@@ -18,7 +18,7 @@ const CONNECTOR_MIN_SEGMENT_PX = 1
 const CURRENT_LEVEL_OUTLINE = '#FFFFFF'
 const COMPLETED_LEVEL_OUTLINE = '#8ACB7A'
 /** Fraction of remaining scroll distance followed by stars and locks each frame. */
-const CAREER_OVERLAY_SCROLL_LAG_PER_FRAME = 0.5
+const CAREER_OVERLAY_SCROLL_LAG_PER_FRAME = 0.8
 /** Stops the overlay animation once its remaining scroll difference is imperceptible. */
 const CAREER_OVERLAY_SCROLL_SETTLE_PX = 0.25
 
