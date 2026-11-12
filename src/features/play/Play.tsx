@@ -325,7 +325,7 @@ function GameSession(props: GameSessionProps) {
           >
             <CareerStarIcon filled size={28} />
           </Button>}
-          <p className="poster-kicker shrink-0 text-[15px] font-bold text-[var(--muted-text-color)]">{formatElapsedTime(elapsedSeconds)}</p>
+          <p className="poster-kicker shrink-0 text-[16px] font-bold text-[var(--muted-text-color)]">{formatElapsedTime(elapsedSeconds)}</p>
         </div>
       </header>
 
