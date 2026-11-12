@@ -11,7 +11,7 @@ import { recordInfiniteBestScore } from '@/lib/db'
 import { GameGrid } from './GameGrid'
 import { ClassicShapesDialog } from './ClassicShapesDialog'
 import { CLASSIC_INFINITE_HEALTH_SQUARE_COUNT, ClassicInfiniteHealthBar } from './ClassicInfiniteHealthBar'
-import { CLASSIC_INFINITE_CONFIG, ClassicInfiniteStream, createInfiniteSectionGenerator, type ClassicInfiniteSection } from './classicInfiniteStream'
+import { advanceInfiniteDifficulty, CLASSIC_INFINITE_CONFIG, ClassicInfiniteStream, createInfiniteDifficultyState, createInfiniteSectionGenerator, type ClassicInfiniteSection } from './classicInfiniteStream'
 import type { ClassicInfiniteCellExit } from './classicInfiniteCellExit'
 import { InfiniteEaterHead, InfiniteEaterMouth, INFINITE_EATER_HEIGHT_RATIO, INFINITE_EATER_WIDTH_RATIO } from './InfiniteEater'
 import { TetrominoBackground } from '../main-menu/TetrominoBackground'
@@ -26,6 +26,12 @@ const HEALTH_PER_LOCKED_SHAPE = 4
 const SCORE_PER_CORRECT_LOCK = 10
 const SCORE_ANIMATION_STEP = 1
 
+interface InfiniteSessionProgress {
+  score: number
+  /** Retained independently from points for future Infinite difficulty progression. */
+  validLockedCantominoCount: number
+}
+
 function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: ClassicInfiniteCellExit) => void; onRestart: () => void }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -34,9 +40,11 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
   const [shapesOpen, setShapesOpen] = useState(false)
   const [health, setHealth] = useState(INITIAL_HEALTH)
   const [healthAnimationKey, setHealthAnimationKey] = useState(0)
-  const [score, setScore] = useState(0)
+  const [progress, setProgress] = useState<InfiniteSessionProgress>({ score: 0, validLockedCantominoCount: 0 })
   const [gameOver, setGameOver] = useState(false)
   const healthRef = useRef(INITIAL_HEALTH)
+  const validLockedCantominoCountRef = useRef(0)
+  const difficultyRef = useRef(createInfiniteDifficultyState(CLASSIC_INFINITE_CONFIG))
   const [generationFailed, setGenerationFailed] = useState(false)
   const [session, setSession] = useState<{ stream: ClassicInfiniteStream; sections: readonly ClassicInfiniteSection[] } | null>(null)
 
@@ -44,7 +52,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
     let active = true
     const stream = new ClassicInfiniteStream(
       CLASSIC_INFINITE_CONFIG,
-      createInfiniteSectionGenerator(CLASSIC_INFINITE_CONFIG, seed),
+      createInfiniteSectionGenerator(() => difficultyRef.current.config, seed),
       (sections) => { if (active) setSession({ stream, sections }) },
       () => { if (active) setGenerationFailed(true) },
     )
@@ -60,6 +68,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
   }, [seed])
 
   const pieces = useMemo(() => session?.sections.flatMap((section) => section.pieces) ?? [], [session])
+  const score = progress.score
   const scrolling = useMemo(() => session ? {
     firstRow: session.sections[1].firstRow,
     visibleRows: CLASSIC_INFINITE_CONFIG.visibleRows,
@@ -75,7 +84,13 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
   function pause() { setPaused(true) }
   function handleLockedShape(_group: LockedCellGroup, hasUniqueCorners: boolean) {
     if (!hasUniqueCorners) return
-    setScore((currentScore) => currentScore + SCORE_PER_CORRECT_LOCK)
+    const nextValidLockedCantominoCount = validLockedCantominoCountRef.current + 1
+    validLockedCantominoCountRef.current = nextValidLockedCantominoCount
+    difficultyRef.current = advanceInfiniteDifficulty(difficultyRef.current, nextValidLockedCantominoCount)
+    setProgress((currentProgress) => ({
+      score: currentProgress.score + SCORE_PER_CORRECT_LOCK,
+      validLockedCantominoCount: nextValidLockedCantominoCount,
+    }))
     const nextHealth = Math.min(CLASSIC_INFINITE_HEALTH_SQUARE_COUNT, healthRef.current + HEALTH_PER_LOCKED_SHAPE)
     healthRef.current = nextHealth
     setHealth(nextHealth)

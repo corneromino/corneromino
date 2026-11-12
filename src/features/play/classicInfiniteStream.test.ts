@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { PlacedTetromino } from '@/game/gameConfig'
-import { CLASSIC_INFINITE_CONFIG, ClassicInfiniteStream, createInfiniteSectionGenerator } from './classicInfiniteStream'
+import { advanceInfiniteDifficulty, CLASSIC_INFINITE_CONFIG, ClassicInfiniteStream, createInfiniteDifficultyState, createInfiniteSectionGenerator, type InfiniteDifficultyCycle } from './classicInfiniteStream'
 
 const config = { ...CLASSIC_INFINITE_CONFIG, columns: 8, rows: 8, visibleRows: 4, tetrominoCount: 2, scrollRowsPerSecond: 10 }
 const pieces: PlacedTetromino[] = [{ id: 1, kind: 'O', cells: [
@@ -11,6 +11,57 @@ const pieces: PlacedTetromino[] = [{ id: 1, kind: 'O', cells: [
 ] }]
 
 describe('Classic Infinite section recycling', () => {
+  it('applies configured difficulty cycles in order after their lock intervals', () => {
+    let difficulty = createInfiniteDifficultyState(config)
+
+    difficulty = advanceInfiniteDifficulty(difficulty, 4)
+    expect(difficulty).toMatchObject({
+      config: { spread: 0, tetrominoCount: 2 },
+      cycleIndex: 0,
+      totalCycle: 0,
+      validLockCountAtLastCycleCheck: 0,
+    })
+
+    difficulty = advanceInfiniteDifficulty(difficulty, 5)
+    expect(difficulty).toMatchObject({
+      config: { spread: 0, tetrominoCount: 4 },
+      cycleIndex: 1,
+      totalCycle: 1,
+      validLockCountAtLastCycleCheck: 5,
+    })
+
+    difficulty = advanceInfiniteDifficulty(difficulty, 10)
+    expect(difficulty).toMatchObject({
+      config: { spread: 0.05, tetrominoCount: 4 },
+      cycleIndex: 0,
+      totalCycle: 2,
+      validLockCountAtLastCycleCheck: 10,
+    })
+  })
+
+  it('does not adopt the copied configuration or advance when a cycle returns false', () => {
+    const totalCycles: number[] = []
+    const cycles: readonly InfiniteDifficultyCycle[] = [{
+      apply: (_oldConfig, newConfig, totalCycle) => {
+        totalCycles.push(totalCycle)
+        newConfig.tetrominoCount += 10
+        return false
+      },
+      applyEvery: 5,
+      name: 'refuse',
+    }]
+
+    const difficulty = advanceInfiniteDifficulty(createInfiniteDifficultyState(config), 5, cycles)
+
+    expect(difficulty).toMatchObject({
+      config: { tetrominoCount: 2 },
+      cycleIndex: 0,
+      totalCycle: 0,
+      validLockCountAtLastCycleCheck: 5,
+    })
+    expect(totalCycles).toEqual([0])
+  })
+
   it('recycles only a fully departed section, keeping two adjacent sections across many cycles', async () => {
     const generate = vi.fn().mockResolvedValue(pieces)
     const recycled = vi.fn()
