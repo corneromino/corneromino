@@ -32,7 +32,7 @@ export const INFINITE_DIFFICULTY_CYCLES: readonly InfiniteDifficultyCycle[] = [
   {
     applyEvery: 5,
     name: 'tetrominoCount',
-    apply: (_oldConfig, newConfig, totalCycle) => {
+    apply: (_oldConfig, newConfig) => {
       newConfig.tetrominoCount += 1
       return newConfig.tetrominoCount <= 30
     },
