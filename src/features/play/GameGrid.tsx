@@ -23,6 +23,7 @@ import type { VerificationRequest } from '@/rendering/grid/verificationEffect'
 import type { CareerTutorialControlArea } from './careerTutorial'
 
 const DOUBLE_TAP_UNLOCK_MS = 200
+const GAME_GRID_REVEAL_DELAY_MS = 1
 
 interface GameGridProps {
   /** Disables only board-cell interaction, leaving tutorial UI targets available. */
@@ -91,6 +92,8 @@ interface GameGridProps {
   exitPath?: string
   /** Uses the streamlined pause menu for authored Career levels. */
   isCareerLevel?: boolean
+  /** Delays and animates this grid's initial visual reveal. */
+  entranceAnimation?: boolean
 }
 
 function createCellMap(pieces: readonly PlacedTetromino[]): Map<string, PlacedTetromino> {
@@ -123,6 +126,7 @@ export function GameGrid(props: GameGridProps) {
   const toast = useToast()
   const navigate = useNavigate()
   const [showCellIds, setShowCellIds] = useState(false)
+  const [hasEntranceDelayElapsed, setHasEntranceDelayElapsed] = useState(() => props.entranceAnimation !== true)
   const [selectedCellKeys, setSelectedCellKeys] = useState<Set<string>>(() => new Set())
   const [lockedCellGroups, setLockedCellGroups] = useState<LockedCellGroup[]>([])
   const [markers, setMarkers] = useState<Map<string, CellMarkerColor>>(() => new Map())
@@ -155,7 +159,8 @@ export function GameGrid(props: GameGridProps) {
   const handleGridNavigation = useCallback(() => { lastLockedTapRef.current = null }, [])
   const autoLock = props.config.lockingMode === 'auto'
   const autoFinalVerification = props.config.finalVerificationMode === 'auto'
-  const isGameplayPaused = props.paused || props.suspended === true
+  const isEntranceRevealed = props.entranceAnimation !== true || (hasEntranceDelayElapsed && selectionLoaded)
+  const isGameplayPaused = props.paused || props.suspended === true || !isEntranceRevealed
   const cellMap = createCellMap(props.pieces)
   const lockedCellMap = createLockedCellMap(lockedCellGroups)
   const canLockSelectedCells = canLockCells(selectedCellKeys)
@@ -171,6 +176,17 @@ export function GameGrid(props: GameGridProps) {
   const boardStyle = {
     width: `min(${100 / boardAdornmentWidthRatio}%, calc(100cqh / ${boardHeightRatio + boardBottomAdornmentHeightRatio}))`,
   }
+
+  useEffect(() => {
+    if (props.entranceAnimation !== true) {
+      setHasEntranceDelayElapsed(true)
+      return
+    }
+
+    setHasEntranceDelayElapsed(false)
+    const revealTimer = window.setTimeout(() => setHasEntranceDelayElapsed(true), GAME_GRID_REVEAL_DELAY_MS)
+    return () => window.clearTimeout(revealTimer)
+  }, [props.entranceAnimation])
 
   // Prune a recycled section before its replacement reaches the canvas. Cells
   // and group fragments still on screen retain their selection, locks and notes.
@@ -708,7 +724,10 @@ export function GameGrid(props: GameGridProps) {
   }, [completionResult, elapsedSeconds, gameGridScreenshot, isCompleted, isExiting, lockedCellGroups, markers, moveCount, props.gameId, props.gameMode, props.persistSelection, savedAt, selectedCellKeys, selectionLoaded, unlockCount])
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 px-1">
+    <div
+      className={cn('flex h-full min-h-0 flex-col gap-4 px-1', props.entranceAnimation && 'game-grid-entrance')}
+      data-revealed={isEntranceRevealed || undefined}
+    >
       <div className="flex min-h-0 flex-1 items-start justify-center [container-type:size]">
         <section aria-label="Game board" className="mx-auto max-w-[550px]" id={props.boardId} ref={gameBoardRef} style={boardStyle}>
           <div className="relative w-full" style={{ aspectRatio: `${props.config.columns} / ${visibleRows}` }}>

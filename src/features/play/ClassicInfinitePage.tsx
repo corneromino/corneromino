@@ -177,6 +177,7 @@ function InfiniteSession({ onCellExit, onRestart }: { onCellExit?: (event: Class
           boardBottomAdornmentHeightRatio={INFINITE_EATER_HEIGHT_RATIO}
           boardForegroundAdornment={<InfiniteEaterHead paused={paused || shapesOpen || gameOver || generationFailed} />}
           config={BOARD_CONFIG}
+          entranceAnimation
           gameId={seed}
           gameMode="infinite"
           onElapsedSecondsChange={ignoreElapsedSecondsChange}

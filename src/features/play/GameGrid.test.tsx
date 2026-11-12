@@ -132,6 +132,20 @@ afterEach(() => {
 })
 
 describe('Classic locking modes', () => {
+  it('loads behind a delayed entrance before sliding the grid into view', async () => {
+    vi.useFakeTimers()
+    setup('auto', { entranceAnimation: true })
+
+    const entrance = screen.getByLabelText('Game board').closest('.game-grid-entrance')!
+    expect(entrance.getAttribute('data-revealed')).toBeNull()
+    expect(canvasMock.props!.interactive).toBe(false)
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000) })
+
+    expect(entrance.getAttribute('data-revealed')).toBe('true')
+    expect(canvasMock.props!.interactive).toBe(true)
+  })
+
   it('disables canvas interaction when a tutorial step marks the board non-interactive', async () => {
     setup('auto', { boardInteractive: false })
 

@@ -334,6 +334,7 @@ function GameSession(props: GameSessionProps) {
           <GameGrid
             boardInteractive={tutorialBoardInteractive}
             config={gameDefinition.config}
+            entranceAnimation
             getCompletionResult={getCompletionResult}
             deferCompletionDialog={tutorialOpen}
             exitPath={props.careerLevel ? '/' : undefined}

@@ -405,6 +405,7 @@ export function ClassicTutorial() {
           boardId="classic-tutorial-board"
           boardResetKey={tutorialScenario}
           config={TUTORIAL_SCENARIOS[tutorialScenario].config}
+          entranceAnimation
           gameId="classic-tutorial"
           gameMode="c002"
           highlightAreas={TUTORIAL_HIGHLIGHT_AREAS}
