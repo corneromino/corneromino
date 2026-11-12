@@ -17,6 +17,10 @@ const CONNECTOR_INTERIOR_THICKNESS_PX = CONNECTOR_THICKNESS_PX - CONNECTOR_BORDE
 const CONNECTOR_MIN_SEGMENT_PX = 1
 const CURRENT_LEVEL_OUTLINE = '#FFFFFF'
 const COMPLETED_LEVEL_OUTLINE = '#8ACB7A'
+/** Fraction of remaining scroll distance followed by stars and locks each frame. */
+const CAREER_OVERLAY_SCROLL_LAG_PER_FRAME = 0.5
+/** Stops the overlay animation once its remaining scroll difference is imperceptible. */
+const CAREER_OVERLAY_SCROLL_SETTLE_PX = 0.25
 
 interface Point {
   x: number
@@ -200,6 +204,9 @@ export function MainMenuCareerLevels() {
   const [careerProgression, setCareerProgression] = useState<readonly CareerLevelProgression[]>([])
   const [hasLoadedCareerProgression, setHasLoadedCareerProgression] = useState(false)
   const [cardAnchors, setCardAnchors] = useState<Map<number, CardAnchor>>(() => new Map())
+  const [overlayScrollOffset, setOverlayScrollOffset] = useState(0)
+  const delayedScrollTopRef = useRef(0)
+  const overlayAnimationFrameRef = useRef<number | null>(null)
   const levelPositions = resolveCareerLevelPositions()
   const lastUnlockedLevelIndex = getCurrentCareerLevelIndex(careerProgression)
   const highestLevelY = Math.max(0, ...levelPositions.map((level) => level.y)) + LEVEL_Y_OFFSET * 2
@@ -220,6 +227,38 @@ export function MainMenuCareerLevels() {
       top: Math.max(0, currentLevelCard.offsetTop - (viewport.clientHeight - currentLevelCard.offsetHeight) / 2),
     })
   }, [hasLoadedCareerProgression, lastUnlockedLevelIndex])
+
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return
+
+    delayedScrollTopRef.current = viewport.scrollTop
+    const updateOverlayPosition = () => {
+      const scrollDifference = viewport.scrollTop - delayedScrollTopRef.current
+      if (Math.abs(scrollDifference) <= CAREER_OVERLAY_SCROLL_SETTLE_PX) {
+        delayedScrollTopRef.current = viewport.scrollTop
+        overlayAnimationFrameRef.current = null
+        setOverlayScrollOffset(0)
+        return
+      }
+
+      delayedScrollTopRef.current += scrollDifference * CAREER_OVERLAY_SCROLL_LAG_PER_FRAME
+      setOverlayScrollOffset(viewport.scrollTop - delayedScrollTopRef.current)
+      overlayAnimationFrameRef.current = window.requestAnimationFrame(updateOverlayPosition)
+    }
+    const handleScroll = () => {
+      if (overlayAnimationFrameRef.current === null) {
+        overlayAnimationFrameRef.current = window.requestAnimationFrame(updateOverlayPosition)
+      }
+    }
+
+    viewport.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      viewport.removeEventListener('scroll', handleScroll)
+      if (overlayAnimationFrameRef.current !== null) window.cancelAnimationFrame(overlayAnimationFrameRef.current)
+      overlayAnimationFrameRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -354,9 +393,11 @@ export function MainMenuCareerLevels() {
               />
             )
           })}
-          {[...cardAnchors.entries()]
-            .filter(([index]) => index > lastUnlockedLevelIndex)
-            .map(([index, anchor]) => <LockedLevelBadge key={index} position={anchor.topCenter} />)}
+          <div style={{ transform: `translateY(${overlayScrollOffset}px)` }}>
+            {[...cardAnchors.entries()]
+              .filter(([index]) => index > lastUnlockedLevelIndex)
+              .map(([index, anchor]) => <LockedLevelBadge key={index} position={anchor.topCenter} />)}
+          </div>
         </div>
         </div>
       </section>
