@@ -27,14 +27,51 @@ export interface InfiniteDifficultyCycle {
   name: string
 }
 
+export const INFINITE_TETROMINO_PROGRESSION = {
+  incrementBy: 1,
+  incrementsPerStage: 5,
+  incrementIntervalStep: 1,
+  initialIncrementEvery: 1,
+  maxTetrominoCount: 30,
+  plateauCycles: 20,
+} as const
+
+/** Whether the current total difficulty cycle is an increase within its growth stage. */
+export function shouldIncreaseInfiniteTetrominoCount(
+  totalCycle: number,
+  progression = INFINITE_TETROMINO_PROGRESSION,
+) {
+  let stageStartCycle = 0
+  let incrementEvery = progression.initialIncrementEvery
+
+  while (true) {
+    const growthCycleCount = progression.incrementsPerStage * incrementEvery
+    if (totalCycle < stageStartCycle + growthCycleCount) {
+      return (totalCycle - stageStartCycle) % incrementEvery === 0
+    }
+
+    const nextStageStartCycle = stageStartCycle + growthCycleCount + progression.plateauCycles
+    if (totalCycle < nextStageStartCycle) return false
+
+    stageStartCycle = nextStageStartCycle
+    incrementEvery += progression.incrementIntervalStep
+  }
+}
+
 /** Ordered, repeating difficulty adjustments for valid Infinite locks. */
 export const INFINITE_DIFFICULTY_CYCLES: readonly InfiniteDifficultyCycle[] = [
   {
     applyEvery: 5,
     name: 'tetrominoCount',
-    apply: (_oldConfig, newConfig) => {
-      newConfig.tetrominoCount += 1
-      return newConfig.tetrominoCount <= 30
+    apply: (oldConfig, newConfig, totalCycle) => {
+      if (oldConfig.tetrominoCount >= INFINITE_TETROMINO_PROGRESSION.maxTetrominoCount) return false
+      if (!shouldIncreaseInfiniteTetrominoCount(totalCycle)) return true
+
+      newConfig.tetrominoCount = Math.min(
+        INFINITE_TETROMINO_PROGRESSION.maxTetrominoCount,
+        oldConfig.tetrominoCount + INFINITE_TETROMINO_PROGRESSION.incrementBy,
+      )
+      return true
     },
   },
   // {

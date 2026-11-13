@@ -11,32 +11,26 @@ const pieces: PlacedTetromino[] = [{ id: 1, kind: 'O', cells: [
 ] }]
 
 describe('Classic Infinite section recycling', () => {
-  it('applies configured difficulty cycles in order after their lock intervals', () => {
+  it('grows tetromino count in staged bursts separated by plateaus', () => {
     let difficulty = createInfiniteDifficultyState(config)
+    const advanceOneDifficultyCycle = () => {
+      difficulty = advanceInfiniteDifficulty(difficulty, difficulty.validLockCountAtLastCycleCheck + 5)
+    }
 
-    difficulty = advanceInfiniteDifficulty(difficulty, 4)
-    expect(difficulty).toMatchObject({
-      config: { spread: 0, tetrominoCount: 2 },
-      cycleIndex: 0,
-      totalCycle: 0,
-      validLockCountAtLastCycleCheck: 0,
-    })
+    for (let cycle = 0; cycle < 5; cycle += 1) advanceOneDifficultyCycle()
+    expect(difficulty.config.tetrominoCount).toBe(7)
+    expect(difficulty.totalCycle).toBe(5)
 
-    difficulty = advanceInfiniteDifficulty(difficulty, 5)
-    expect(difficulty).toMatchObject({
-      config: { spread: 0, tetrominoCount: 4 },
-      cycleIndex: 1,
-      totalCycle: 1,
-      validLockCountAtLastCycleCheck: 5,
-    })
+    for (let cycle = 0; cycle < 20; cycle += 1) advanceOneDifficultyCycle()
+    expect(difficulty.config.tetrominoCount).toBe(7)
+    expect(difficulty.totalCycle).toBe(25)
 
-    difficulty = advanceInfiniteDifficulty(difficulty, 10)
-    expect(difficulty).toMatchObject({
-      config: { spread: 0.05, tetrominoCount: 4 },
-      cycleIndex: 0,
-      totalCycle: 2,
-      validLockCountAtLastCycleCheck: 10,
-    })
+    advanceOneDifficultyCycle()
+    expect(difficulty.config.tetrominoCount).toBe(8)
+    advanceOneDifficultyCycle()
+    expect(difficulty.config.tetrominoCount).toBe(8)
+    advanceOneDifficultyCycle()
+    expect(difficulty.config.tetrominoCount).toBe(9)
   })
 
   it('does not adopt the copied configuration or advance when a cycle returns false', () => {

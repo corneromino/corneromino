@@ -36,7 +36,11 @@ export default {
         "version": "Version {{version}}"
     },
     "miniGames": {
-        "title": "Mini games"
+        "title": "Mini games",
+        "decreasePlayers": "Remove player",
+        "increasePlayers": "Add player",
+        "players_one": "{{count}} player",
+        "players_other": "{{count}} players"
     },
     "bonus": {
         "anyRotation": "Any rotation",
