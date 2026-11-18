@@ -8,10 +8,10 @@ import { createRandomSeed, createSeededRandom } from '@/game/random'
 import { generateBonusRequirements, getBonusPercentage, hasDuplicateBonusRequirements } from '@/game/bonus'
 import { getPerfectionPercentage, type GameCompletionResult } from '@/game/completionProgress'
 import { GAME_CONFIGS, isGameMode, type ClassicGameMode, type GameConfig } from '@/game/gameConfig'
-import { clearGameSelection, completeCareerLevel, loadClassicGameDefinition, saveClassicGameDefinition, type ClassicGameDefinition } from '@/lib/db'
+import { clearGameSelection, completeCareerLevel, loadCareerLevelGeneration, loadCareerProgression, loadClassicGameDefinition, saveCareerLevelGeneration, saveClassicGameDefinition, type CareerLevelGeneration, type ClassicGameDefinition } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
 import type { LockedCellGroup } from '@/game/gameConfig'
-import { getCareerGameId, getCareerLevel, getCareerLevelPath, getNextCareerLevel, type ResolvedCareerLevel } from './careerLevels'
+import { EMPTY_CAREER_LEVEL_GENERATION, extendCareerLevelGeneration, getCareerGameId, getCareerLevel, getCareerLevelGameMode, getCareerLevelPath, getNextCareerLevel, isClassicGameDefinitionCareerData, type ResolvedCareerLevel } from './careerLevels'
 import { GameGrid } from './GameGrid'
 import { ClassicShapesDialog } from './ClassicShapesDialog'
 import { BonusDialog } from './BonusDialog'
@@ -61,8 +61,10 @@ function AttemptProgressBar({ ariaLabel, moveCount, requiredLockCount, unlockCou
 }
 
 interface GameSessionProps {
+  careerGeneration?: CareerLevelGeneration
   careerLevel?: ResolvedCareerLevel
   gameMode: ClassicGameMode
+  onInfiniteRepeatCompleted?: (infiniteRepeat: NonNullable<ResolvedCareerLevel['infiniteRepeat']>) => void
   requestedSeed: string | null
 }
 
@@ -79,19 +81,24 @@ function GameSession(props: GameSessionProps) {
   const [pauseOpen, setPauseOpen] = useState(false)
   const [bonusOpen, setBonusOpen] = useState(false)
   const [shapesOpen, setShapesOpen] = useState(false)
-  const careerTutorial = props.careerLevel?.tutorial
+  const [careerLevel, setCareerLevel] = useState(props.careerLevel)
+  const careerTutorial = careerLevel?.tutorial
   const tutorialSteps = careerTutorial?.steps ?? EMPTY_CAREER_TUTORIAL_STEPS
   const [tutorialSelectionReady, setTutorialSelectionReady] = useState(() => careerTutorial === undefined)
   const [tutorialOpen, setTutorialOpen] = useState(() => tutorialSteps.length > 0)
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
   const [tutorialSuspended, setTutorialSuspended] = useState(false)
+  const [careerBoardCompleted, setCareerBoardCompleted] = useState(false)
+  const [careerRestartVersion, setCareerRestartVersion] = useState(0)
   const tutorialRef = useRef<ReturnType<typeof createTutorialDriver> | null>(null)
   const tutorialStepIndexRef = useRef(0)
-  const seed = props.careerLevel ? getCareerGameId(props.careerLevel.data) : props.requestedSeed || generatedSeed
-  const modeConfig = GAME_CONFIGS[props.gameMode]
-  const gameTitle = props.careerLevel ? t('career.level', { number: props.careerLevel.number }) : gameDefinition?.source === 'custom' && gameDefinition.customName ? gameDefinition.customName : t(modeConfig.title)
+  const activeGameMode = careerLevel ? getCareerLevelGameMode(careerLevel) : props.gameMode
+  const seed = careerLevel ? getCareerGameId(careerLevel) : props.requestedSeed || generatedSeed
+  const modeConfig = GAME_CONFIGS[activeGameMode]
+  const generatedCareerBoard = careerLevel !== undefined && !isClassicGameDefinitionCareerData(careerLevel.data)
+  const gameTitle = careerLevel ? t('career.level', { number: careerLevel.number }) : gameDefinition?.source === 'custom' && gameDefinition.customName ? gameDefinition.customName : t(modeConfig.title)
   const requiredLockCount = gameDefinition?.config.tetrominoCount ?? modeConfig.tetrominoCount
-  const bonus = props.careerLevel?.bonus ?? gameDefinition?.bonus ?? []
+  const bonus = careerLevel?.bonus ?? gameDefinition?.bonus ?? []
   const attemptAriaLabel = `${t('classic.moves', { count: moveCount })} / ${t('classic.unlocks', { count: unlockCount })}`
   const activeTutorialStep = tutorialOpen ? tutorialSteps[tutorialStepIndex] : undefined
   const tutorialBoardInteractive = activeTutorialStep?.boardInteractive !== false
@@ -156,17 +163,17 @@ function GameSession(props: GameSessionProps) {
   }
 
   function nextGame() {
-    if (props.careerLevel) {
-      const nextLevel = getNextCareerLevel(props.careerLevel)
+    if (careerLevel) {
+      const nextLevel = getNextCareerLevel(careerLevel, props.careerGeneration)
       navigate(nextLevel ? getCareerLevelPath(nextLevel) : '/')
       return
     }
-    navigate(`/play?mode=${props.gameMode}&seed=${encodeURIComponent(createRandomSeed())}`)
+    navigate(`/play?mode=${activeGameMode}&seed=${encodeURIComponent(createRandomSeed())}`)
   }
 
   function getCompletionResult(lockedGroups: readonly LockedCellGroup[], completedUnlockCount: number): GameCompletionResult {
     const cantominoCount = gameDefinition?.pieces.length ?? 0
-    const bonus = props.careerLevel?.bonus ?? gameDefinition?.bonus
+    const bonus = careerLevel?.bonus ?? gameDefinition?.bonus
     return {
       bonusPercentage: getBonusPercentage(bonus, lockedGroups),
       perfectionPercentage: getPerfectionPercentage(cantominoCount, completedUnlockCount),
@@ -174,17 +181,24 @@ function GameSession(props: GameSessionProps) {
   }
 
   function handleCareerGameCompleted(result: GameCompletionResult | undefined) {
-    if (!props.careerLevel || !result) return
-    void completeCareerLevel(props.careerLevel.data.seed, result)
+    if (!careerLevel || !result) return
+    setCareerBoardCompleted(true)
+    void completeCareerLevel(careerLevel.id, result)
+    if (careerLevel.infiniteRepeat?.isTail) props.onInfiniteRepeatCompleted?.(careerLevel.infiniteRepeat)
     advanceTutorial('complete')
   }
 
+  function regenerateCareerBoard() {
+    if (careerLevel) setCareerLevel(getCareerLevel(careerLevel.id) ?? careerLevel)
+    setCareerRestartVersion((version) => version + 1)
+  }
+
   useEffect(() => {
-    if (!props.requestedSeed && !props.careerLevel) {
-      void clearGameSelection(props.gameMode, generatedSeed)
-      navigate(`/play?mode=${props.gameMode}&seed=${encodeURIComponent(generatedSeed)}`, { replace: true, state: location.state })
+    if (!props.requestedSeed && !careerLevel) {
+      void clearGameSelection(activeGameMode, generatedSeed)
+      navigate(`/play?mode=${activeGameMode}&seed=${encodeURIComponent(generatedSeed)}`, { replace: true, state: location.state })
     }
-  }, [generatedSeed, location.state, navigate, props.careerLevel, props.gameMode, props.requestedSeed])
+  }, [activeGameMode, careerLevel, generatedSeed, location.state, navigate, props.requestedSeed])
 
   useEffect(() => {
     if (!careerTutorial) {
@@ -196,7 +210,7 @@ function GameSession(props: GameSessionProps) {
     setTutorialSelectionReady(false)
     void (async () => {
       try {
-        await clearGameSelection(props.gameMode, seed)
+        await clearGameSelection(activeGameMode, seed)
       } catch {
         // GameGrid still starts from a fresh in-memory selection below.
       } finally {
@@ -206,7 +220,7 @@ function GameSession(props: GameSessionProps) {
     return () => {
       active = false
     }
-  }, [careerTutorial, props.gameMode, seed])
+  }, [activeGameMode, careerTutorial, seed])
 
   useEffect(() => {
     let active = true
@@ -216,14 +230,45 @@ function GameSession(props: GameSessionProps) {
     setUnlockCount(0)
     setGameDefinition(null)
 
-    const definition = props.careerLevel
-      ? Promise.resolve({ ...props.careerLevel.data, seed })
-      : loadClassicGameDefinition(props.gameMode, seed)
-    void definition
-      .catch(() => null)
+    const resolveDefinition = async () => {
+      if (careerLevel) {
+        if (isClassicGameDefinitionCareerData(careerLevel.data)) {
+          return { ...careerLevel.data, seed }
+        }
+
+        const [careerProgression, savedDefinition] = await Promise.all([
+          loadCareerProgression(),
+          loadClassicGameDefinition(activeGameMode, seed),
+        ])
+        const completed = careerProgression.some((progression) => progression.seed === careerLevel.id)
+        if (active) setCareerBoardCompleted(completed)
+        if (savedDefinition && (completed || careerRestartVersion === 0)) return savedDefinition
+
+        if (savedDefinition) await clearGameSelection(activeGameMode, seed)
+        const generationSeed = createRandomSeed()
+        const config = careerLevel.data
+        const pieces = await generateTetrominoPlacementsV2(config, {
+          random: createSeededRandom(`${seed}:${generationSeed}`),
+          yieldEvery: 250,
+        })
+        const definition = {
+          bonus: generateBonusRequirements(pieces, config, createSeededRandom(`${seed}:${generationSeed}:bonus`)),
+          config: { ...config },
+          gameMode: activeGameMode,
+          pieces,
+          seed,
+          version: 1,
+        } satisfies ClassicGameDefinition
+        await saveClassicGameDefinition(definition)
+        return definition
+      }
+
+      return loadClassicGameDefinition(activeGameMode, seed).catch(() => null)
+    }
+    void resolveDefinition()
       .then(async (savedDefinition) => {
         if (savedDefinition) {
-          if (props.careerLevel || (savedDefinition.bonus !== undefined && !hasDuplicateBonusRequirements(savedDefinition.bonus))) return savedDefinition
+          if (careerLevel || (savedDefinition.bonus !== undefined && !hasDuplicateBonusRequirements(savedDefinition.bonus))) return savedDefinition
           const definitionWithBonus = {
             ...savedDefinition,
             bonus: generateBonusRequirements(
@@ -236,13 +281,13 @@ function GameSession(props: GameSessionProps) {
           return definitionWithBonus
         }
         const pieces = await generateTetrominoPlacementsV2(modeConfig, {
-          random: createSeededRandom(`${props.gameMode}:${seed}`),
+          random: createSeededRandom(`${activeGameMode}:${seed}`),
           yieldEvery: 250,
         })
         return {
           config: { ...modeConfig },
-          bonus: generateBonusRequirements(pieces, modeConfig as GameConfig, createSeededRandom(`${props.gameMode}:${seed}:bonus`)),
-          gameMode: props.gameMode,
+          bonus: generateBonusRequirements(pieces, modeConfig as GameConfig, createSeededRandom(`${activeGameMode}:${seed}:bonus`)),
+          gameMode: activeGameMode,
           pieces,
           seed,
           version: 1,
@@ -260,7 +305,7 @@ function GameSession(props: GameSessionProps) {
     return () => {
       active = false
     }
-  }, [modeConfig, props.careerLevel, props.gameMode, seed])
+  }, [activeGameMode, careerLevel, careerRestartVersion, modeConfig, seed])
 
   useEffect(() => {
     if (!gameDefinition || !tutorialSelectionReady || !tutorialOpen || tutorialSuspended || tutorialSteps.length === 0) return
@@ -337,21 +382,22 @@ function GameSession(props: GameSessionProps) {
             entranceAnimation
             getCompletionResult={getCompletionResult}
             deferCompletionDialog={tutorialOpen}
-            exitPath={props.careerLevel ? '/' : undefined}
+            exitPath={careerLevel ? '/' : undefined}
             hasBonus={bonus.length > 0}
             gameDefinition={gameDefinition}
             gameId={seed}
-            gameMode={props.gameMode}
+            gameMode={activeGameMode}
             hideGameControls={!tutorialShowsUI}
             highlightAreas={tutorialHighlightAreas}
-            isCareerLevel={!!props.careerLevel}
-            key={`${props.gameMode}:${seed}:${gameDefinition.version}`}
+            isCareerLevel={!!careerLevel}
+            key={`${activeGameMode}:${seed}:${gameDefinition.version}`}
             onElapsedSecondsChange={setElapsedSeconds}
-            onGameCompleted={props.careerLevel ? handleCareerGameCompleted : undefined}
+            onGameCompleted={careerLevel ? handleCareerGameCompleted : undefined}
             onLocked={() => advanceTutorial('lock')}
             onMoveCountChange={setMoveCount}
             onNextGame={nextGame}
             onPauseOpenChange={setPauseOpen}
+            onRestart={generatedCareerBoard && !careerBoardCompleted ? regenerateCareerBoard : undefined}
             onRestartDialogOpenChange={handleRestartDialogOpenChange}
             onRestartRequested={suspendTutorialForRestart}
             onRestarted={handleTutorialRestarted}
@@ -382,10 +428,52 @@ export function Play() {
   const gameMode = searchParams.get('mode')
   const requestedSeed = searchParams.get('seed')
   const careerSeed = searchParams.get('career')
-  const careerLevel = careerSeed === null ? null : getCareerLevel(careerSeed)
+  const careerGenerationRef = useRef<CareerLevelGeneration | null>(null)
+  const [careerGeneration, setCareerGeneration] = useState<CareerLevelGeneration | null>(null)
+
+  useEffect(() => {
+    if (careerSeed === null) {
+      careerGenerationRef.current = null
+      setCareerGeneration(null)
+      return
+    }
+    if (careerGenerationRef.current !== null) {
+      setCareerGeneration(careerGenerationRef.current)
+      return
+    }
+
+    let active = true
+    void loadCareerLevelGeneration()
+      .then((generation) => {
+        if (!active) return
+        careerGenerationRef.current = generation
+        setCareerGeneration(generation)
+      })
+      .catch(() => {
+        if (!active) return
+        careerGenerationRef.current = EMPTY_CAREER_LEVEL_GENERATION
+        setCareerGeneration(EMPTY_CAREER_LEVEL_GENERATION)
+      })
+    return () => {
+      active = false
+    }
+  }, [careerSeed])
+
+  function handleInfiniteRepeatCompleted(infiniteRepeat: NonNullable<ResolvedCareerLevel['infiniteRepeat']>) {
+    const currentGeneration = careerGenerationRef.current ?? EMPTY_CAREER_LEVEL_GENERATION
+    const nextGeneration = extendCareerLevelGeneration(currentGeneration, infiniteRepeat)
+    if (nextGeneration === currentGeneration) return
+    careerGenerationRef.current = nextGeneration
+    setCareerGeneration(nextGeneration)
+    void saveCareerLevelGeneration(nextGeneration)
+  }
+
+  if (careerSeed !== null && careerGeneration === null) return null
+  const resolvedCareerGeneration = careerGeneration ?? EMPTY_CAREER_LEVEL_GENERATION
+  const careerLevel = careerSeed === null ? null : getCareerLevel(careerSeed, resolvedCareerGeneration)
 
   if (careerSeed !== null && !careerLevel) return <Navigate replace to="/play/levels" />
-  if (careerLevel) return <GameSession careerLevel={careerLevel} gameMode={careerLevel.data.gameMode} key={`career:${careerLevel.data.seed}`} requestedSeed={getCareerGameId(careerLevel.data)} />
+  if (careerLevel) return <GameSession careerGeneration={resolvedCareerGeneration} careerLevel={careerLevel} gameMode={getCareerLevelGameMode(careerLevel)} key={`career:${careerLevel.id}`} onInfiniteRepeatCompleted={handleInfiniteRepeatCompleted} requestedSeed={getCareerGameId(careerLevel)} />
 
   if (!isGameMode(gameMode)) return <Navigate replace to="/play/levels" />
 

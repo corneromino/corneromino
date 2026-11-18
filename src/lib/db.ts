@@ -18,6 +18,11 @@ export interface CareerLevelProgression extends GameCompletionResult {
   type: 'career-progression'
 }
 
+/** Persisted extent of every currently active infinite Career section. */
+export interface CareerLevelGeneration {
+  infiniteRepeats: Record<string, number>
+}
+
 export interface SavedGame {
   gameId: string
   gameMode: ClassicGameMode
@@ -90,6 +95,7 @@ const CASCADE_STORAGE_KEY = 'cascade:current'
 const CASCADE_BEST_SCORE_STORAGE_KEY = 'cascade:best-score'
 const INFINITE_BEST_SCORE_STORAGE_KEY = 'infinite:best-score'
 const VS_LOCAL_STORAGE_KEY = 'vs:local:current'
+const CAREER_GENERATION_STORAGE_KEY = 'career:generation'
 
 function careerProgressStorageKey(seed: string): string {
   return `career:${seed}`
@@ -98,6 +104,12 @@ function careerProgressStorageKey(seed: string): string {
 function isCareerSelectionStorageKey(id: string): boolean {
   const [prefix, gameMode, ...gameIdParts] = id.split(':')
   return prefix === 'selection' && gameMode !== undefined && isGameMode(gameMode)
+    && gameIdParts.join(':').startsWith('career:')
+}
+
+function isCareerDefinitionStorageKey(id: string): boolean {
+  const [prefix, gameMode, ...gameIdParts] = id.split(':')
+  return prefix === 'definition' && gameMode !== undefined && isGameMode(gameMode)
     && gameIdParts.join(':').startsWith('career:')
 }
 
@@ -123,6 +135,16 @@ function isCareerLevelProgressionState(value: unknown): value is Omit<CareerLeve
     && 'type' in value && value.type === 'career-progression'
     && 'bonusPercentage' in value && isCareerPercentage(value.bonusPercentage)
     && 'perfectionPercentage' in value && isCareerPercentage(value.perfectionPercentage)
+}
+
+function isCareerLevelGenerationState(value: unknown): value is CareerLevelGeneration & { type: 'career-generation' } {
+  return typeof value === 'object' && value !== null
+    && 'type' in value && value.type === 'career-generation'
+    && 'infiniteRepeats' in value && typeof value.infiniteRepeats === 'object' && value.infiniteRepeats !== null
+    && !Array.isArray(value.infiniteRepeats)
+    && Object.entries(value.infiniteRepeats).every(([sourceIndex, repeatCount]) => (
+      /^\d+$/.test(sourceIndex) && isNonNegativeInteger(repeatCount) && repeatCount > 0
+    ))
 }
 
 function isVsPlayer(value: unknown): value is 0 | 1 {
@@ -578,14 +600,38 @@ export async function completeCareerLevel(seed: string, result: GameCompletionRe
   })
 }
 
-/** Clears Career completion and per-level player state, leaving authored boards and normal saves untouched. */
+/** Loads how many levels are currently materialized for active infinite Career sections. */
+export async function loadCareerLevelGeneration(): Promise<CareerLevelGeneration> {
+  const record = await (await db).get('games', CAREER_GENERATION_STORAGE_KEY)
+  if (!record || !isCareerLevelGenerationState(record.state)) return { infiniteRepeats: {} }
+  return { infiniteRepeats: { ...record.state.infiniteRepeats } }
+}
+
+/** Saves the materialized extent of active infinite Career sections. */
+export async function saveCareerLevelGeneration(generation: CareerLevelGeneration): Promise<void> {
+  if (!Object.entries(generation.infiniteRepeats).every(([sourceIndex, repeatCount]) => (
+    /^\d+$/.test(sourceIndex) && isNonNegativeInteger(repeatCount) && repeatCount > 0
+  ))) {
+    throw new Error('Cannot save invalid Career level generation state.')
+  }
+  await (await db).put('games', {
+    id: CAREER_GENERATION_STORAGE_KEY,
+    state: {
+      infiniteRepeats: { ...generation.infiniteRepeats },
+      type: 'career-generation',
+    },
+    updatedAt: Date.now(),
+  })
+}
+
+/** Clears Career completion, attempts, and generated boards while leaving normal saves untouched. */
 export async function resetCareerProgress(): Promise<void> {
   const database = await db
   const records = await database.getAll('games')
   await Promise.all(records
     .filter((record) => (
       record.id.startsWith('career:')
-    ) || isCareerSelectionStorageKey(record.id))
+    ) || isCareerSelectionStorageKey(record.id) || isCareerDefinitionStorageKey(record.id))
     .map((record) => database.delete('games', record.id)))
 }
 

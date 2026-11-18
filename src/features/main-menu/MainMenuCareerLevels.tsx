@@ -1,11 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { DepthButton, PAPER_DEPTH_SHADOW_COLOR } from '@/components/ui/depth-surface'
+import { DepthButton, DepthSurface, PAPER_DEPTH_SHADOW_COLOR } from '@/components/ui/depth-surface'
 import { PixelLockIcon } from '@/features/cascade/PixelLockIcon'
 import { CareerStars } from '@/components/CareerStars'
-import { loadCareerProgression, type CareerLevelProgression } from '@/lib/db'
-import { getCareerLevelPath, getCurrentCareerLevelIndex, resolveCareerLevelPositions, type CareerLevelEdge, type CareerLevelPosition } from '@/features/play/careerLevels'
+import { loadCareerLevelGeneration, loadCareerProgression, type CareerLevelGeneration, type CareerLevelProgression } from '@/lib/db'
+import { EMPTY_CAREER_LEVEL_GENERATION, getCareerLevelPath, getCurrentCareerLevelIndexFromPositions, resolveCareerLevelPositions, type CareerLevelEdge, type CareerLevelPosition } from '@/features/play/careerLevels'
 
 const LEVEL_Y_OFFSET = 350
 const LEVEL_CARD_SIZE_PX = 70
@@ -17,6 +17,9 @@ const CONNECTOR_INTERIOR_THICKNESS_PX = CONNECTOR_THICKNESS_PX - CONNECTOR_BORDE
 const CONNECTOR_MIN_SEGMENT_PX = 1
 const CURRENT_LEVEL_OUTLINE = '#FFFFFF'
 const COMPLETED_LEVEL_OUTLINE = '#8ACB7A'
+const SCROLLBAR_EDGE_GAP_PX = 14
+const SCROLLBAR_MIN_THUMB_HEIGHT_PX = 32
+const SCROLLBAR_WIDTH_PX = 14
 
 interface Point {
   x: number
@@ -28,9 +31,18 @@ interface CanvasSize {
   width: number
 }
 
-interface CardAnchor {
-  bottomCenter: Point
-  topCenter: Point
+interface ScrollbarThumb {
+  height: number
+  maxScrollTop: number
+  scrollTop: number
+  top: number
+  travel: number
+}
+
+interface MainMenuCareerLevelsProps {
+  scrollThumbContainerRef: RefObject<HTMLElement | null>
+  scrollThumbEndRef: RefObject<HTMLElement | null>
+  scrollThumbStartRef: RefObject<HTMLElement | null>
 }
 
 const EDGE_NORMALS: Record<CareerLevelEdge, Point> = {
@@ -190,20 +202,103 @@ function LockedLevelBadge({ position }: { position: Point }) {
 }
 
 /** Positions authored Career level cards and their orthogonal connectors. */
-export function MainMenuCareerLevels() {
+export function MainMenuCareerLevels(props: MainMenuCareerLevelsProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const viewportRef = useRef<HTMLElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const cardRefs = useRef(new Map<number, HTMLDivElement>())
+  const scrollbarDragRef = useRef<{ pointerId: number; scrollTop: number; startY: number } | null>(null)
+  const scrollbarThumbRef = useRef<ScrollbarThumb | null>(null)
   const [canvasSize, setCanvasSize] = useState<CanvasSize>({ height: 0, width: 0 })
+  const [careerGeneration, setCareerGeneration] = useState<CareerLevelGeneration>(EMPTY_CAREER_LEVEL_GENERATION)
   const [careerProgression, setCareerProgression] = useState<readonly CareerLevelProgression[]>([])
   const [hasLoadedCareerProgression, setHasLoadedCareerProgression] = useState(false)
-  const [cardAnchors, setCardAnchors] = useState<Map<number, CardAnchor>>(() => new Map())
-  const levelPositions = resolveCareerLevelPositions()
-  const lastUnlockedLevelIndex = getCurrentCareerLevelIndex(careerProgression)
+  const [scrollbarThumb, setScrollbarThumb] = useState<ScrollbarThumb | null>(null)
+  // A builder is evaluated once for this map generation. Reusing its resolved
+  // configuration keeps card positions and unlock state in agreement.
+  const levelPositions = useMemo(() => resolveCareerLevelPositions(undefined, careerGeneration), [careerGeneration])
+  const lastUnlockedLevelIndex = getCurrentCareerLevelIndexFromPositions(careerProgression, levelPositions)
   const highestLevelY = Math.max(0, ...levelPositions.map((level) => level.y)) + LEVEL_Y_OFFSET * 2
   const canvasHeight = highestLevelY + LEVEL_CARD_SIZE_PX
+
+  const updateScrollbarThumb = useEffectEvent(() => {
+    const viewport = viewportRef.current
+    const container = props.scrollThumbContainerRef.current
+    const start = props.scrollThumbStartRef.current
+    const end = props.scrollThumbEndRef.current
+    if (!viewport || !container || !start || !end) return
+
+    const maxScrollTop = viewport.scrollHeight - viewport.clientHeight
+    const containerBounds = container.getBoundingClientRect()
+    const startBounds = start.getBoundingClientRect()
+    const endBounds = end.getBoundingClientRect()
+    const trackTop = startBounds.bottom - containerBounds.top + SCROLLBAR_EDGE_GAP_PX
+    const trackBottom = endBounds.top - containerBounds.top - SCROLLBAR_EDGE_GAP_PX
+    const trackHeight = trackBottom - trackTop
+    if (maxScrollTop <= 0 || trackHeight <= 0) {
+      scrollbarThumbRef.current = null
+      setScrollbarThumb(null)
+      return
+    }
+
+    const height = Math.min(trackHeight, Math.max(SCROLLBAR_MIN_THUMB_HEIGHT_PX, trackHeight * viewport.clientHeight / viewport.scrollHeight))
+    const travel = trackHeight - height
+    const scrollTop = Math.min(maxScrollTop, Math.max(0, viewport.scrollTop))
+    const nextThumb = {
+      height,
+      maxScrollTop,
+      scrollTop,
+      top: trackTop + (maxScrollTop === 0 ? 0 : scrollTop / maxScrollTop * travel),
+      travel,
+    }
+    scrollbarThumbRef.current = nextThumb
+    setScrollbarThumb((currentThumb) => (
+      currentThumb
+      && Math.abs(currentThumb.height - nextThumb.height) < 0.5
+      && Math.abs(currentThumb.scrollTop - nextThumb.scrollTop) < 0.5
+      && Math.abs(currentThumb.top - nextThumb.top) < 0.5
+        ? currentThumb
+        : nextThumb
+    ))
+  })
+
+  function handleScrollbarPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    const viewport = viewportRef.current
+    const thumb = scrollbarThumbRef.current
+    if (!viewport || !thumb) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    scrollbarDragRef.current = { pointerId: event.pointerId, scrollTop: viewport.scrollTop, startY: event.clientY }
+  }
+
+  function handleScrollbarPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const viewport = viewportRef.current
+    const thumb = scrollbarThumbRef.current
+    const drag = scrollbarDragRef.current
+    if (!viewport || !thumb || !drag || drag.pointerId !== event.pointerId || thumb.travel <= 0) return
+    viewport.scrollTop = drag.scrollTop + (event.clientY - drag.startY) / thumb.travel * thumb.maxScrollTop
+  }
+
+  function handleScrollbarPointerEnd(event: React.PointerEvent<HTMLDivElement>) {
+    if (scrollbarDragRef.current?.pointerId === event.pointerId) scrollbarDragRef.current = null
+  }
+
+  function handleScrollbarKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    const viewport = viewportRef.current
+    const thumb = scrollbarThumbRef.current
+    if (!viewport || !thumb) return
+    const pageStep = Math.max(1, viewport.clientHeight * 0.8)
+    switch (event.key) {
+      case 'ArrowDown': viewport.scrollBy({ top: 40 }); break
+      case 'ArrowUp': viewport.scrollBy({ top: -40 }); break
+      case 'PageDown': viewport.scrollBy({ top: pageStep }); break
+      case 'PageUp': viewport.scrollBy({ top: -pageStep }); break
+      case 'Home': viewport.scrollTop = 0; break
+      case 'End': viewport.scrollTop = thumb.maxScrollTop; break
+      default: return
+    }
+    event.preventDefault()
+  }
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current
@@ -223,9 +318,10 @@ export function MainMenuCareerLevels() {
 
   useEffect(() => {
     let active = true
-    void loadCareerProgression()
-      .then((progression) => {
+    void Promise.all([loadCareerLevelGeneration(), loadCareerProgression()])
+      .then(([generation, progression]) => {
         if (!active) return
+        setCareerGeneration(generation)
         setCareerProgression(progression)
         setHasLoadedCareerProgression(true)
       })
@@ -237,6 +333,14 @@ export function MainMenuCareerLevels() {
       active = false
     }
   }, [])
+
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return
+    updateScrollbarThumb()
+    viewport.addEventListener('scroll', updateScrollbarThumb, { passive: true })
+    return () => viewport.removeEventListener('scroll', updateScrollbarThumb)
+  }, [canvasHeight])
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current
@@ -250,35 +354,26 @@ export function MainMenuCareerLevels() {
   }, [])
 
   useLayoutEffect(() => {
+    const viewport = viewportRef.current
     const canvas = canvasRef.current
-    if (!canvas) return
-    const measure = () => {
-      const canvasBounds = canvas.getBoundingClientRect()
-      const nextAnchors = new Map<number, CardAnchor>()
-      for (const [index, card] of cardRefs.current) {
-        const bounds = card.getBoundingClientRect()
-        const centerX = bounds.left - canvasBounds.left + bounds.width / 2
-        nextAnchors.set(index, {
-          bottomCenter: { x: centerX, y: bounds.bottom - canvasBounds.top },
-          topCenter: { x: centerX, y: bounds.top - canvasBounds.top },
-        })
-      }
-      setCardAnchors(nextAnchors)
-    }
-
-    measure()
+    const container = props.scrollThumbContainerRef.current
+    const start = props.scrollThumbStartRef.current
+    const end = props.scrollThumbEndRef.current
+    updateScrollbarThumb()
     if (typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(measure)
-    observer.observe(canvas)
-    for (const card of cardRefs.current.values()) observer.observe(card)
+    const observer = new ResizeObserver(updateScrollbarThumb)
+    for (const element of [viewport, canvas, container, start, end]) {
+      if (element) observer.observe(element)
+    }
     return () => observer.disconnect()
-  }, [lastUnlockedLevelIndex, levelPositions.length])
+  }, [canvasHeight, props.scrollThumbContainerRef, props.scrollThumbEndRef, props.scrollThumbStartRef])
 
   return (
     <div className="min-h-0 w-full flex-1">
       <section
         aria-label={t('classic.career')}
         className="scrollbar-hidden absolute inset-0 z-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-none"
+        id="career-level-map"
         ref={viewportRef}
         style={{ maskImage: LEVEL_VIEWPORT_MASK, WebkitMaskImage: LEVEL_VIEWPORT_MASK }}
       >
@@ -287,7 +382,7 @@ export function MainMenuCareerLevels() {
           {levelPositions.slice(0, -1).map((level, index) => {
             const path = getConnectorPath(level, levelPositions[index + 1]!, canvasSize)
             if (!path) return null
-            return <g key={`${level.level.data?.seed ?? index}:${level.level.from}:${level.level.to}`}>
+            return <g key={`${level.id}:${level.level.from}:${level.level.to}`}>
               <path d={path} fill="none" stroke={PAPER_DEPTH_SHADOW_COLOR} strokeLinecap="round" strokeLinejoin="round" strokeWidth={CONNECTOR_THICKNESS_PX} transform="translate(0 3)" />
               <path d={path} fill="none" stroke="var(--outline-color)" strokeLinecap="round" strokeLinejoin="round" strokeWidth={CONNECTOR_THICKNESS_PX} />
               <path d={path} fill="none" stroke="var(--paper)" strokeLinecap="round" strokeLinejoin="round" strokeWidth={CONNECTOR_INTERIOR_THICKNESS_PX} />
@@ -299,13 +394,13 @@ export function MainMenuCareerLevels() {
           const data = level.data
           const isLocked = index > lastUnlockedLevelIndex
           const isCurrentLevel = index === lastUnlockedLevelIndex
-          const progression = data ? careerProgression.find((entry) => entry.seed === data.seed) : undefined
+          const progression = data ? careerProgression.find((entry) => entry.seed === position.id) : undefined
           const isCompleted = progression !== undefined
           const number = index + 1
           return (
             <div
               className="absolute z-10"
-              key={data?.seed ?? `${position.x}:${position.y}:${index}`}
+              key={data ? position.id : `${position.x}:${position.y}:${index}`}
               ref={(element) => {
                 if (element) cardRefs.current.set(index, element)
                 else cardRefs.current.delete(index)
@@ -325,7 +420,7 @@ export function MainMenuCareerLevels() {
                 color={level.bgColor}
                 depth={4}
                 disabled={isLocked || !data}
-                onClick={data && !isLocked ? () => navigate(getCareerLevelPath({ ...level, data })) : undefined}
+                onClick={data && !isLocked ? () => navigate(getCareerLevelPath(position)) : undefined}
                 outlineColor={isCompleted ? COMPLETED_LEVEL_OUTLINE : isCurrentLevel ? CURRENT_LEVEL_OUTLINE : undefined}
                 outlineWidth={isCompleted || isCurrentLevel ? 3 : undefined}
                 radius={20}
@@ -335,31 +430,39 @@ export function MainMenuCareerLevels() {
               >
                 {number}
               </DepthButton>
+              {(isCompleted || isCurrentLevel) && <CareerStars
+                hasBonus={(level.bonus?.length ?? 0) > 0}
+                layout="map"
+                result={progression}
+                style={{ left: LEVEL_CARD_SIZE_PX / 2, top: LEVEL_CARD_SIZE_PX }}
+              />}
+              {isLocked && <LockedLevelBadge position={{ x: LEVEL_CARD_SIZE_PX / 2, y: 0 }} />}
             </div>
           )
         })}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-20">
-          {[...cardAnchors.entries()].map(([index, anchor]) => {
-            const level = levelPositions[index]?.level
-            const progression = level?.data ? careerProgression.find((entry) => entry.seed === level.data!.seed) : undefined
-            const isCurrentLevel = index === lastUnlockedLevelIndex
-            if (!progression && !isCurrentLevel) return null
-            return (
-              <CareerStars
-                hasBonus={(level?.bonus?.length ?? 0) > 0}
-                key={index}
-                layout="map"
-                result={progression}
-                style={{ left: anchor.bottomCenter.x, top: anchor.bottomCenter.y }}
-              />
-            )
-          })}
-          {[...cardAnchors.entries()]
-            .filter(([index]) => index > lastUnlockedLevelIndex)
-            .map(([index, anchor]) => <LockedLevelBadge key={index} position={anchor.topCenter} />)}
-        </div>
         </div>
       </section>
+      {scrollbarThumb && <DepthSurface
+        aria-controls="career-level-map"
+        aria-label={t('classic.career')}
+        aria-orientation="vertical"
+        aria-valuemax={Math.round(scrollbarThumb.maxScrollTop)}
+        aria-valuemin={0}
+        aria-valuenow={Math.round(scrollbarThumb.scrollTop)}
+        className="absolute z-20 cursor-grab touch-none active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-[var(--outline-color)] focus-visible:outline-offset-2"
+        color="var(--paper)"
+        depth={3}
+        onKeyDown={handleScrollbarKeyDown}
+        onPointerCancel={handleScrollbarPointerEnd}
+        onPointerDown={handleScrollbarPointerDown}
+        onPointerMove={handleScrollbarPointerMove}
+        onPointerUp={handleScrollbarPointerEnd}
+        radius={8}
+        role="scrollbar"
+        shadowColor={PAPER_DEPTH_SHADOW_COLOR}
+        style={{ height: scrollbarThumb.height, right: SCROLLBAR_EDGE_GAP_PX, top: scrollbarThumb.top, width: SCROLLBAR_WIDTH_PX }}
+        tabIndex={0}
+      />}
     </div>
   )
 }

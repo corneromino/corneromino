@@ -11,7 +11,7 @@ vi.mock('./gameDatabase', () => ({
   }),
 }))
 
-import { clearVsLocalGameState, completeCareerLevel, db, loadCareerProgression, loadClassicGameDefinition, loadGameSelection, loadInfiniteBestScore, loadSavedGames, loadVsLocalGameState, recordInfiniteBestScore, saveClassicGameDefinition, saveGameSelection, saveVsLocalGameState, type ClassicGameDefinition, type VsLocalGameSaveState } from './db'
+import { clearVsLocalGameState, completeCareerLevel, db, loadCareerLevelGeneration, loadCareerProgression, loadClassicGameDefinition, loadGameSelection, loadInfiniteBestScore, loadSavedGames, loadVsLocalGameState, recordInfiniteBestScore, resetCareerProgress, saveCareerLevelGeneration, saveClassicGameDefinition, saveGameSelection, saveVsLocalGameState, type ClassicGameDefinition, type VsLocalGameSaveState } from './db'
 import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsHistoryPosition, goToVsHistory, selectVsCell, toggleVsMoveDirection } from '@/features/vs/vsLocalGame'
 import type { VsTrapResolution } from '@/features/vs/vsLocalConfig'
 
@@ -179,6 +179,37 @@ describe('Career progression persistence', () => {
       seed: 'legacy-level',
       type: 'career-progression',
     }])
+  })
+
+  it('clears Career progress, attempts, and generated board definitions without touching normal saves', async () => {
+    const careerDefinition = { ...classicDefinition(), seed: 'career:level-2' }
+    await saveClassicGameDefinition(careerDefinition)
+    await saveGameSelection('c001', careerDefinition.seed, {
+      completionResult: null,
+      elapsedSeconds: 12,
+      gameGridScreenshot: null,
+      isCompleted: false,
+      lockedCellGroups: [],
+      markers: [],
+      moveCount: 4,
+      unlockCount: 2,
+      savedAt: 123,
+      selectedCellKeys: ['1,1'],
+    })
+    await completeCareerLevel('level-2', { bonusPercentage: 100, perfectionPercentage: 100 })
+    await saveCareerLevelGeneration({ infiniteRepeats: { 2: 4 } })
+    await expect(loadCareerLevelGeneration()).resolves.toEqual({ infiniteRepeats: { 2: 4 } })
+
+    const normalDefinition = classicDefinition()
+    await saveClassicGameDefinition(normalDefinition)
+
+    await resetCareerProgress()
+
+    await expect(loadCareerProgression()).resolves.toEqual([])
+    await expect(loadCareerLevelGeneration()).resolves.toEqual({ infiniteRepeats: {} })
+    await expect(loadClassicGameDefinition('c001', careerDefinition.seed)).resolves.toBeNull()
+    expect(records.has('selection:c001:career:level-2')).toBe(false)
+    await expect(loadClassicGameDefinition('c001', normalDefinition.seed)).resolves.toEqual(normalDefinition)
   })
 })
 

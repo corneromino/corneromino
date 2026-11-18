@@ -5,7 +5,7 @@ export const level2: CareerLevel = {
   bgColor: LOCKED_CELL_COLOR_HEX[2],
   origin: 'relative',
   x: 0,
-  y: 200,
+  y: 75 * 2,
   from: 'top',
   to: 'bottom',
   bonus: [
