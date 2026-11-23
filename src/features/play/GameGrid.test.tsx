@@ -134,7 +134,8 @@ afterEach(() => {
 describe('Classic locking modes', () => {
   it('loads behind a delayed entrance before sliding the grid into view', async () => {
     vi.useFakeTimers()
-    setup('auto', { entranceAnimation: true })
+    const onEntranceAnimationComplete = vi.fn()
+    setup('auto', { entranceAnimation: true, onEntranceAnimationComplete })
 
     const entrance = screen.getByLabelText('Game board').closest('.game-grid-entrance')!
     expect(entrance.getAttribute('data-revealed')).toBeNull()
@@ -144,12 +145,22 @@ describe('Classic locking modes', () => {
 
     expect(entrance.getAttribute('data-revealed')).toBe('true')
     expect(canvasMock.props!.interactive).toBe(true)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    expect(onEntranceAnimationComplete).toHaveBeenCalledOnce()
   })
 
   it('disables canvas interaction when a tutorial step marks the board non-interactive', async () => {
     setup('auto', { boardInteractive: false })
 
     await waitFor(() => expect(canvasMock.props?.interactive).toBe(false))
+  })
+
+  it('forwards configured Career rendering to the canvas', () => {
+    setup('auto', { emptyCellBorderOpacity: 0.5, emptyCellOpacity: 0.25, showCornerMarkers: false })
+
+    expect(canvasMock.props?.emptyCellBorderOpacity).toBe(0.5)
+    expect(canvasMock.props?.emptyCellOpacity).toBe(0.25)
+    expect(canvasMock.props?.showCornerMarkers).toBe(false)
   })
 
   it.each(['auto', 'manual'] as const)('captures before the wave and waits for renderer completion with %s verification', async (finalVerificationMode) => {

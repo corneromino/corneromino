@@ -18,6 +18,7 @@ type CanvasProps = NonNullable<typeof canvasProps.current>
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 vi.mock('@/lib/db', () => ({
   loadClassicGameDefinition: persistence.loadClassicGameDefinition,
+  isClassicGameDefinition: (value: unknown) => typeof value === 'object' && value !== null,
   saveClassicGameDefinition: persistence.saveClassicGameDefinition,
   saveGameSelection: persistence.saveGameSelection,
 }))
@@ -266,4 +267,59 @@ it('copies the exact custom game definition that Save uses, without editor-only 
 
   fireEvent.click(screen.getByRole('button', { name: 'common.saveAndQuit' }))
   await waitFor(() => expect(persistence.saveClassicGameDefinition).toHaveBeenCalledWith(gameData))
+})
+
+it('imports pasted game data with a new ID and replaces the editor board', async () => {
+  const importedDefinition = {
+    config: { ...GAME_CONFIGS.c003, columns: 6, rows: 4, tetrominoCount: 1 },
+    customName: 'Imported board',
+    gameMode: 'c003',
+    pieces: [{
+      id: 1,
+      kind: 'O',
+      cells: [
+        { cellId: 'a', corner: 'top-left', x: 2, y: 1 },
+        { cellId: 'b', corner: 'top-right', x: 3, y: 1 },
+        { cellId: 'c', corner: 'bottom-left', x: 2, y: 2 },
+        { cellId: 'd', corner: 'bottom-right', x: 3, y: 2 },
+      ],
+    }],
+    seed: 'ignored-imported-seed',
+    source: 'custom' as const,
+    version: 1 as const,
+  }
+  render(<MemoryRouter><ClassicCreatePage /></MemoryRouter>)
+
+  fireEvent.click(screen.getByRole('button', { name: 'common.pause classic.title' }))
+  fireEvent.click(screen.getByRole('button', { name: 'classic.pasteGameData' }))
+  fireEvent.change(screen.getByLabelText('classic.gameData'), { target: { value: JSON.stringify(importedDefinition) } })
+  fireEvent.click(screen.getByRole('button', { name: 'classic.importGameData' }))
+
+  expect(canvasProps.current?.config).toMatchObject({ columns: 6, rows: 4 })
+  expect(canvasProps.current?.pieces[0]?.cells).toEqual(expect.arrayContaining([
+    expect.objectContaining({ x: 2, y: 1 }),
+    expect.objectContaining({ x: 3, y: 2 }),
+  ]))
+
+  fireEvent.click(screen.getByRole('button', { name: 'common.pause classic.title' }))
+  expect((screen.getByLabelText('classic.boardName') as HTMLInputElement).value).toBe('Imported board')
+  fireEvent.click(screen.getByRole('button', { name: 'common.saveAndQuit' }))
+
+  await waitFor(() => expect(persistence.saveClassicGameDefinition).toHaveBeenCalledWith(expect.objectContaining({
+    config: expect.objectContaining({ tetrominoCount: 1 }),
+    seed: expect.stringMatching(/^custom-/),
+  })))
+  expect(persistence.saveClassicGameDefinition).not.toHaveBeenCalledWith(expect.objectContaining({ seed: 'ignored-imported-seed' }))
+})
+
+it('keeps the paste dialog open with an error for invalid game data', () => {
+  render(<MemoryRouter><ClassicCreatePage /></MemoryRouter>)
+
+  fireEvent.click(screen.getByRole('button', { name: 'common.pause classic.title' }))
+  fireEvent.click(screen.getByRole('button', { name: 'classic.pasteGameData' }))
+  fireEvent.change(screen.getByLabelText('classic.gameData'), { target: { value: '{ not JSON' } })
+  fireEvent.click(screen.getByRole('button', { name: 'classic.importGameData' }))
+
+  expect(screen.getByRole('alert').textContent).toBe('classic.invalidGameData')
+  expect(screen.getByLabelText('classic.gameData')).toBeTruthy()
 })

@@ -1,9 +1,18 @@
 import { Container, Graphics, Rectangle, Texture, TilingSprite, type Application } from 'pixi.js'
 import { getGridMetrics, gridCellToScreen, isInsideGrid, screenToGridCell, type GridBounds, type GridMetrics, type GridViewport } from './gridGeometry'
 
+function getOpacity(value: number | undefined) {
+  if (value === undefined || !Number.isFinite(value)) return 1
+  return Math.min(1, Math.max(0, value))
+}
+
 export interface GridAppearance {
   cellColor: number
+  /** Opacity of empty cell faces. */
+  emptyCellOpacity?: number
   borderColor: number
+  /** Opacity of empty cell borders and the space between them. */
+  emptyCellBorderOpacity?: number
   backgroundColor: number
   /** Sizes in logical pixels at viewport.cellSize; they scale with zoom. */
   borderSize: number
@@ -83,15 +92,17 @@ export class GridSurface {
     const styleScale = size / viewport.cellSize
     const resolution = Math.max(2, Math.ceil(this.app.renderer.resolution))
     const key = JSON.stringify([size, styleScale, resolution, appearance])
+    const emptyCellOpacity = getOpacity(appearance.emptyCellOpacity)
+    const emptyCellBorderOpacity = getOpacity(appearance.emptyCellBorderOpacity)
     if (key !== this.textureKey) {
       const gap = Math.min(size / 2, Math.max(0, appearance.gap * styleScale / 2))
       const border = Math.min((size - gap * 2) / 2, Math.max(0, appearance.borderSize * styleScale))
       const radius = Math.min((size - gap * 2) / 2, Math.max(0, appearance.borderRadius * styleScale))
-      const tile = new Graphics().rect(0, 0, size, size).fill(appearance.backgroundColor)
-      tile.roundRect(gap, gap, size - gap * 2, size - gap * 2, radius).fill(appearance.borderColor)
+      const tile = new Graphics()
+      tile.roundRect(gap, gap, size - gap * 2, size - gap * 2, radius).fill({ color: appearance.borderColor, alpha: emptyCellBorderOpacity })
       const inset = gap + border
       if (size > inset * 2) {
-        tile.roundRect(inset, inset, size - inset * 2, size - inset * 2, Math.max(0, radius - border)).fill(appearance.cellColor)
+        tile.roundRect(inset, inset, size - inset * 2, size - inset * 2, Math.max(0, radius - border)).fill({ color: appearance.cellColor, alpha: emptyCellOpacity })
       }
       const previous = this.tileTexture
       try {
@@ -103,7 +114,7 @@ export class GridSurface {
       previous?.destroy(true)
       this.textureKey = key
     }
-    this.backdrop.clear().rect(0, 0, viewport.width, viewport.height).fill(appearance.backgroundColor)
+    this.backdrop.clear().rect(0, 0, viewport.width, viewport.height).fill({ color: appearance.backgroundColor, alpha: emptyCellBorderOpacity })
     this.background.position.set(this.bounds.infinite ? 0 : offsetX, this.bounds.infinite ? 0 : offsetY)
     this.background.width = width
     this.background.height = height

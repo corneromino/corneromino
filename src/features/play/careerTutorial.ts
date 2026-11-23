@@ -10,18 +10,25 @@ interface CareerTutorialStepBase {
   advanceOn?: readonly CareerTutorialAction[]
   /** Allows direct cell interaction while this step is active. Defaults to true. */
   boardInteractive?: boolean
+  /** Zero-based authored definition to display when this step begins. Ignored unless the level has data alternatives. */
+  dataIndex?: number
   /** Hides the header and control bar while retaining the board target. Defaults to true. */
   showUI?: boolean
 }
 
 export interface CareerTutorialBoardStep extends CareerTutorialStepBase {
   area: 'board'
-  /** Zero-based board column. */
-  x: number
-  /** Zero-based board row. */
-  y: number
-  columns: number
-  rows: number
+  /** Optional board region. Omitted fields cover the current board. */
+  board?: {
+    /** Zero-based board column. Defaults to 0. */
+    x?: number
+    /** Zero-based board row. Defaults to 0. */
+    y?: number
+    /** Width in cells. Defaults to the current board width. */
+    columns?: number
+    /** Height in cells. Defaults to the current board height. */
+    rows?: number
+  }
 }
 
 export interface CareerTutorialControlStep extends CareerTutorialStepBase {
@@ -31,6 +38,8 @@ export interface CareerTutorialControlStep extends CareerTutorialStepBase {
 export type CareerTutorialStep = CareerTutorialBoardStep | CareerTutorialControlStep
 
 export interface CareerTutorial {
+  /** Overrides the board's final automatic verification for this tutorial. */
+  autoVerification?: boolean
   steps: readonly CareerTutorialStep[]
 }
 

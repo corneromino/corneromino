@@ -8,16 +8,27 @@ export const level2: CareerLevel = {
   y: 75 * 2,
   from: 'top',
   to: 'bottom',
-  bonus: [
-    { shape: 'O', count: 0 }
-  ],
-
+  tutorial: {
+    steps: [
+      {
+        content: "N'importe quel forme est valide tant que les 4 carrés se touchent.",
+        boardInteractive: false,
+        showUI: false,
+        area: 'board',
+      }, {
+        content: "Trouve les 4 Cantominos et connecte les grands carrés. Et n'oublie pas la règle des petits carrés !",
+        advanceOn: ['complete'],
+        showUI: false,
+        area: 'board'
+      }
+    ]
+  },
   data: {
     "config": {
-      "columns": 5,
-      "rows": 5,
+      "columns": 6,
+      "rows": 6,
       "spread": 0,
-      "tetrominoCount": 2,
+      "tetrominoCount": 4,
       "lockingMode": "auto",
       "finalVerificationMode": "auto",
       "completionScreenshotDelayMs": 400,
@@ -31,66 +42,126 @@ export const level2: CareerLevel = {
         "cells": [
           {
             "cellId": "a",
-            "corner": "top-right",
-            "x": 1,
-            "y": 1
+            "corner": "top-left",
+            "x": 0,
+            "y": 4
           },
           {
             "cellId": "b",
-            "corner": "top-left",
+            "corner": "bottom-right",
             "x": 1,
-            "y": 2
+            "y": 4
           },
           {
             "cellId": "c",
             "corner": "bottom-left",
             "x": 1,
-            "y": 3
+            "y": 5
           },
           {
             "cellId": "d",
-            "corner": "bottom-right",
+            "corner": "top-right",
             "x": 2,
-            "y": 3
+            "y": 5
           }
         ],
-        "id": 1,
-        "kind": "L"
+        "id": 3,
+        "kind": "Z"
+      },
+      {
+        "cells": [
+          {
+            "cellId": "a",
+            "corner": "bottom-right",
+            "x": 0,
+            "y": 0
+          },
+          {
+            "cellId": "b",
+            "corner": "bottom-left",
+            "x": 1,
+            "y": 0
+          },
+          {
+            "cellId": "c",
+            "corner": "top-right",
+            "x": 0,
+            "y": 1
+          },
+          {
+            "cellId": "d",
+            "corner": "top-left",
+            "x": 1,
+            "y": 1
+          }
+        ],
+        "id": 4,
+        "kind": "O"
       },
       {
         "cells": [
           {
             "cellId": "a",
             "corner": "top-left",
-            "x": 3,
-            "y": 3
+            "x": 2,
+            "y": 2
           },
           {
             "cellId": "b",
-            "corner": "bottom-left",
+            "corner": "top-right",
             "x": 3,
-            "y": 2
+            "y": 3
           },
           {
             "cellId": "c",
             "corner": "bottom-right",
             "x": 3,
-            "y": 1
+            "y": 2
           },
           {
             "cellId": "d",
-            "corner": "top-right",
-            "x": 2,
+            "corner": "bottom-left",
+            "x": 3,
             "y": 1
           }
         ],
-        "id": 2,
-        "kind": "L"
+        "id": 5,
+        "kind": "T"
+      },
+      {
+        "cells": [
+          {
+            "cellId": "a",
+            "corner": "bottom-left",
+            "x": 5,
+            "y": 1
+          },
+          {
+            "cellId": "b",
+            "corner": "top-left",
+            "x": 5,
+            "y": 2
+          },
+          {
+            "cellId": "c",
+            "corner": "top-right",
+            "x": 5,
+            "y": 3
+          },
+          {
+            "cellId": "d",
+            "corner": "bottom-right",
+            "x": 5,
+            "y": 4
+          }
+        ],
+        "id": 6,
+        "kind": "I"
       }
     ],
     "version": 1,
-    "customName": "hello world",
-    "seed": "custom-f989feff-c31d-4b39-9b2d-b1d2ec3fe3",
+    "customName": "",
+    "seed": "custom-9f77f3f0-1a17-4976-8c2b-c504c16180ee",
     "source": "custom"
   },
 }

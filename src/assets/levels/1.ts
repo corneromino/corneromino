@@ -7,38 +7,56 @@ export const level1: CareerLevel = {
   y: 0,
   from: 'top',
   to: 'bottom',
-  /*tutorial: {
+  rendering: {
+    // emptyCellOpacity: 0.5,
+  },
+  tutorial: {
     steps: [
       {
-        content: '0',
+        content: "Voici un grand carré avec un autre petit carré foncé à l'interieur.",
         area: 'board',
-        x: 0, y: 0,
-        columns: 4, rows: 5,
+        board: { x: 1, y: 1, columns: 1, rows: 1 },
         boardInteractive: false,
-      },
-      {
-        content: "A",
-        advanceOn: ['select'],
-        area: 'board',
-        x: 1, y: 1,
-        columns: 1, rows: 1,
+        showUI: false,
       }, {
-        content: "B",
-        advanceOn: ['select'],
+        content: "Avec 4 grands carrés qui se touchent, tu obtiens un Cantomino. Chaque grand carré doit avoir sont petit carré.",
         area: 'board',
-        x: 1, y: 2,
-        columns: 1, rows: 1,
+        board: { x: 1, y: 1, columns: 2, rows: 3 },
+        boardInteractive: false,
+        showUI: false,
       }, {
-        content: "C",
-        // advanceOn: ['select'],
+        content: "Un Cantomino, possède des petits carrés dans chaque coin, en haut à gauche ...",
         area: 'board',
-        x: 1, y: 3,
-        columns: 1, rows: 1,
-        showUI: false
-      },
+        board: { x: 1, y: 1, columns: 1, rows: 1 },
+        boardInteractive: false,
+        showUI: false,
+      }, {
+        content: "... en bas à droite ...",
+        area: 'board',
+        board: { x: 1, y: 2, columns: 1, rows: 1 },
+        boardInteractive: false,
+        showUI: false,
+      }, {
+        content: "... en haut à droite ...",
+        area: 'board',
+        board: { x: 1, y: 3, columns: 1, rows: 1 },
+        boardInteractive: false,
+        showUI: false,
+      }, {
+        content: "... et en bas à gauche !",
+        area: 'board',
+        board: { x: 2, y: 3, columns: 1, rows: 1 },
+        boardInteractive: false,
+        showUI: false,
+      }, {
+        content: "Selectionne les grands carrés qui forme le Cantomino pour passer au niveau suivant.",
+        area: 'board',
+        showUI: false,
+        // advanceOn: ['complete']
+      }
     ]
-  },*/
-  data: {
+  },
+  data: [{
     "config": {
       "columns": 4,
       "rows": 5,
@@ -88,5 +106,5 @@ export const level1: CareerLevel = {
     "customName": "hello world",
     "seed": "custom-35fc886e-50e3-46d3-9e9d-052d7fb71509",
     "source": "custom"
-  },
+  }],
 }

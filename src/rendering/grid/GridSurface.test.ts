@@ -79,6 +79,20 @@ describe('shared textured grid surface', () => {
     surface.destroy()
   })
 
+  it('renders empty cell faces and borders with independent opacity', () => {
+    const { surface, generateTexture, viewport, appearance } = setup()
+    const initialTexture = surface.texture
+
+    surface.update(viewport, { ...appearance, emptyCellOpacity: 0.25 })
+    const faceTexture = surface.texture
+    surface.update(viewport, { ...appearance, emptyCellBorderOpacity: 0.5, emptyCellOpacity: 0.25 })
+
+    expect(generateTexture).toHaveBeenCalledTimes(3)
+    expect(faceTexture).not.toBe(initialTexture)
+    expect(surface.texture).not.toBe(faceTexture)
+    surface.destroy()
+  })
+
   it('cleans up custom content, frame hooks and mode-owned effects', () => {
     const { surface, app } = setup()
     const content = new Container()

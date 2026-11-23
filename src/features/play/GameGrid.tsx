@@ -24,6 +24,7 @@ import type { CareerTutorialControlArea } from './careerTutorial'
 
 const DOUBLE_TAP_UNLOCK_MS = 200
 const GAME_GRID_REVEAL_DELAY_MS = 1
+const GAME_GRID_ENTRANCE_DURATION_MS = 400
 
 interface GameGridProps {
   /** Disables only board-cell interaction, leaving tutorial UI targets available. */
@@ -42,6 +43,12 @@ interface GameGridProps {
   deferCompletionDialog?: boolean
   /** Keeps the standard control bar mounted but visually hidden for a tutorial step. */
   hideGameControls?: boolean
+  /** Opacity of cells that do not belong to a shape, from 0 to 1. Defaults to 1. */
+  emptyCellOpacity?: number
+  /** Opacity of borders around cells that do not belong to a shape, from 0 to 1. Defaults to 1. */
+  emptyCellBorderOpacity?: number
+  /** Whether corner markers are shown on shape cells. Defaults to true. */
+  showCornerMarkers?: boolean
   highlightAreas?: readonly { height: number; id: string; left: number; top: number; width: number }[]
   lockButtonId?: string
   verifyButtonId?: string
@@ -94,6 +101,8 @@ interface GameGridProps {
   isCareerLevel?: boolean
   /** Delays and animates this grid's initial visual reveal. */
   entranceAnimation?: boolean
+  /** Called once the initial grid entrance transition has finished. */
+  onEntranceAnimationComplete?: () => void
 }
 
 function createCellMap(pieces: readonly PlacedTetromino[]): Map<string, PlacedTetromino> {
@@ -127,6 +136,7 @@ export function GameGrid(props: GameGridProps) {
   const navigate = useNavigate()
   const [showCellIds, setShowCellIds] = useState(false)
   const [hasEntranceDelayElapsed, setHasEntranceDelayElapsed] = useState(() => props.entranceAnimation !== true)
+  const [hasEntranceAnimationCompleted, setHasEntranceAnimationCompleted] = useState(() => props.entranceAnimation !== true)
   const [selectedCellKeys, setSelectedCellKeys] = useState<Set<string>>(() => new Set())
   const [lockedCellGroups, setLockedCellGroups] = useState<LockedCellGroup[]>([])
   const [markers, setMarkers] = useState<Map<string, CellMarkerColor>>(() => new Map())
@@ -187,6 +197,24 @@ export function GameGrid(props: GameGridProps) {
     const revealTimer = window.setTimeout(() => setHasEntranceDelayElapsed(true), GAME_GRID_REVEAL_DELAY_MS)
     return () => window.clearTimeout(revealTimer)
   }, [props.entranceAnimation])
+
+  useEffect(() => {
+    if (!props.entranceAnimation) {
+      setHasEntranceAnimationCompleted(true)
+      return
+    }
+    if (!isEntranceRevealed) {
+      setHasEntranceAnimationCompleted(false)
+      return
+    }
+
+    const completeTimer = window.setTimeout(() => setHasEntranceAnimationCompleted(true), GAME_GRID_ENTRANCE_DURATION_MS)
+    return () => window.clearTimeout(completeTimer)
+  }, [isEntranceRevealed, props.entranceAnimation])
+
+  useEffect(() => {
+    if (hasEntranceAnimationCompleted) props.onEntranceAnimationComplete?.()
+  }, [hasEntranceAnimationCompleted, props.onEntranceAnimationComplete])
 
   // Prune a recycled section before its replacement reaches the canvas. Cells
   // and group fragments still on screen retain their selection, locks and notes.
@@ -735,6 +763,8 @@ export function GameGrid(props: GameGridProps) {
             <div className={cn('relative z-10 size-full', props.scrolling && 'border-2 border-[#773526] bg-[#773526]')}>
               <GameGridCanvas
                 config={props.config}
+                emptyCellBorderOpacity={props.emptyCellBorderOpacity}
+                emptyCellOpacity={props.emptyCellOpacity}
                 interactive={props.boardInteractive !== false && selectionLoaded && !isGameplayPaused && !isExiting && !isCompleted && !verification}
                 lockedCellGroups={lockedCellGroups}
                 markers={markers}
@@ -748,6 +778,7 @@ export function GameGrid(props: GameGridProps) {
                 selectedCellKeys={selectedCellKeys}
                 selectedLockedGroupId={selectedLockedGroupId}
                 showCellIds={showCellIds}
+                showCornerMarkers={props.showCornerMarkers}
                 scrolling={props.scrolling}
                 verificationRequest={verification && verification.phase !== 'screenshot' ? verification : undefined}
                 verificationRestoring={verification?.phase === 'restoring'}

@@ -457,7 +457,8 @@ function isPlacedTetromino(piece: unknown, config: GameConfig, occupiedCells: Se
   return true
 }
 
-function isClassicGameDefinition(value: unknown): value is ClassicGameDefinition {
+/** Checks that untrusted serialized board data is safe to load or save. */
+export function isClassicGameDefinition(value: unknown): value is ClassicGameDefinition {
   if (typeof value !== 'object' || value === null) return false
   const definition = value as Record<string, unknown>
   const config = definition.config

@@ -5,15 +5,15 @@ export const level5: CareerLevel = {
   bgColor: LOCKED_CELL_COLOR_HEX[2],
   origin: 'relative',
   x: 0,
-  y: 80,
+  y: 75 * 2,
   from: 'top',
   to: 'bottom',
   data: {
     "config": {
-      "columns": 4,
+      "columns": 6,
       "rows": 6,
       "spread": 0,
-      "tetrominoCount": 3,
+      "tetrominoCount": 4,
       "lockingMode": "auto",
       "finalVerificationMode": "auto",
       "completionScreenshotDelayMs": 400,
@@ -21,33 +21,33 @@ export const level5: CareerLevel = {
       "hideGameControls": false,
       "navigationEnabled": true
     },
-    "gameMode": "c001",
+    "gameMode": "c003",
     "pieces": [
       {
         "cells": [
           {
             "cellId": "a",
-            "corner": "top-left",
-            "x": 0,
-            "y": 0
-          },
-          {
-            "cellId": "b",
-            "corner": "top-right",
+            "corner": "bottom-left",
             "x": 1,
             "y": 1
           },
           {
-            "cellId": "c",
-            "corner": "bottom-left",
+            "cellId": "b",
+            "corner": "top-left",
             "x": 2,
             "y": 2
           },
           {
-            "cellId": "d",
-            "corner": "bottom-right",
+            "cellId": "c",
+            "corner": "top-right",
             "x": 3,
             "y": 3
+          },
+          {
+            "cellId": "d",
+            "corner": "bottom-right",
+            "x": 4,
+            "y": 4
           }
         ],
         "id": 1,
@@ -57,31 +57,31 @@ export const level5: CareerLevel = {
         "cells": [
           {
             "cellId": "a",
-            "corner": "bottom-left",
-            "x": 1,
+            "corner": "bottom-right",
+            "x": 5,
             "y": 2
           },
           {
             "cellId": "b",
-            "corner": "bottom-right",
-            "x": 1,
+            "corner": "bottom-left",
+            "x": 4,
             "y": 3
           },
           {
             "cellId": "c",
-            "corner": "top-left",
-            "x": 1,
+            "corner": "top-right",
+            "x": 3,
             "y": 4
           },
           {
             "cellId": "d",
-            "corner": "top-right",
-            "x": 1,
+            "corner": "top-left",
+            "x": 2,
             "y": 5
           }
         ],
         "id": 2,
-        "kind": "I"
+        "kind": "diagonal"
       },
       {
         "cells": [
@@ -89,34 +89,64 @@ export const level5: CareerLevel = {
             "cellId": "a",
             "corner": "top-right",
             "x": 3,
-            "y": 1
+            "y": 0
           },
           {
             "cellId": "b",
-            "corner": "bottom-right",
-            "x": 3,
-            "y": 2
+            "corner": "bottom-left",
+            "x": 4,
+            "y": 0
           },
           {
             "cellId": "c",
             "corner": "top-left",
-            "x": 2,
-            "y": 0
+            "x": 3,
+            "y": 1
           },
           {
             "cellId": "d",
-            "corner": "bottom-left",
-            "x": 2,
+            "corner": "bottom-right",
+            "x": 4,
             "y": 1
           }
         ],
         "id": 3,
-        "kind": "S"
+        "kind": "O"
+      },
+      {
+        "cells": [
+          {
+            "cellId": "a",
+            "corner": "top-left",
+            "x": 0,
+            "y": 2
+          },
+          {
+            "cellId": "b",
+            "corner": "top-right",
+            "x": 0,
+            "y": 3
+          },
+          {
+            "cellId": "c",
+            "corner": "bottom-right",
+            "x": 0,
+            "y": 4
+          },
+          {
+            "cellId": "d",
+            "corner": "bottom-left",
+            "x": 0,
+            "y": 5
+          }
+        ],
+        "id": 4,
+        "kind": "I"
       }
     ],
     "version": 1,
-    "customName": "",
-    "seed": "custom-7bb66210-bdbd-4ec9-8cc3-384743e8b3d4",
+    "customName": "...",
+    "seed": "custom-c5eb301f-64e6-40d5-98a9-c69cb73eddf1",
     "source": "custom"
   }
 }

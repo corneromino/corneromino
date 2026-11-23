@@ -1,4 +1,4 @@
-import { Copy, LogOut, Play, Save } from 'lucide-react'
+import { ClipboardPaste, Copy, LogOut, Play, Save } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ interface ClassicCreatePauseDialogProps {
   isSaving: boolean
   onBoardNameChange: (name: string) => void
   onOpenChange: (open: boolean) => void
+  onPasteGameData: () => void
   onQuitWithoutSaving: () => void
   onSaveAndQuit: () => Promise<void>
   open: boolean
@@ -46,6 +47,9 @@ export function ClassicCreatePauseDialog(props: ClassicCreatePauseDialogProps) {
           </Button>
           <Button className="w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={props.isSaving} onClick={() => void copyGameData()} size="lg" type="button">
             <Copy aria-hidden="true" /> {t('classic.copyGameData')}
+          </Button>
+          <Button className="w-full text-[15px] font-black tracking-[0.1em] text-[var(--canvas-foreground)] uppercase" disabled={props.isSaving} onClick={props.onPasteGameData} size="lg" type="button">
+            <ClipboardPaste aria-hidden="true" /> {t('classic.pasteGameData')}
           </Button>
           <div className="mt-3 grid gap-2">
             <DialogDescription className="text-center text-[18px]">{t('classic.savePrompt')}</DialogDescription>

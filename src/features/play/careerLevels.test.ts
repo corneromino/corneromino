@@ -2,12 +2,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getBonusPercentage } from '@/game/bonus'
 import { GAME_CONFIGS } from '@/game/gameConfig'
 import { createTetrominoCells } from '@/game/tetrominoes'
-import { EMPTY_CAREER_LEVEL_GENERATION, careerLevels, extendCareerLevelGeneration, getCareerLevel, getCurrentCareerLevelIndex, getNextCareerLevel, isClassicGameDefinitionCareerData, resolveCareerLevelConfigurations, resolveCareerLevelPositions } from './careerLevels'
+import { EMPTY_CAREER_LEVEL_GENERATION, careerLevels, extendCareerLevelGeneration, getCareerLevel, getCareerLevelDataAtIndex, getCurrentCareerLevelIndex, getDefaultCareerLevelData, getNextCareerLevel, isClassicGameDefinitionCareerData, resolveCareerLevelConfigurations, resolveCareerLevelPositions } from './careerLevels'
 
 const initialLevels = [...careerLevels]
 
 function firstAuthoredDefinition() {
-  const data = initialLevels[0]?.data
+  const source = initialLevels[0]?.data
+  if (!source || typeof source === 'function') throw new Error('Expected the first Career level to use authored data.')
+  const data = getDefaultCareerLevelData(source)
   if (!data || !isClassicGameDefinitionCareerData(data)) throw new Error('Expected the first Career level to use an authored board.')
   return data
 }
@@ -47,6 +49,23 @@ describe('Career levels', () => {
 
     expect(getCareerLevel(firstAuthoredDefinition().seed)).toMatchObject({ id: firstAuthoredDefinition().seed, number: 1 })
     expect(getCareerLevel('level-2')).toMatchObject({ id: 'level-2', number: 2, data: GAME_CONFIGS.c002 })
+  })
+
+  it('uses the first authored board from an array as the default Career definition', () => {
+    const defaultDefinition = { ...firstAuthoredDefinition(), seed: 'default-board' }
+    const alternativeDefinition = { ...firstAuthoredDefinition(), gameMode: 'c001' as const, seed: 'alternative-board' }
+    careerLevels.splice(0, careerLevels.length, {
+      data: [defaultDefinition, alternativeDefinition],
+      x: 0,
+      y: 0,
+    })
+
+    const level = getCareerLevel('default-board')!
+
+    expect(level.id).toBe('default-board')
+    expect(getDefaultCareerLevelData(level.data)).toBe(defaultDefinition)
+    expect(getCareerLevelDataAtIndex(level.data, 1)).toBe(alternativeDefinition)
+    expect(getCareerLevelDataAtIndex(level.data, 2)).toBeNull()
   })
 
   it('resolves pixel-relative positions from the preceding level', () => {

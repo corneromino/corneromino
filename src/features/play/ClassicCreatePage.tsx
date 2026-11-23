@@ -7,9 +7,10 @@ import { createRandomSeed, createSeededRandom } from '@/game/random'
 import { CELL_CORNERS, GAME_CONFIGS, isGameMode, type CellCorner, type CellMarkerColor, type ClassicGameMode, type GameConfig, type GameSelectionState, type LockedCellGroup, type PlacedTetromino } from '@/game/gameConfig'
 import { getTetrominoKind, TETROMINOES } from '@/game/tetrominoes'
 import { chooseLockColor, type ColoredCellGroup } from '@/game/lockingColor'
-import { loadClassicGameDefinition, saveClassicGameDefinition, saveGameSelection, type ClassicGameDefinition } from '@/lib/db'
+import { isClassicGameDefinition, loadClassicGameDefinition, saveClassicGameDefinition, saveGameSelection, type ClassicGameDefinition } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
 import { ClassicCreatePauseDialog } from './ClassicCreatePauseDialog'
+import { ClassicCreatePasteDialog } from './ClassicCreatePasteDialog'
 import { ClassicCreateSettingsDialog } from './ClassicCreateSettingsDialog'
 import { GameGridCanvas, type GameGridCanvasHandle } from './GameGridCanvas'
 
@@ -36,10 +37,10 @@ const NEXT_CORNER: Readonly<Record<CellCorner, CellCorner>> = {
   'top-left': 'top-right',
 }
 
-type ClassicGameData = Pick<ClassicGameDefinition, 'config' | 'gameMode' | 'pieces' | 'version'>
+type ClassicGameData = Pick<ClassicGameDefinition, 'bonus' | 'config' | 'gameMode' | 'pieces' | 'version'>
 
 function createCustomGameDefinition(data: ClassicGameData, seed: string, customName: string): ClassicGameDefinition {
-  return { ...data, customName, seed, source: 'custom' }
+  return { ...data, ...(customName ? { customName } : {}), seed, source: 'custom' }
 }
 
 function parseCellKey(key: string) {
@@ -92,9 +93,9 @@ function isDraftPiece(value: unknown, dimensions: { columns: number; rows: numbe
 }
 
 function loadDraft() {
-  if (typeof sessionStorage === 'undefined') return { dimensions: DEFAULT_DIMENSIONS, gameId: null, gameMode: 'c003' as const, name: '', originalName: '', pieces: EMPTY_PIECES, savedConfig: GAME_CONFIGS.c003 }
+  if (typeof sessionStorage === 'undefined') return { bonus: undefined, dimensions: DEFAULT_DIMENSIONS, gameId: null, gameMode: 'c003' as const, name: '', originalName: '', pieces: EMPTY_PIECES, savedConfig: GAME_CONFIGS.c003 }
   try {
-    const stored = JSON.parse(sessionStorage.getItem(CLASSIC_CREATE_DRAFT_STORAGE_KEY) ?? 'null') as { dimensions?: unknown; gameId?: unknown; gameMode?: unknown; name?: unknown; originalName?: unknown; pieces?: unknown; savedConfig?: unknown } | null
+    const stored = JSON.parse(sessionStorage.getItem(CLASSIC_CREATE_DRAFT_STORAGE_KEY) ?? 'null') as { bonus?: unknown; dimensions?: unknown; gameId?: unknown; gameMode?: unknown; name?: unknown; originalName?: unknown; pieces?: unknown; savedConfig?: unknown } | null
     if (!stored) throw new Error('Missing draft.')
     const dimensions = stored?.dimensions
     if (typeof dimensions !== 'object' || dimensions === null) throw new Error('Missing draft dimensions.')
@@ -106,6 +107,7 @@ function loadDraft() {
     const gameMode = isGameMode(storedGameMode) ? storedGameMode : 'c003'
     const savedConfig = typeof stored.savedConfig === 'object' && stored.savedConfig !== null ? stored.savedConfig as GameConfig : GAME_CONFIGS[gameMode]
     return {
+      bonus: Array.isArray(stored.bonus) ? stored.bonus as ClassicGameDefinition['bonus'] : undefined,
       dimensions: draftDimensions,
       gameId: typeof stored.gameId === 'string' && stored.gameId.length > 0 ? stored.gameId : null,
       gameMode,
@@ -115,7 +117,7 @@ function loadDraft() {
       savedConfig,
     }
   } catch {
-    return { dimensions: DEFAULT_DIMENSIONS, gameId: null, gameMode: 'c003' as const, name: '', originalName: '', pieces: EMPTY_PIECES, savedConfig: GAME_CONFIGS.c003 }
+    return { bonus: undefined, dimensions: DEFAULT_DIMENSIONS, gameId: null, gameMode: 'c003' as const, name: '', originalName: '', pieces: EMPTY_PIECES, savedConfig: GAME_CONFIGS.c003 }
   }
 }
 
@@ -158,6 +160,9 @@ export function ClassicCreatePage() {
   const [dimensionsOpen, setDimensionsOpen] = useState(false)
   const [dimensionError, setDimensionError] = useState('')
   const [pauseOpen, setPauseOpen] = useState(false)
+  const [pasteOpen, setPasteOpen] = useState(false)
+  const [pastedGameData, setPastedGameData] = useState('')
+  const [pasteError, setPasteError] = useState('')
   const [saveError, setSaveError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [placementMode, setPlacementMode] = useState(false)
@@ -167,6 +172,7 @@ export function ClassicCreatePage() {
   const [savedGameId, setSavedGameId] = useState<string | null>(initialDraft.gameId)
   const [gameMode, setGameMode] = useState<ClassicGameMode>(initialDraft.gameMode)
   const [savedConfig, setSavedConfig] = useState<GameConfig>(initialDraft.savedConfig)
+  const [bonus, setBonus] = useState<ClassicGameDefinition['bonus']>(initialDraft.bonus)
   const [originalName, setOriginalName] = useState(initialDraft.originalName)
   const [boardName, setBoardName] = useState(initialDraft.name)
   const config = useMemo(() => ({ ...CLASSIC_CREATE_CONFIG, ...dimensions }), [dimensions])
@@ -176,6 +182,7 @@ export function ClassicCreatePage() {
     // narrower GameConfig schema so their JSON can be pasted directly in code.
     const { title: _title, ...savedGameConfig } = savedConfig as GameConfig & { title?: unknown }
     return {
+      bonus,
       config: {
         ...savedGameConfig,
         columns: config.columns,
@@ -188,15 +195,15 @@ export function ClassicCreatePage() {
       pieces: pieces.map(({ color: _color, ...piece }) => piece),
       version: 1,
     }
-  }, [config.columns, config.rows, gameMode, pieces, savedConfig])
+  }, [bonus, config.columns, config.rows, gameMode, pieces, savedConfig])
   const exportedName = boardName.trim()
   const exportedGameId = savedGameId && exportedName === originalName ? savedGameId : unsavedGameId
   const exportedDefinition = useMemo(() => createCustomGameDefinition(gameDefinitionData, exportedGameId, exportedName), [exportedGameId, exportedName, gameDefinitionData])
   const gameDataJson = useMemo(() => JSON.stringify(exportedDefinition, null, 2), [exportedDefinition])
 
   useEffect(() => {
-    sessionStorage.setItem(CLASSIC_CREATE_DRAFT_STORAGE_KEY, JSON.stringify({ dimensions, gameId: savedGameId, gameMode, name: boardName, originalName, pieces, savedConfig }))
-  }, [boardName, dimensions, gameMode, originalName, pieces, savedConfig, savedGameId])
+    sessionStorage.setItem(CLASSIC_CREATE_DRAFT_STORAGE_KEY, JSON.stringify({ bonus, dimensions, gameId: savedGameId, gameMode, name: boardName, originalName, pieces, savedConfig }))
+  }, [boardName, bonus, dimensions, gameMode, originalName, pieces, savedConfig, savedGameId])
 
   useEffect(() => {
     const editGame = getEditGameState(location.state)
@@ -217,6 +224,7 @@ export function ClassicCreatePage() {
         setTemporaryCellKeys([])
         setGameMode(definition.gameMode)
         setSavedConfig(definition.config)
+        setBonus(definition.bonus)
         setSavedGameId(editGame.isCustom ? editGame.gameId : null)
         const name = editGame.isCustom ? definition.customName ?? editGame.name ?? '' : ''
         setBoardName(name)
@@ -254,6 +262,54 @@ export function ClassicCreatePage() {
 
   function quitWithoutSaving() {
     navigate('/play/modes', { replace: true })
+  }
+
+  function openPasteDialog() {
+    setPastedGameData('')
+    setPasteError('')
+    setPauseOpen(false)
+    setPasteOpen(true)
+  }
+
+  function handlePasteOpenChange(open: boolean) {
+    setPasteOpen(open)
+    if (!open) setPasteError('')
+  }
+
+  function importPastedGameData() {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(pastedGameData)
+    } catch {
+      setPasteError(t('classic.invalidGameData'))
+      return
+    }
+
+    const candidate = typeof parsed === 'object' && parsed !== null
+      ? { ...parsed, seed: 'pasted-game-data' }
+      : null
+    if (!candidate || !isClassicGameDefinition(candidate)) {
+      setPasteError(t('classic.invalidGameData'))
+      return
+    }
+
+    const gameId = `custom-${createRandomSeed()}`
+    const name = candidate.customName ?? ''
+    setUnsavedGameId(gameId)
+    setSavedGameId(null)
+    setDimensions({ columns: candidate.config.columns, rows: candidate.config.rows })
+    setDraftDimensions({ columns: String(candidate.config.columns), rows: String(candidate.config.rows) })
+    setPieces(colorAuthoredPieces(candidate.pieces))
+    setTemporaryCellKeys([])
+    setPlacementMode(false)
+    setEraseMode(false)
+    setGameMode(candidate.gameMode)
+    setSavedConfig(candidate.config)
+    setBonus(candidate.bonus)
+    setBoardName(name)
+    setOriginalName(name)
+    gameCanvasRef.current?.resetView()
+    setPasteOpen(false)
   }
 
   function handleCellToggle(cellKey: string) {
@@ -349,7 +405,7 @@ export function ClassicCreatePage() {
       }
       await saveClassicGameDefinition(definition)
       await saveGameSelection(gameMode, gameId, selection)
-      sessionStorage.setItem(CLASSIC_CREATE_DRAFT_STORAGE_KEY, JSON.stringify({ dimensions, gameId, gameMode, name, originalName: name, pieces, savedConfig }))
+      sessionStorage.setItem(CLASSIC_CREATE_DRAFT_STORAGE_KEY, JSON.stringify({ bonus, dimensions, gameId, gameMode, name, originalName: name, pieces, savedConfig }))
       setSavedGameId(gameId)
       setBoardName(name)
       setOriginalName(name)
@@ -454,10 +510,22 @@ export function ClassicCreatePage() {
           setSaveError('')
         }}
         onOpenChange={setPauseOpen}
+        onPasteGameData={openPasteDialog}
         onQuitWithoutSaving={quitWithoutSaving}
         onSaveAndQuit={saveAndQuit}
         open={pauseOpen}
         saveError={saveError}
+      />
+      <ClassicCreatePasteDialog
+        error={pasteError}
+        gameData={pastedGameData}
+        onGameDataChange={(gameData) => {
+          setPastedGameData(gameData)
+          setPasteError('')
+        }}
+        onImport={importPastedGameData}
+        onOpenChange={handlePasteOpenChange}
+        open={pasteOpen}
       />
     </main>
   )

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useEffect } from 'react'
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -7,13 +8,18 @@ import { careerLevels } from './careerLevels'
 
 const gameGridProps = vi.hoisted(() => ({ current: undefined as {
   exitPath?: string
+  config?: { finalVerificationMode?: 'auto' | 'manual' }
   gameDefinition?: { seed: string }
   gameId: string
   boardInteractive?: boolean
+  emptyCellBorderOpacity?: number
+  emptyCellOpacity?: number
+  showCornerMarkers?: boolean
   hideGameControls?: boolean
   highlightAreas?: readonly { height: number; id: string; left: number; top: number; width: number }[]
   onLocked?: () => void
   onGameCompleted?: (result: { bonusPercentage: number; perfectionPercentage: number }) => void
+  onEntranceAnimationComplete?: () => void
   onRestart?: () => void
   onSelected?: () => void
   pieces: readonly PlacedTetromino[]
@@ -31,6 +37,7 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, valu
 vi.mock('./GameGrid', () => ({
   GameGrid: (props: typeof gameGridProps.current extends infer Props ? NonNullable<Props> : never) => {
     gameGridProps.current = props
+    useEffect(() => props.onEntranceAnimationComplete?.(), [props.onEntranceAnimationComplete])
     return <output data-testid="game-grid">{props.pieces.length}</output>
   },
 }))
@@ -136,6 +143,7 @@ it('plays a Career level from its authored data using its stable career save ID'
       source: 'custom',
       version: 1,
     },
+    rendering: { emptyCellBorderOpacity: 0.5, emptyCellOpacity: 0.25, showCornerMarkers: false },
     x: 12,
     y: 34,
   })
@@ -148,8 +156,79 @@ it('plays a Career level from its authored data using its stable career save ID'
     exitPath: '/',
     gameDefinition: { seed: 'career:authored-career-board' },
     gameId: 'career:authored-career-board',
+    emptyCellBorderOpacity: 0.5,
+    emptyCellOpacity: 0.25,
+    showCornerMarkers: false,
   })
   expect(generateTetrominoPlacementsV2).not.toHaveBeenCalled()
+})
+
+it('plays the first authored board when a Career level has definition alternatives', async () => {
+  const defaultDefinition = {
+    config: { ...GAME_CONFIGS.c003 },
+    gameMode: 'c003' as const,
+    pieces,
+    seed: 'default-career-board',
+    version: 1 as const,
+  }
+  const alternativeDefinition = {
+    ...defaultDefinition,
+    gameMode: 'c001' as const,
+    seed: 'alternative-career-board',
+  }
+  careerLevels.splice(0, careerLevels.length, {
+    data: [defaultDefinition, alternativeDefinition],
+    x: 12,
+    y: 34,
+  })
+
+  render(<MemoryRouter initialEntries={['/play?career=default-career-board']}><Play /></MemoryRouter>)
+
+  await waitFor(() => expect(gameGridProps.current?.gameDefinition?.seed).toBe('career:default-career-board'))
+  expect(gameGridProps.current?.gameDefinition).toMatchObject({ gameMode: 'c003', pieces })
+  expect(generateTetrominoPlacementsV2).not.toHaveBeenCalled()
+})
+
+it('switches to a tutorial definition alternative and starts it with a fresh board', async () => {
+  const defaultDefinition = {
+    config: { ...GAME_CONFIGS.c003 },
+    gameMode: 'c003' as const,
+    pieces,
+    seed: 'tutorial-default-board',
+    version: 1 as const,
+  }
+  const alternativePieces = [{ ...pieces[0]!, id: 2 }]
+  const alternativeDefinition = {
+    ...defaultDefinition,
+    pieces: alternativePieces,
+    seed: 'tutorial-alternative-board',
+  }
+  careerLevels.splice(0, careerLevels.length, {
+    data: [defaultDefinition, alternativeDefinition],
+    tutorial: {
+      steps: [{
+        advanceOn: ['select'],
+        area: 'board',
+        board: { columns: 1, rows: 1 },
+        content: 'Select a cell.',
+      }, {
+        area: 'board',
+        board: { columns: 1, rows: 1 },
+        content: 'Here is another board.',
+        dataIndex: 1,
+      }],
+    },
+    x: 12,
+    y: 34,
+  })
+
+  render(<MemoryRouter initialEntries={['/play?career=tutorial-default-board']}><Play /></MemoryRouter>)
+  await waitFor(() => expect(gameGridProps.current?.pieces[0]?.id).toBe(1))
+
+  act(() => gameGridProps.current?.onSelected?.())
+
+  await waitFor(() => expect(gameGridProps.current?.pieces[0]?.id).toBe(2))
+  expect(gameGridProps.current?.gameDefinition?.seed).toBe('career:tutorial-default-board')
 })
 
 it('generates and persists a board for a configuration-based Career level', async () => {
@@ -285,16 +364,14 @@ it('maps authored Career tutorial board areas and advances from a cell selection
       version: 1,
     },
     tutorial: {
+      autoVerification: false,
       steps: [{
         advanceOn: ['select'],
         area: 'board',
         boardInteractive: true,
-        columns: 2,
+        board: { columns: 2 },
         content: 'Lock this shape.',
-        rows: 2,
         showUI: false,
-        x: 0,
-        y: 0,
       }, {
         area: 'reset',
         content: 'Restart the board.',
@@ -310,8 +387,9 @@ it('maps authored Career tutorial board areas and advances from a cell selection
   await waitFor(() => expect(tutorialDriverMock.drive).toHaveBeenCalledWith(0))
   expect(gameGridProps.current).toMatchObject({
     boardInteractive: true,
+    config: { finalVerificationMode: 'manual' },
     hideGameControls: true,
-    highlightAreas: [{ height: 2, id: 'career-tutorial-board-0', left: 0, top: 0, width: 2 }],
+    highlightAreas: [{ height: GAME_CONFIGS.c003.rows, id: 'career-tutorial-board-0', left: 0, top: 0, width: 2 }],
     persistSelection: false,
     tutorialControlIds: { reset: 'career-tutorial-reset' },
   })

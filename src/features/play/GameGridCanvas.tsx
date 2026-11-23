@@ -31,6 +31,10 @@ export interface ScrollingGridViewport {
 
 interface GameGridCanvasProps {
   config: GameConfig
+  /** Opacity of board cells that do not belong to a shape, from 0 to 1. Defaults to 1. */
+  emptyCellOpacity?: number
+  /** Opacity of borders around cells that do not belong to a shape, from 0 to 1. Defaults to 1. */
+  emptyCellBorderOpacity?: number
   interactive?: boolean
   lockedCellGroups: readonly LockedCellGroup[]
   markers: ReadonlyMap<string, CellMarkerColor>
@@ -44,6 +48,8 @@ interface GameGridCanvasProps {
   /** Create mode uses colors to distinguish authored shapes; gameplay does not. */
   showAuthoredPieceColors?: boolean
   showCellIds: boolean
+  /** Whether corner markers are shown on shape cells. Defaults to true. */
+  showCornerMarkers?: boolean
   scrolling?: ScrollingGridViewport
   onCellExit?: (event: ClassicInfiniteCellExit) => void
   vhsCrt?: VhsCrtEffectConfig
@@ -119,6 +125,11 @@ function lockedColorToNumber(color: string): number {
   return match ? Number.parseInt(match[1]!, 16) : CELL_COLOR
 }
 
+function getEmptyCellOpacity(value: number | undefined) {
+  if (value === undefined || !Number.isFinite(value)) return 1
+  return Math.min(1, Math.max(0, value))
+}
+
 export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasProps>(function GameGridCanvas(props, ref) {
   const [startupFailed, setStartupFailed] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -141,7 +152,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
 
   useEffect(() => {
     drawRef.current()
-  }, [props.config, props.exitDistortion, props.lockedCellGroups, props.markers, props.pieces, props.selectedCellKeys, props.selectedLockedGroupId, props.showAuthoredPieceColors, props.showCellIds, props.scrolling, props.temporaryCellKeys, props.vhsCrt, props.verificationRequest])
+  }, [props.config, props.emptyCellBorderOpacity, props.emptyCellOpacity, props.exitDistortion, props.lockedCellGroups, props.markers, props.pieces, props.selectedCellKeys, props.selectedLockedGroupId, props.showAuthoredPieceColors, props.showCellIds, props.showCornerMarkers, props.scrolling, props.temporaryCellKeys, props.vhsCrt, props.verificationRequest])
 
   useEffect(() => {
     const container = containerRef.current
@@ -216,6 +227,8 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       surface.update({ width, height, cellSize, fit: 'manual', ...view }, {
         cellColor: CELL_COLOR, borderColor: BOARD_COLOR, backgroundColor: BOARD_COLOR,
         borderSize: cellSize * CELL_BORDER_RATIO, borderRadius: getGridSquircleRadius(cellSize), gap: 0,
+        emptyCellBorderOpacity: getEmptyCellOpacity(propsRef.current.emptyCellBorderOpacity),
+        emptyCellOpacity: getEmptyCellOpacity(propsRef.current.emptyCellOpacity),
       })
       // Empty cells temporarily use individual sprites while a nearby lock
       // shake is active. Keep those sprites on the replacement zoom texture
@@ -350,6 +363,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           const boardOutline = new Graphics()
           boardOutline.rect(frameWidth / 2, frameWidth / 2, boardWidth - frameWidth, boardHeight - frameWidth)
             .stroke({ color: BOARD_COLOR, width: frameWidth })
+          boardOutline.alpha = getEmptyCellOpacity(current.emptyCellBorderOpacity)
           boardOutline.zIndex = -1
           board.addChild(boardOutline)
         }
@@ -439,7 +453,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
             shakeLayer.addChild(label)
           }
 
-            if (cell) {
+            if (cell && current.showCornerMarkers !== false) {
               const markerSize = cellWidth * 0.45
               const offsetX = cellWidth * 0.12
               const offsetY = cellHeight * 0.12

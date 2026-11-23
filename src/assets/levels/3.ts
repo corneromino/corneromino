@@ -5,15 +5,32 @@ export const level3: CareerLevel = {
   bgColor: LOCKED_CELL_COLOR_HEX[5],
   origin: 'relative',
   x: 0,
-  y: 200,
-  from: 'left',
-  to: 'right',
+  y: 75 * 2,
+  from: 'top',
+  to: 'bottom',
+  rendering: {
+    emptyCellOpacity: 0.8,
+  },
+  tutorial: {
+    steps: [{
+        content: "Un ligne de 4 grands carrés en diagonale est aussi un Cantomino",
+        area: "board",
+        boardInteractive: false,
+        showUI: false,
+      }, {
+        content: "Trouve les 2 Cantomino en diagonal.",
+        area: "board",
+        showUI: false,
+        advanceOn: ["complete"]
+      }
+    ]
+  },
   data: {
     "config": {
-      "columns": 4,
-      "rows": 6,
+      "columns": 6,
+      "rows": 7,
       "spread": 0,
-      "tetrominoCount": 3,
+      "tetrominoCount": 2,
       "lockingMode": "auto",
       "finalVerificationMode": "auto",
       "completionScreenshotDelayMs": 400,
@@ -21,102 +38,72 @@ export const level3: CareerLevel = {
       "hideGameControls": false,
       "navigationEnabled": true
     },
-    "gameMode": "c001",
+    "gameMode": "c003",
     "pieces": [
       {
         "cells": [
           {
             "cellId": "a",
             "corner": "top-right",
-            "x": 1,
-            "y": 3
+            "x": 2,
+            "y": 0
           },
           {
             "cellId": "b",
-            "corner": "top-left",
-            "x": 2,
-            "y": 3
-          },
-          {
-            "cellId": "c",
-            "corner": "bottom-left",
-            "x": 0,
-            "y": 4
-          },
-          {
-            "cellId": "d",
-            "corner": "bottom-right",
-            "x": 1,
-            "y": 4
-          }
-        ],
-        "id": 1,
-        "kind": "S"
-      },
-      {
-        "cells": [
-          {
-            "cellId": "a",
             "corner": "bottom-right",
             "x": 3,
             "y": 1
           },
           {
-            "cellId": "b",
+            "cellId": "c",
             "corner": "top-left",
-            "x": 3,
+            "x": 4,
             "y": 2
           },
           {
-            "cellId": "c",
-            "corner": "bottom-left",
-            "x": 3,
-            "y": 3
-          },
-          {
             "cellId": "d",
-            "corner": "top-right",
-            "x": 3,
-            "y": 4
+            "corner": "bottom-left",
+            "x": 5,
+            "y": 3
           }
         ],
-        "id": 2,
-        "kind": "I"
+        "id": 1,
+        "kind": "diagonal"
       },
       {
         "cells": [
           {
             "cellId": "a",
-            "corner": "top-left",
-            "x": 0,
-            "y": 0
+            "corner": "top-right",
+            "x": 3,
+            "y": 3
           },
           {
             "cellId": "b",
-            "corner": "bottom-left",
-            "x": 1,
-            "y": 0
+            "corner": "bottom-right",
+            "x": 2,
+            "y": 4
           },
           {
             "cellId": "c",
-            "corner": "bottom-right",
-            "x": 2,
-            "y": 0
+            "corner": "top-left",
+            "x": 1,
+            "y": 5
           },
           {
             "cellId": "d",
-            "corner": "top-right",
-            "x": 2,
-            "y": 1
+            "corner": "bottom-left",
+            "x": 0,
+            "y": 6
           }
         ],
-        "id": 3,
-        "kind": "J"
+        "id": 2,
+        "kind": "diagonal"
       }
     ],
     "version": 1,
     "customName": "",
-    "seed": "custom-db689fac-8410-406f-b609-48bee88208c0",
+    "seed": "custom-434cda17-c849-4cf7-aedd-3cbc27e25145",
     "source": "custom"
   }
 }

@@ -5,12 +5,26 @@ import type { CareerTutorial } from './careerTutorial'
 import { level1 } from '@/assets/levels/1'
 import { level2 } from '@/assets/levels/2'
 import { LOCKED_CELL_COLOR_HEX } from '@/rendering/colors'
+import { level3 } from '@/assets/levels/3'
+import { level4 } from '@/assets/levels/4'
+import { level5 } from '@/assets/levels/5'
 
 export type CareerLevelEdge = 'top' | 'bottom' | 'left' | 'right'
 export type CareerLevelOrigin = 'absolute' | 'relative'
 export type CareerShapeRotation = BonusShapeRotation
 export type CareerBonusRequirement = BonusRequirement
-export type CareerLevelData = ClassicGameDefinition | GameModeConfig
+/** An authored board may provide alternatives; its first definition is the default board. */
+export type CareerLevelData = ClassicGameDefinition | readonly ClassicGameDefinition[] | GameModeConfig
+
+/** Per-level visual adjustments for guided or authored Career boards. */
+export interface CareerLevelRendering {
+  /** Opacity of board cells that do not belong to a shape, from 0 to 1. Defaults to 1. */
+  emptyCellOpacity?: number
+  /** Opacity of borders around board cells that do not belong to a shape, from 0 to 1. Defaults to 1. */
+  emptyCellBorderOpacity?: number
+  /** Whether corner markers are shown on shape cells. Defaults to true. */
+  showCornerMarkers?: boolean
+}
 
 /** A Career map position, which may be shown before it has an authored board. */
 export interface CareerLevel {
@@ -26,6 +40,8 @@ export interface CareerLevel {
   origin?: CareerLevelOrigin
   /** Number of additional virtual levels, or an on-demand repeating section. */
   repeat?: number | 'infinite'
+  /** Optional visual adjustments for this Career board. */
+  rendering?: CareerLevelRendering
   /** Edge on the following card where this card's connection arrives. */
   to?: CareerLevelEdge
   /** Optional guided lesson that starts from its first step whenever the level opens. */
@@ -72,6 +88,9 @@ export type ResolvedCareerLevel = PlayableCareerLevel & {
 export const careerLevels: CareerLevel[] = [
   level1,
   level2,
+  level3,
+  level4,
+  level5,
   {
     x: 0,
     y: 75 * 2,
@@ -112,6 +131,10 @@ export const EMPTY_CAREER_LEVEL_GENERATION: CareerLevelGeneration = { infiniteRe
 
 function isCareerLevelBuilder(data: CareerLevel['data']): data is CareerLevelBuilder {
   return typeof data === 'function'
+}
+
+function isCareerLevelDefinitionList(data: CareerLevelData): data is readonly ClassicGameDefinition[] {
+  return Array.isArray(data)
 }
 
 function getFiniteRepeatCount(level: CareerLevel): number {
@@ -209,13 +232,29 @@ export function getCareerLevelId(index: number) {
 }
 
 export function isClassicGameDefinitionCareerData(data: CareerLevelData | CareerLevelBuilder): data is ClassicGameDefinition {
-  return typeof data !== 'function' && 'pieces' in data
+  return typeof data !== 'function' && !isCareerLevelDefinitionList(data) && 'pieces' in data
+}
+
+/** Returns the board played by default when an authored Career entry has alternatives. */
+export function getDefaultCareerLevelData(data: CareerLevelData): ClassicGameDefinition | GameModeConfig {
+  if (!isCareerLevelDefinitionList(data)) return data
+  const defaultDefinition = data[0]
+  if (!defaultDefinition) throw new Error('Career level definition arrays must contain a default board.')
+  return defaultDefinition
+}
+
+/** Returns a requested authored board alternative, or null when the index cannot be used. */
+export function getCareerLevelDataAtIndex(data: CareerLevelData, index: number): ClassicGameDefinition | null {
+  if (!isCareerLevelDefinitionList(data) || !Number.isSafeInteger(index) || index < 0) return null
+  return data[index] ?? null
 }
 
 /** Keeps the primary authored board's legacy progress while assigning virtual levels a positional ID. */
 function getCareerLevelIdentity(index: number, sourceLevel: CareerLevel, repeatIndex: number, isInfiniteRepeat: boolean, resolvedLevel: ResolvedCareerLevelConfiguration) {
-  if (!isInfiniteRepeat && repeatIndex === 0 && !isCareerLevelBuilder(sourceLevel.data) && resolvedLevel.data && isClassicGameDefinitionCareerData(resolvedLevel.data)) {
-    return resolvedLevel.data.seed
+  const data = resolvedLevel.data
+  if (!isInfiniteRepeat && repeatIndex === 0 && !isCareerLevelBuilder(sourceLevel.data) && data) {
+    const defaultData = getDefaultCareerLevelData(data)
+    if (isClassicGameDefinitionCareerData(defaultData)) return defaultData.seed
   }
   return getCareerLevelId(index)
 }
@@ -267,8 +306,10 @@ export function getCareerGameId(level: Pick<ResolvedCareerLevel, 'id'>) {
 }
 
 /** Finds the backing Classic mode for generated Career configurations. */
-export function getCareerLevelGameMode(level: ResolvedCareerLevel): ClassicGameMode {
-  const data = level.data
+export function getCareerLevelGameMode(level: ResolvedCareerLevel, dataIndex?: number): ClassicGameMode {
+  const data = dataIndex === undefined
+    ? getDefaultCareerLevelData(level.data)
+    : getCareerLevelDataAtIndex(level.data, dataIndex) ?? getDefaultCareerLevelData(level.data)
   if (isClassicGameDefinitionCareerData(data)) return data.gameMode
   return GAME_MODES.find((mode) => GAME_CONFIGS[mode] === data || GAME_CONFIGS[mode].title === data.title) ?? 'c001'
 }

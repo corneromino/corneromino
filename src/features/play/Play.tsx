@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pause } from 'lucide-react'
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -11,7 +11,7 @@ import { GAME_CONFIGS, isGameMode, type ClassicGameMode, type GameConfig } from 
 import { clearGameSelection, completeCareerLevel, loadCareerLevelGeneration, loadCareerProgression, loadClassicGameDefinition, saveCareerLevelGeneration, saveClassicGameDefinition, type CareerLevelGeneration, type ClassicGameDefinition } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
 import type { LockedCellGroup } from '@/game/gameConfig'
-import { EMPTY_CAREER_LEVEL_GENERATION, extendCareerLevelGeneration, getCareerGameId, getCareerLevel, getCareerLevelGameMode, getCareerLevelPath, getNextCareerLevel, isClassicGameDefinitionCareerData, type ResolvedCareerLevel } from './careerLevels'
+import { EMPTY_CAREER_LEVEL_GENERATION, extendCareerLevelGeneration, getCareerGameId, getCareerLevel, getCareerLevelDataAtIndex, getCareerLevelGameMode, getCareerLevelPath, getDefaultCareerLevelData, getNextCareerLevel, isClassicGameDefinitionCareerData, type CareerLevelData, type ResolvedCareerLevel } from './careerLevels'
 import { GameGrid } from './GameGrid'
 import { ClassicShapesDialog } from './ClassicShapesDialog'
 import { BonusDialog } from './BonusDialog'
@@ -68,6 +68,11 @@ interface GameSessionProps {
   requestedSeed: string | null
 }
 
+function getTutorialDataIndex(data: CareerLevelData | undefined, dataIndex: number | undefined) {
+  if (!data || dataIndex === undefined) return null
+  return getCareerLevelDataAtIndex(data, dataIndex) === null ? null : dataIndex
+}
+
 function GameSession(props: GameSessionProps) {
   const { t } = useTranslation()
   const location = useLocation()
@@ -84,18 +89,28 @@ function GameSession(props: GameSessionProps) {
   const [careerLevel, setCareerLevel] = useState(props.careerLevel)
   const careerTutorial = careerLevel?.tutorial
   const tutorialSteps = careerTutorial?.steps ?? EMPTY_CAREER_TUTORIAL_STEPS
+  const [tutorialDataIndex, setTutorialDataIndex] = useState(() => getTutorialDataIndex(careerLevel?.data, tutorialSteps[0]?.dataIndex) ?? 0)
+  const activeCareerData = careerLevel
+    ? getCareerLevelDataAtIndex(careerLevel.data, tutorialDataIndex) ?? getDefaultCareerLevelData(careerLevel.data)
+    : undefined
+  const gameConfig = useMemo(() => {
+    if (!gameDefinition || careerTutorial?.autoVerification === undefined) return gameDefinition?.config
+    return { ...gameDefinition.config, finalVerificationMode: careerTutorial.autoVerification ? 'auto' as const : 'manual' as const }
+  }, [careerTutorial?.autoVerification, gameDefinition])
   const [tutorialSelectionReady, setTutorialSelectionReady] = useState(() => careerTutorial === undefined)
+  const [tutorialGridReady, setTutorialGridReady] = useState(() => careerTutorial === undefined)
   const [tutorialOpen, setTutorialOpen] = useState(() => tutorialSteps.length > 0)
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
   const [tutorialSuspended, setTutorialSuspended] = useState(false)
   const [careerBoardCompleted, setCareerBoardCompleted] = useState(false)
   const [careerRestartVersion, setCareerRestartVersion] = useState(0)
+  const [tutorialBoardRevision, setTutorialBoardRevision] = useState(0)
   const tutorialRef = useRef<ReturnType<typeof createTutorialDriver> | null>(null)
   const tutorialStepIndexRef = useRef(0)
-  const activeGameMode = careerLevel ? getCareerLevelGameMode(careerLevel) : props.gameMode
+  const activeGameMode = careerLevel ? getCareerLevelGameMode(careerLevel, tutorialDataIndex) : props.gameMode
   const seed = careerLevel ? getCareerGameId(careerLevel) : props.requestedSeed || generatedSeed
   const modeConfig = GAME_CONFIGS[activeGameMode]
-  const generatedCareerBoard = careerLevel !== undefined && !isClassicGameDefinitionCareerData(careerLevel.data)
+  const generatedCareerBoard = activeCareerData !== undefined && !isClassicGameDefinitionCareerData(activeCareerData)
   const gameTitle = careerLevel ? t('career.level', { number: careerLevel.number }) : gameDefinition?.source === 'custom' && gameDefinition.customName ? gameDefinition.customName : t(modeConfig.title)
   const requiredLockCount = gameDefinition?.config.tetrominoCount ?? modeConfig.tetrominoCount
   const bonus = careerLevel?.bonus ?? gameDefinition?.bonus ?? []
@@ -104,7 +119,13 @@ function GameSession(props: GameSessionProps) {
   const tutorialBoardInteractive = activeTutorialStep?.boardInteractive !== false
   const tutorialShowsUI = activeTutorialStep?.showUI !== false
   const tutorialHighlightAreas = tutorialSteps.flatMap((step, index) => step.area === 'board'
-    ? [{ height: step.rows, id: getCareerTutorialTargetId(step.area, index), left: step.x, top: step.y, width: step.columns }]
+    ? [{
+        height: step.board?.rows ?? gameDefinition?.config.rows ?? modeConfig.rows,
+        id: getCareerTutorialTargetId(step.area, index),
+        left: step.board?.x ?? 0,
+        top: step.board?.y ?? 0,
+        width: step.board?.columns ?? gameDefinition?.config.columns ?? modeConfig.columns,
+      }]
     : [])
   const tutorialControlIds = careerTutorial ? {
     clear: getCareerTutorialTargetId('clear'),
@@ -116,9 +137,21 @@ function GameSession(props: GameSessionProps) {
   } : undefined
 
   function setActiveTutorialStepIndex(index: number) {
+    const nextDataIndex = getTutorialDataIndex(careerLevel?.data, tutorialSteps[index]?.dataIndex)
+    const dataChanged = nextDataIndex !== null && nextDataIndex !== tutorialDataIndex
+    if (dataChanged) {
+      setTutorialDataIndex(nextDataIndex)
+      setTutorialBoardRevision((revision) => revision + 1)
+      setTutorialGridReady(false)
+      setCareerBoardCompleted(false)
+      setGameDefinition(null)
+    }
     tutorialStepIndexRef.current = index
     setTutorialStepIndex(index)
+    return dataChanged
   }
+
+  const handleTutorialGridEntranceComplete = useCallback(() => setTutorialGridReady(true), [])
 
   function advanceTutorial(action: CareerTutorialAction) {
     const step = tutorialSteps[tutorialStepIndex]
@@ -133,12 +166,12 @@ function GameSession(props: GameSessionProps) {
     }
 
     // Render the next step's UI before Driver resolves its next target.
-    setActiveTutorialStepIndex(nextStepIndex)
+    const dataChanged = setActiveTutorialStepIndex(nextStepIndex)
     if (tutorialSuspended) {
       setTutorialSuspended(false)
       return
     }
-    requestAnimationFrame(() => tutorialRef.current?.moveTo(nextStepIndex))
+    if (!dataChanged) requestAnimationFrame(() => tutorialRef.current?.moveTo(nextStepIndex))
   }
 
   function suspendTutorialForRestart() {
@@ -232,8 +265,9 @@ function GameSession(props: GameSessionProps) {
 
     const resolveDefinition = async () => {
       if (careerLevel) {
-        if (isClassicGameDefinitionCareerData(careerLevel.data)) {
-          return { ...careerLevel.data, seed }
+        const data = activeCareerData ?? getDefaultCareerLevelData(careerLevel.data)
+        if (isClassicGameDefinitionCareerData(data)) {
+          return { ...data, seed }
         }
 
         const [careerProgression, savedDefinition] = await Promise.all([
@@ -246,7 +280,7 @@ function GameSession(props: GameSessionProps) {
 
         if (savedDefinition) await clearGameSelection(activeGameMode, seed)
         const generationSeed = createRandomSeed()
-        const config = careerLevel.data
+        const config = data
         const pieces = await generateTetrominoPlacementsV2(config, {
           random: createSeededRandom(`${seed}:${generationSeed}`),
           yieldEvery: 250,
@@ -305,10 +339,10 @@ function GameSession(props: GameSessionProps) {
     return () => {
       active = false
     }
-  }, [activeGameMode, careerLevel, careerRestartVersion, modeConfig, seed])
+  }, [activeCareerData, activeGameMode, careerLevel, careerRestartVersion, modeConfig, seed])
 
   useEffect(() => {
-    if (!gameDefinition || !tutorialSelectionReady || !tutorialOpen || tutorialSuspended || tutorialSteps.length === 0) return
+    if (!gameDefinition || !tutorialGridReady || !tutorialSelectionReady || !tutorialOpen || tutorialSuspended || tutorialSteps.length === 0) return
     const tutorial = createTutorialDriver(tutorialSteps.map((step, index) => ({
       element: `#${getCareerTutorialTargetId(step.area, index)}`,
       nextLocked: step.advanceOn !== undefined && step.advanceOn.length > 0,
@@ -328,7 +362,7 @@ function GameSession(props: GameSessionProps) {
       if (tutorialRef.current === tutorial) tutorialRef.current = null
       tutorial.destroy()
     }
-  }, [gameDefinition, t, tutorialOpen, tutorialSelectionReady, tutorialSteps, tutorialSuspended])
+  }, [gameDefinition, t, tutorialGridReady, tutorialOpen, tutorialSelectionReady, tutorialSteps, tutorialSuspended])
 
   return (
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
@@ -378,7 +412,9 @@ function GameSession(props: GameSessionProps) {
         {gameDefinition && tutorialSelectionReady &&
           <GameGrid
             boardInteractive={tutorialBoardInteractive}
-            config={gameDefinition.config}
+            config={gameConfig ?? gameDefinition.config}
+            emptyCellBorderOpacity={careerLevel?.rendering?.emptyCellBorderOpacity}
+            emptyCellOpacity={careerLevel?.rendering?.emptyCellOpacity}
             entranceAnimation
             getCompletionResult={getCompletionResult}
             deferCompletionDialog={tutorialOpen}
@@ -390,8 +426,9 @@ function GameSession(props: GameSessionProps) {
             hideGameControls={!tutorialShowsUI}
             highlightAreas={tutorialHighlightAreas}
             isCareerLevel={!!careerLevel}
-            key={`${activeGameMode}:${seed}:${gameDefinition.version}`}
+            key={`${activeGameMode}:${seed}:${gameDefinition.version}:${tutorialBoardRevision}`}
             onElapsedSecondsChange={setElapsedSeconds}
+            onEntranceAnimationComplete={careerTutorial ? handleTutorialGridEntranceComplete : undefined}
             onGameCompleted={careerLevel ? handleCareerGameCompleted : undefined}
             onLocked={() => advanceTutorial('lock')}
             onMoveCountChange={setMoveCount}
@@ -407,6 +444,7 @@ function GameSession(props: GameSessionProps) {
             paused={pauseOpen}
             persistSelection={careerTutorial ? false : undefined}
             pieces={gameDefinition.pieces}
+            showCornerMarkers={careerLevel?.rendering?.showCornerMarkers}
             suspended={shapesOpen || bonusOpen}
             tutorialControlIds={tutorialControlIds}
           />}
