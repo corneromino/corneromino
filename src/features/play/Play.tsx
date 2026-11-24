@@ -347,7 +347,7 @@ function GameSession(props: GameSessionProps) {
       element: `#${getCareerTutorialTargetId(step.area, index)}`,
       nextLocked: step.advanceOn !== undefined && step.advanceOn.length > 0,
       onHighlightStarted: () => setActiveTutorialStepIndex(index),
-      popover: { description: step.content, side: 'bottom' },
+      popover: { description: t(step.content), side: 'bottom' },
     })), {
       labels: {
         close: t('common.close'),

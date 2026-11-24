@@ -5,6 +5,7 @@ export type CareerTutorialAction = 'complete' | 'lock' | 'reset' | 'select' | 'u
 export type CareerTutorialControlArea = 'clear' | 'lock' | 'notes' | 'reset' | 'unlock' | 'verify'
 
 interface CareerTutorialStepBase {
+  /** i18next key displayed in the tutorial popover. */
   content: string
   /** Automatically proceed after one of these successful gameplay actions. */
   advanceOn?: readonly CareerTutorialAction[]

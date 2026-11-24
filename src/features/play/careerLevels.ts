@@ -110,6 +110,8 @@ export const careerLevels: CareerLevel[] = [
 export interface CareerLevelPosition {
   /** Authored board seed, or the generated level's position-derived ID. */
   id: string
+  /** Present when this position belongs to an infinite Career section. */
+  infiniteRepeat?: ResolvedCareerLevel['infiniteRepeat']
   level: ResolvedCareerLevelConfiguration
   x: number
   y: number
@@ -198,12 +200,17 @@ export function resolveCareerLevelConfigurations(levels: readonly CareerLevel[] 
 /** Resolves relative authored offsets into absolute map coordinates. */
 export function resolveCareerLevelPositions(levels: readonly CareerLevel[] = careerLevels, generation: CareerLevelGeneration = EMPTY_CAREER_LEVEL_GENERATION): CareerLevelPosition[] {
   let previous = { x: 0, y: 0 }
-  return resolveCareerLevelEntries(levels, generation).map(({ isInfiniteRepeat, level, repeatIndex, source }, index) => {
+  return resolveCareerLevelEntries(levels, generation).map(({ isInfiniteRepeat, isInfiniteTail, level, repeatIndex, source, sourceIndex }, index) => {
     const position = level.origin === 'relative'
       ? { x: previous.x + level.x, y: previous.y + level.y }
       : { x: level.x, y: level.y }
     previous = position
-    return { id: getCareerLevelIdentity(index, source, repeatIndex, isInfiniteRepeat, level), level, ...position }
+    return {
+      id: getCareerLevelIdentity(index, source, repeatIndex, isInfiniteRepeat, level),
+      infiniteRepeat: isInfiniteRepeat ? { isTail: isInfiniteTail, repeatIndex, sourceIndex } : undefined,
+      level,
+      ...position,
+    }
   })
 }
 

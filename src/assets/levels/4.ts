@@ -8,12 +8,20 @@ export const level4: CareerLevel = {
   y: 75 * 2,
   from: 'top',
   to: 'bottom',
+  tutorial: {
+    steps: [{
+      content: 'career.tutorial.level4.play',
+      showUI: false,
+      advanceOn: ['select'],
+      area: 'board'
+    }]
+  },
   data: {
     "config": {
       "columns": 6,
       "rows": 6,
       "spread": 0,
-      "tetrominoCount": 5,
+      "tetrominoCount": 4,
       "lockingMode": "auto",
       "finalVerificationMode": "auto",
       "completionScreenshotDelayMs": 400,
@@ -34,149 +42,119 @@ export const level4: CareerLevel = {
           {
             "cellId": "b",
             "corner": "top-left",
-            "x": 0,
+            "x": 2,
+            "y": 2
+          },
+          {
+            "cellId": "c",
+            "corner": "top-right",
+            "x": 3,
+            "y": 3
+          },
+          {
+            "cellId": "d",
+            "corner": "bottom-right",
+            "x": 4,
+            "y": 4
+          }
+        ],
+        "id": 1,
+        "kind": "diagonal"
+      },
+      {
+        "cells": [
+          {
+            "cellId": "a",
+            "corner": "bottom-right",
+            "x": 5,
+            "y": 2
+          },
+          {
+            "cellId": "b",
+            "corner": "bottom-left",
+            "x": 4,
+            "y": 3
+          },
+          {
+            "cellId": "c",
+            "corner": "top-right",
+            "x": 3,
+            "y": 4
+          },
+          {
+            "cellId": "d",
+            "corner": "top-left",
+            "x": 2,
+            "y": 5
+          }
+        ],
+        "id": 2,
+        "kind": "diagonal"
+      },
+      {
+        "cells": [
+          {
+            "cellId": "a",
+            "corner": "top-right",
+            "x": 3,
+            "y": 0
+          },
+          {
+            "cellId": "b",
+            "corner": "bottom-left",
+            "x": 4,
             "y": 0
           },
           {
             "cellId": "c",
-            "corner": "bottom-right",
-            "x": 0,
+            "corner": "top-left",
+            "x": 3,
             "y": 1
           },
           {
             "cellId": "d",
-            "corner": "top-right",
-            "x": 0,
-            "y": 2
-          }
-        ],
-        "id": 1,
-        "kind": "T"
-      },
-      {
-        "cells": [
-          {
-            "cellId": "a",
             "corner": "bottom-right",
-            "x": 0,
-            "y": 5
-          },
-          {
-            "cellId": "b",
-            "corner": "bottom-left",
-            "x": 0,
-            "y": 4
-          },
-          {
-            "cellId": "c",
-            "corner": "top-left",
-            "x": 0,
-            "y": 3
-          },
-          {
-            "cellId": "d",
-            "corner": "top-right",
-            "x": 1,
-            "y": 3
-          }
-        ],
-        "id": 2,
-        "kind": "J"
-      },
-      {
-        "cells": [
-          {
-            "cellId": "a",
-            "corner": "top-right",
-            "x": 2,
-            "y": 4
-          },
-          {
-            "cellId": "b",
-            "corner": "top-left",
-            "x": 3,
-            "y": 4
-          },
-          {
-            "cellId": "c",
-            "corner": "bottom-left",
             "x": 4,
-            "y": 4
-          },
-          {
-            "cellId": "d",
-            "corner": "bottom-right",
-            "x": 5,
-            "y": 4
+            "y": 1
           }
         ],
         "id": 3,
-        "kind": "I"
+        "kind": "O"
       },
       {
         "cells": [
           {
             "cellId": "a",
-            "corner": "top-right",
-            "x": 1,
+            "corner": "top-left",
+            "x": 0,
             "y": 2
           },
           {
             "cellId": "b",
-            "corner": "bottom-right",
-            "x": 2,
-            "y": 2
+            "corner": "top-right",
+            "x": 0,
+            "y": 3
           },
           {
             "cellId": "c",
-            "corner": "top-left",
-            "x": 3,
-            "y": 2
+            "corner": "bottom-right",
+            "x": 0,
+            "y": 4
           },
           {
             "cellId": "d",
             "corner": "bottom-left",
-            "x": 4,
-            "y": 2
+            "x": 0,
+            "y": 5
           }
         ],
         "id": 4,
         "kind": "I"
-      },
-      {
-        "cells": [
-          {
-            "cellId": "a",
-            "corner": "top-left",
-            "x": 4,
-            "y": 0
-          },
-          {
-            "cellId": "b",
-            "corner": "bottom-left",
-            "x": 5,
-            "y": 0
-          },
-          {
-            "cellId": "c",
-            "corner": "bottom-right",
-            "x": 4,
-            "y": 1
-          },
-          {
-            "cellId": "d",
-            "corner": "top-right",
-            "x": 5,
-            "y": 1
-          }
-        ],
-        "id": 5,
-        "kind": "O"
       }
     ],
     "version": 1,
-    "customName": "",
-    "seed": "custom-2e92a02e-f708-4f8e-b7b9-abf5834f2f19",
+    "customName": "...",
+    "seed": "custom-c5eb301f-64e6-40d5-98a9-c69cb73eddf1",
     "source": "custom"
   }
 }

@@ -8,52 +8,34 @@ export const level1: CareerLevel = {
   from: 'top',
   to: 'bottom',
   rendering: {
-    // emptyCellOpacity: 0.5,
+    emptyCellOpacity: 0.5,
   },
   tutorial: {
     steps: [
       {
-        content: "Voici un grand carré avec un autre petit carré foncé à l'interieur.",
+        content: 'career.tutorial.level1.cell',
         area: 'board',
         board: { x: 1, y: 1, columns: 1, rows: 1 },
         boardInteractive: false,
         showUI: false,
       }, {
-        content: "Avec 4 grands carrés qui se touchent, tu obtiens un Cantomino. Chaque grand carré doit avoir sont petit carré.",
+        content: 'career.tutorial.level1.cantomino',
         area: 'board',
         board: { x: 1, y: 1, columns: 2, rows: 3 },
         boardInteractive: false,
         showUI: false,
       }, {
-        content: "Un Cantomino, possède des petits carrés dans chaque coin, en haut à gauche ...",
+        content: 'career.tutorial.level1.corners',
         area: 'board',
-        board: { x: 1, y: 1, columns: 1, rows: 1 },
+        board: { x: 1, y: 1, columns: 2, rows: 3 },
         boardInteractive: false,
         showUI: false,
       }, {
-        content: "... en bas à droite ...",
-        area: 'board',
-        board: { x: 1, y: 2, columns: 1, rows: 1 },
-        boardInteractive: false,
-        showUI: false,
-      }, {
-        content: "... en haut à droite ...",
-        area: 'board',
-        board: { x: 1, y: 3, columns: 1, rows: 1 },
-        boardInteractive: false,
-        showUI: false,
-      }, {
-        content: "... et en bas à gauche !",
-        area: 'board',
-        board: { x: 2, y: 3, columns: 1, rows: 1 },
-        boardInteractive: false,
-        showUI: false,
-      }, {
-        content: "Selectionne les grands carrés qui forme le Cantomino pour passer au niveau suivant.",
+        content: 'career.tutorial.level1.play',
         area: 'board',
         showUI: false,
-        // advanceOn: ['complete']
-      }
+        advanceOn: ['complete']
+      },
     ]
   },
   data: [{

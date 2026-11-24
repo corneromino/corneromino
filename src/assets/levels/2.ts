@@ -11,15 +11,22 @@ export const level2: CareerLevel = {
   tutorial: {
     steps: [
       {
-        content: "N'importe quel forme est valide tant que les 4 carrés se touchent.",
-        boardInteractive: false,
+        content: 'career.tutorial.level2.lock',
+        showUI: false,
+        advanceOn: ['lock'],
+        area: 'board',
+        board: { x: 0, y: 4, rows: 2, columns: 3 }
+      }, {
+        content: 'career.tutorial.level2.unlock',
+        area: 'board',
+        board: { x: 0, y: 4, rows: 2, columns: 3 },
+        showUI: false,
+        advanceOn: ['unlock']
+      }, {
+        content: 'career.tutorial.level2.play',
         showUI: false,
         area: 'board',
-      }, {
-        content: "Trouve les 4 Cantominos et connecte les grands carrés. Et n'oublie pas la règle des petits carrés !",
-        advanceOn: ['complete'],
-        showUI: false,
-        area: 'board'
+        advanceOn: ['select']
       }
     ]
   },

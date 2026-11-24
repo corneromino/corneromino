@@ -182,7 +182,9 @@ describe('Career levels', () => {
       number: 3,
     })
     expect(resolveCareerLevelConfigurations(levels, nextGeneration).slice(1).map((level) => (level.data as typeof GAME_CONFIGS.c001).tetrominoCount)).toEqual([2, 3])
-    expect(resolveCareerLevelPositions(levels, nextGeneration).map(({ id }) => id)).toEqual(['first', 'level-2', 'level-3'])
+    const positions = resolveCareerLevelPositions(levels, nextGeneration)
+    expect(positions.map(({ id }) => id)).toEqual(['first', 'level-2', 'level-3'])
+    expect(positions.at(-1)?.infiniteRepeat).toEqual({ isTail: true, repeatIndex: 1, sourceIndex: 1 })
   })
 
   it('unlocks authored levels sequentially while skipping position-only entries', () => {

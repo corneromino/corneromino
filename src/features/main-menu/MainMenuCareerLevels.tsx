@@ -190,6 +190,12 @@ function getConnectorPath(level: CareerLevelPosition, nextLevel: CareerLevelPosi
   return roundedOrthogonalPath([start, startOuter, bend, endOuter, end])
 }
 
+/** Extends the visible path beyond the latest generated infinite level. */
+function getInfiniteContinuationPath(level: CareerLevelPosition, size: CanvasSize) {
+  const start = getEdgeCenter(level, 'top', size)
+  return roundedOrthogonalPath([start, { x: start.x, y: 0 }])
+}
+
 function LockedLevelBadge({ position }: { position: Point }) {
   return (
     <span
@@ -218,6 +224,9 @@ export function MainMenuCareerLevels(props: MainMenuCareerLevelsProps) {
   // A builder is evaluated once for this map generation. Reusing its resolved
   // configuration keeps card positions and unlock state in agreement.
   const levelPositions = useMemo(() => resolveCareerLevelPositions(undefined, careerGeneration), [careerGeneration])
+  const lastLevelPosition = levelPositions.at(-1)
+  const infiniteTail = lastLevelPosition?.infiniteRepeat?.isTail ? lastLevelPosition : undefined
+  const infiniteContinuationPath = infiniteTail ? getInfiniteContinuationPath(infiniteTail, canvasSize) : null
   const lastUnlockedLevelIndex = getCurrentCareerLevelIndexFromPositions(careerProgression, levelPositions)
   const highestLevelY = Math.max(0, ...levelPositions.map((level) => level.y)) + LEVEL_Y_OFFSET * 2
   const canvasHeight = highestLevelY + LEVEL_CARD_SIZE_PX
@@ -379,16 +388,21 @@ export function MainMenuCareerLevels(props: MainMenuCareerLevelsProps) {
       >
         <div className="relative min-h-full" ref={canvasRef} style={{ height: canvasHeight }}>
         {canvasSize.width > 0 && canvasSize.height > 0 && <svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full overflow-visible" focusable="false" preserveAspectRatio="none" viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}>
-          {levelPositions.slice(0, -1).map((level, index) => {
+           {levelPositions.slice(0, -1).map((level, index) => {
             const path = getConnectorPath(level, levelPositions[index + 1]!, canvasSize)
             if (!path) return null
             return <g key={`${level.id}:${level.level.from}:${level.level.to}`}>
               <path d={path} fill="none" stroke={PAPER_DEPTH_SHADOW_COLOR} strokeLinecap="round" strokeLinejoin="round" strokeWidth={CONNECTOR_THICKNESS_PX} transform="translate(0 3)" />
               <path d={path} fill="none" stroke="var(--outline-color)" strokeLinecap="round" strokeLinejoin="round" strokeWidth={CONNECTOR_THICKNESS_PX} />
               <path d={path} fill="none" stroke="var(--paper)" strokeLinecap="round" strokeLinejoin="round" strokeWidth={CONNECTOR_INTERIOR_THICKNESS_PX} />
-            </g>
-          })}
-        </svg>}
+             </g>
+           })}
+           {infiniteContinuationPath && <g>
+             <path d={infiniteContinuationPath} fill="none" stroke={PAPER_DEPTH_SHADOW_COLOR} strokeLinecap="round" strokeLinejoin="round" strokeWidth={CONNECTOR_THICKNESS_PX} transform="translate(0 3)" />
+             <path d={infiniteContinuationPath} fill="none" stroke="var(--outline-color)" strokeLinecap="round" strokeLinejoin="round" strokeWidth={CONNECTOR_THICKNESS_PX} />
+             <path d={infiniteContinuationPath} fill="none" stroke="var(--paper)" strokeLinecap="round" strokeLinejoin="round" strokeWidth={CONNECTOR_INTERIOR_THICKNESS_PX} />
+           </g>}
+         </svg>}
         {levelPositions.map((position, index) => {
           const { level } = position
           const data = level.data

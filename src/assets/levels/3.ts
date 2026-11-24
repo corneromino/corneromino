@@ -13,12 +13,7 @@ export const level3: CareerLevel = {
   },
   tutorial: {
     steps: [{
-        content: "Un ligne de 4 grands carrés en diagonale est aussi un Cantomino",
-        area: "board",
-        boardInteractive: false,
-        showUI: false,
-      }, {
-        content: "Trouve les 2 Cantomino en diagonal.",
+        content: 'career.tutorial.level3.diagonal',
         area: "board",
         showUI: false,
         advanceOn: ["complete"]

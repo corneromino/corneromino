@@ -129,7 +129,26 @@ export default {
         "savePrompt": "Sauvegarder cette partie pour la reprendre plus tard ?"
     },
     "career": {
-        "level": "Niveau {{number}}"
+        "level": "Niveau {{number}}",
+        "tutorial": {
+            "level1": {
+                "cell": "Voici une case avec un petit carré dans un coin !",
+                "cantomino": "Un Cantomino est composé de 4 cases qui se touchent.",
+                "corners": "Dans ces 4 cases, chaque petit carré doit se trouver dans un coin différent !",
+                "play": "Sélectionne les 4 cases qui forment le Cantomino pour passer au niveau suivant !"
+            },
+            "level2": {
+                "lock": "N’importe quelle forme est valide tant que les 4 cases se touchent. N’oublie pas la règle des coins !",
+                "unlock": "Appuie deux fois sur une forme verrouillée pour la déverrouiller !",
+                "play": "Super ! Trouve tous les cantominos pour continuer !"
+            },
+            "level3": {
+                "diagonal": "Une ligne de 4 cases en diagonale est aussi un cantomino !"
+            },
+            "level4": {
+                "play": "À toi de jouer ! Aucune case ne doit rester seule !"
+            }
+        }
     },
     "cascade": {
         "title": "Cascade",

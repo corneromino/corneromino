@@ -134,7 +134,26 @@ export default {
         "savePrompt": "Save this game to continue it later?"
     },
     "career": {
-        "level": "Level {{number}}"
+        "level": "Level {{number}}",
+        "tutorial": {
+            "level1": {
+                "cell": "Here is a cell with a small square in one corner!",
+                "cantomino": "A Cantomino is made of 4 touching cells.",
+                "corners": "In these 4 cells, each small square must be in a different corner!",
+                "play": "Select the 4 cells that form the Cantomino to move on to the next level!"
+            },
+            "level2": {
+                "lock": "Any shape is valid as long as the 4 cells touch. Don't forget the corner rule!",
+                "unlock": "Tap a locked shape twice to unlock it!",
+                "play": "Great! Find all the Cantominos to continue!"
+            },
+            "level3": {
+                "diagonal": "A diagonal line of 4 cells is also a Cantomino!"
+            },
+            "level4": {
+                "play": "Your turn! No cell can be left alone!"
+            }
+        }
     },
     "cascade": {
         "title": "Cascade",
