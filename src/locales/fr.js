@@ -100,7 +100,7 @@ export default {
         "gameDataCopied": "Données du jeu copiées",
         "copyGameDataFailed": "Impossible de copier les données du jeu",
         "pasteGameData": "Coller les données du jeu",
-        "pasteGameDataDescription": "Collez les données copiées d’un jeu. Son seed sera remplacé par un nouveau.",
+        "pasteGameDataDescription": "Collez les données copiées d'un jeu. Son seed sera remplacé par un nouveau.",
         "gameData": "Données du jeu",
         "importGameData": "Importer",
         "invalidGameData": "Ces données de jeu ne sont pas valides.",
@@ -138,7 +138,7 @@ export default {
                 "play": "Sélectionne les 4 cases qui forment le Cantomino pour passer au niveau suivant !"
             },
             "level2": {
-                "lock": "N’importe quelle forme est valide tant que les 4 cases se touchent. N’oublie pas la règle des coins !",
+                "lock": "N'importe quelle forme est valide tant que les 4 cases se touchent. N'oublie pas la règle des coins !",
                 "unlock": "Appuie deux fois sur une forme verrouillée pour la déverrouiller !",
                 "play": "Super ! Trouve tous les cantominos pour continuer !"
             },

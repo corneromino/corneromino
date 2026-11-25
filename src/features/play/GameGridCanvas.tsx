@@ -46,6 +46,7 @@ interface GameGridCanvasProps {
   lockedCellGroups: readonly LockedCellGroup[]
   markers: ReadonlyMap<string, CellMarkerColor>
   onToggle: (cellKey: string, timeStamp: number) => void
+  onLongPress?: (cellKey: string) => void
   onNavigate?: () => void
   /** Fires after the first board frame is rendered, or the canvas fails to start. */
   onReady?: () => void
@@ -150,6 +151,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
   const resetViewRef = useRef<() => void>(() => undefined)
   propsRef.current = props
   const expanded = props.expandViewport === true && !props.scrolling && props.config.navigationEnabled !== false
+  const longPressEnabled = props.onLongPress !== undefined
 
   useImperativeHandle(ref, () => ({
     captureBoard: (options) => captureRef.current(options),
@@ -815,7 +817,14 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
             enabled: () => propsRef.current.interactive !== false,
             gestures: navigation === null,
             cellAt: pointerToCell,
-            callbacks: navigation?.callbacks ?? { onCellTap: handleCellTap },
+            callbacks: {
+              ...(navigation?.callbacks ?? { onCellTap: handleCellTap }),
+              ...(longPressEnabled ? { onCellLongPress: ({ column, row }: GridCellEvent) => {
+                if (surface!.contains(column, row) && column >= 0 && column < propsRef.current.config.columns) {
+                  propsRef.current.onLongPress?.(cellKey(column, row))
+                }
+              } } : {}),
+            },
           })
           app.ticker.add(update)
         },
@@ -873,7 +882,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       window.removeEventListener('resize', alignCanvas)
       host?.destroy()
     }
-  }, [props.config.columns, props.config.rows, props.config.navigationEnabled, expanded])
+  }, [props.config.columns, props.config.rows, props.config.navigationEnabled, expanded, longPressEnabled])
 
   return <div className={expanded ? 'relative size-full' : 'relative size-full overflow-hidden'} ref={boardBoundsRef}>
     <div className={`${props.interactive === false ? 'pointer-events-none' : 'touch-none'} absolute ${expanded ? 'game-grid-expanded-viewport h-[var(--app-height)] w-screen' : 'inset-0 overflow-hidden'}`} data-edge-fade={props.edgeFadeEnabled !== false ? 'true' : undefined} ref={containerRef}>

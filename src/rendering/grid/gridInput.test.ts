@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { attachGridInput, type GridInputCallbacks } from './gridInput'
+import { attachGridInput, GRID_LONG_PRESS_MS, type GridInputCallbacks } from './gridInput'
 
 function setup(callbacks: GridInputCallbacks, options = {}) {
   const target = new EventTarget()
@@ -30,6 +30,40 @@ describe('shared grid input callbacks', () => {
     expect(onCellTap).toHaveBeenCalledOnce()
     expect(onCellTap.mock.calls[0][0]).toMatchObject({ column: 1, row: 2 })
     expect(captures.size).toBe(0)
+  })
+
+  it('delivers one stationary long press without also tapping or swiping', () => {
+    vi.useFakeTimers()
+    try {
+      const onCellLongPress = vi.fn(), onCellTap = vi.fn(), onSwipeRight = vi.fn()
+      const { send, detach } = setup({ onCellLongPress, onCellTap, onSwipeRight })
+      send('pointerdown', 70, 120)
+      vi.advanceTimersByTime(GRID_LONG_PRESS_MS - 1)
+      expect(onCellLongPress).not.toHaveBeenCalled()
+      send('pointermove', 72, 122)
+      vi.advanceTimersByTime(1)
+      send('pointerup', 72, 122)
+      expect(onCellLongPress).toHaveBeenCalledOnce()
+      expect(onCellLongPress.mock.calls[0][0]).toMatchObject({ column: 1, row: 2 })
+      expect(onCellTap).not.toHaveBeenCalled()
+      expect(onSwipeRight).not.toHaveBeenCalled()
+      detach()
+    } finally { vi.useRealTimers() }
+  })
+
+  it('cancels pending long presses on movement, pinch, cancellation, disabled input and cleanup', () => {
+    vi.useFakeTimers()
+    try {
+      let enabled = true
+      const onCellLongPress = vi.fn()
+      const { send, detach } = setup({ onCellLongPress }, { enabled: () => enabled })
+      send('pointerdown'); send('pointermove', 50, 10); vi.advanceTimersByTime(GRID_LONG_PRESS_MS); send('pointerup', 50, 10)
+      send('pointerdown'); send('pointerdown', 50, 50, 2); vi.advanceTimersByTime(GRID_LONG_PRESS_MS); send('pointerup', 50, 50, 2); send('pointerup')
+      send('pointerdown'); send('pointercancel'); vi.advanceTimersByTime(GRID_LONG_PRESS_MS)
+      send('pointerdown'); enabled = false; vi.advanceTimersByTime(GRID_LONG_PRESS_MS); send('pointerup'); enabled = true
+      send('pointerdown'); detach(); vi.advanceTimersByTime(GRID_LONG_PRESS_MS)
+      expect(onCellLongPress).not.toHaveBeenCalled()
+    } finally { vi.useRealTimers() }
   })
 
   it('emits incremental horizontal steps without also tapping or dropping', () => {

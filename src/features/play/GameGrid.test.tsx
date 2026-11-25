@@ -620,6 +620,21 @@ describe('Classic locking modes', () => {
     expect(board().locked).toHaveLength(1)
   })
 
+  it('toggles a note on long press without changing selection or entering note mode', () => {
+    const { rerender } = setup()
+    tap('0,0')
+    act(() => canvasMock.props!.onLongPress?.('1,0'))
+    expect(board().selected).toEqual(['0,0'])
+    expect(board().markers).toEqual(['1,0'])
+    expect(screen.getByRole('button', { name: 'Take notes' }).getAttribute('aria-pressed')).toBe('false')
+    act(() => canvasMock.props!.onLongPress?.('1,0'))
+    act(() => canvasMock.props!.onLongPress?.('6,5'))
+    expect(board().markers).toEqual([])
+    rerender({ paused: true })
+    act(() => canvasMock.props!.onLongPress?.('1,0'))
+    expect(board().markers).toEqual([])
+  })
+
   it('ignores paused input and clears the pending double tap on pause', () => {
     const { rerender } = setup()
     tap(...firstSquare, '0,0')

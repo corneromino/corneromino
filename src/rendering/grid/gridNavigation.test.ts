@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import { attachGridInput } from './gridInput'
+import { attachGridInput, GRID_LONG_PRESS_MS } from './gridInput'
 import { constrainGridView, createGridNavigation, type GridView } from './gridNavigation'
 
-function setup(options: { finite?: boolean; tool?: Parameters<typeof createGridNavigation>[1]['tool']; scale?: number } = {}) {
+function setup(options: { finite?: boolean; tool?: Parameters<typeof createGridNavigation>[1]['tool']; scale?: number; onLongPress?: () => void } = {}) {
   const captures = new Set<number>()
   const canvas = Object.assign(new EventTarget(), {
     setPointerCapture: (id: number) => captures.add(id),
@@ -18,7 +18,7 @@ function setup(options: { finite?: boolean; tool?: Parameters<typeof createGridN
     setView: (next) => { view = options.finite ? constrainGridView(next, size, size) : next },
     onTap, onNavigate, tool: options.tool,
   })
-  const detach = attachGridInput(canvas, { gestures: false, cellAt: () => ({ column: 0, row: 0 }), callbacks: navigation.callbacks })
+  const detach = attachGridInput(canvas, { gestures: false, cellAt: () => ({ column: 0, row: 0 }), callbacks: { ...navigation.callbacks, onCellLongPress: options.onLongPress } })
   function send(type: string, x = 100, y = 100, pointerId = 1) {
     canvas.dispatchEvent(Object.assign(new Event(type), { pointerId, clientX: x + 10, clientY: y + 20, button: 0 }))
   }
@@ -31,6 +31,29 @@ function setup(options: { finite?: boolean; tool?: Parameters<typeof createGridN
 }
 
 describe('shared grid navigation', () => {
+  it('does not select after a long press and cancels the gesture when navigating', () => {
+    vi.useFakeTimers()
+    try {
+      const onLongPress = vi.fn()
+      const test = setup({ onLongPress })
+      test.send('pointerdown')
+      vi.advanceTimersByTime(GRID_LONG_PRESS_MS)
+      test.send('pointerup')
+      expect(onLongPress).toHaveBeenCalledOnce()
+      expect(test.onTap).not.toHaveBeenCalled()
+      test.send('pointerdown')
+      test.send('pointermove', 130, 100)
+      vi.advanceTimersByTime(GRID_LONG_PRESS_MS)
+      test.send('pointerup', 130, 100)
+      test.send('pointerdown')
+      test.wheel(-100)
+      vi.advanceTimersByTime(GRID_LONG_PRESS_MS)
+      test.send('pointerup')
+      expect(onLongPress).toHaveBeenCalledOnce()
+      expect(test.onTap).not.toHaveBeenCalled()
+      test.detach()
+    } finally { vi.useRealTimers() }
+  })
   it('allows taps and small jitter without panning', () => {
     const test = setup()
     test.send('pointerdown')

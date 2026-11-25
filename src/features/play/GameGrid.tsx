@@ -457,24 +457,26 @@ export function GameGrid(props: GameGridProps) {
     cancelVerification()
   }
 
+  function toggleCellNote(cellKey: string) {
+    if (!selectionLoaded || isGameplayPaused || isExiting || isCompleted || verification) return
+    lastLockedTapRef.current = null
+    if (!cellMap.has(cellKey)) return
+    setMarkers((currentMarkers) => {
+      const nextMarkers = new Map(currentMarkers)
+      if (nextMarkers.has(cellKey)) nextMarkers.delete(cellKey)
+      else nextMarkers.set(cellKey, 'black')
+      return nextMarkers
+    })
+  }
+
   function toggleCellSelection(cellKey: string, time: number) {
     if (!selectionLoaded || isGameplayPaused || isExiting || isCompleted || verification) return
-    if (!cellMap.has(cellKey)) {
-      lastLockedTapRef.current = null
+    if (markerMode) {
+      toggleCellNote(cellKey)
       return
     }
-
-    if (markerMode) {
+    if (!cellMap.has(cellKey)) {
       lastLockedTapRef.current = null
-      setMarkers((currentMarkers) => {
-        const nextMarkers = new Map(currentMarkers)
-        if (nextMarkers.has(cellKey)) {
-          nextMarkers.delete(cellKey)
-        } else {
-          nextMarkers.set(cellKey, 'black')
-        }
-        return nextMarkers
-      })
       return
     }
 
@@ -791,6 +793,7 @@ export function GameGrid(props: GameGridProps) {
                 vhsCrt={props.vhsCrt}
                 exitDistortion={props.exitDistortion}
                 onToggle={toggleCellSelection}
+                onLongPress={toggleCellNote}
                 pieces={props.pieces}
                 ref={gameCanvasRef}
                 selectedCellKeys={selectedCellKeys}
