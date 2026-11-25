@@ -10,6 +10,7 @@ const gameGridProps = vi.hoisted(() => ({ current: undefined as {
   exitPath?: string
   config?: { finalVerificationMode?: 'auto' | 'manual' }
   gameDefinition?: { seed: string }
+  gameDataForCopy?: { bonus?: readonly { shape: string; count: number }[]; seed: string }
   gameId: string
   boardInteractive?: boolean
   emptyCellBorderOpacity?: number
@@ -46,6 +47,7 @@ vi.mock('./ClassicShapesDialog', () => ({ ClassicShapesDialog: () => null }))
 import { clearGameSelection, loadCareerLevelGeneration, loadCareerProgression, loadClassicGameDefinition, saveCareerLevelGeneration, saveClassicGameDefinition } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
 import { CAREER_PLACEMENT_ITERATIONS_PER_ATTEMPT } from './careerInfiniteGeneration'
+import { getCareerInfiniteDifficulty } from './careerInfiniteDifficulty'
 import { Play } from './Play'
 
 const pieces: readonly PlacedTetromino[] = [{
@@ -135,6 +137,7 @@ it('shows a custom board name instead of its original difficulty title', async (
 
 it('plays a Career level from its authored data using its stable career save ID', async () => {
   careerLevels.splice(0, careerLevels.length, {
+    bonus: [{ shape: 'O', count: 1 }],
     data: {
       config: { ...GAME_CONFIGS.c003 },
       customName: 'Ignored custom title',
@@ -156,6 +159,7 @@ it('plays a Career level from its authored data using its stable career save ID'
   expect(gameGridProps.current).toMatchObject({
     exitPath: '/',
     gameDefinition: { seed: 'career:authored-career-board' },
+    gameDataForCopy: { seed: 'career:authored-career-board', bonus: [{ shape: 'O', count: 1 }] },
     gameId: 'career:authored-career-board',
     emptyCellBorderOpacity: 0.5,
     emptyCellOpacity: 0.25,
@@ -260,27 +264,30 @@ it('generates and persists a board for a configuration-based Career level', asyn
 })
 
 it('uses bounded placement for the infinite Career level and persists its starting configuration', async () => {
+  const levelNumber = careerLevels.findIndex((level) => level.repeat === 'infinite') + 1
+  const id = `level-${levelNumber}`
   vi.mocked(loadClassicGameDefinition).mockResolvedValue(null)
   vi.mocked(generateTetrominoPlacementsV2).mockResolvedValue([...pieces])
 
-  render(<MemoryRouter initialEntries={['/play?career=level-10']}><Play /></MemoryRouter>)
+  render(<MemoryRouter initialEntries={[`/play?career=${id}`]}><Play /></MemoryRouter>)
 
-  await waitFor(() => expect(gameGridProps.current?.gameDefinition?.seed).toBe('career:level-10'))
+  await waitFor(() => expect(gameGridProps.current?.gameDefinition?.seed).toBe(`career:${id}`))
   expect(generateTetrominoPlacementsV2).toHaveBeenCalledWith(
-    expect.objectContaining({ columns: 5, rows: 7, tetrominoCount: 4, spread: 0 }),
+    expect.objectContaining(getCareerInfiniteDifficulty(levelNumber)),
     expect.objectContaining({ maxIterations: CAREER_PLACEMENT_ITERATIONS_PER_ATTEMPT, yieldEvery: 250 }),
   )
-  expect(saveClassicGameDefinition).toHaveBeenCalledWith(expect.objectContaining({ seed: 'career:level-10' }))
+  expect(saveClassicGameDefinition).toHaveBeenCalledWith(expect.objectContaining({ seed: `career:${id}` }))
 })
 
 it('retains an already saved infinite Career board instead of replacing it with a new curve', async () => {
+  const id = `level-${careerLevels.findIndex((level) => level.repeat === 'infinite') + 1}`
   const saved = {
     config: { ...GAME_CONFIGS.c001, tetrominoCount: 1 }, gameMode: 'c001' as const,
-    pieces, seed: 'career:level-10', version: 1 as const,
+    pieces, seed: `career:${id}`, version: 1 as const,
   }
   vi.mocked(loadClassicGameDefinition).mockResolvedValue(saved)
 
-  render(<MemoryRouter initialEntries={['/play?career=level-10']}><Play /></MemoryRouter>)
+  render(<MemoryRouter initialEntries={[`/play?career=${id}`]}><Play /></MemoryRouter>)
 
   await waitFor(() => expect(gameGridProps.current?.gameDefinition).toEqual(saved))
   expect(generateTetrominoPlacementsV2).not.toHaveBeenCalled()

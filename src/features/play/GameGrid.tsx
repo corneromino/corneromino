@@ -56,6 +56,8 @@ interface GameGridProps {
   config: GameConfig
   /** The immutable original board, persisted only when the player explicitly saves. */
   gameDefinition?: ClassicGameDefinition
+  /** Career board data, including effective bonuses, for copying to Create mode. */
+  gameDataForCopy?: ClassicGameDefinition
   gameId: string
   gameMode: GameMode
   onElapsedSecondsChange: (elapsedSeconds: number) => void
@@ -934,7 +936,7 @@ export function GameGrid(props: GameGridProps) {
         open={completionDialogOpen}
         screenshot={completionScreenshot}
       />
-      {props.pauseDialog ?? <ClassicPauseDialog gameMode={props.gameMode} isCareerLevel={props.isCareerLevel} isSaving={isExiting} onOpenChange={props.onPauseOpenChange} onQuitWithoutSaving={quitWithoutSavingFromPause} onRestart={requestRestart} onResume={() => props.onPauseOpenChange(false)} onSaveAndQuit={saveAndQuitFromPause} open={props.paused} seed={props.gameId} />}
+      {props.pauseDialog ?? <ClassicPauseDialog gameDataForCopy={props.gameDataForCopy} gameMode={props.gameMode} isCareerLevel={props.isCareerLevel} isSaving={isExiting} onOpenChange={props.onPauseOpenChange} onQuitWithoutSaving={quitWithoutSavingFromPause} onRestart={requestRestart} onResume={() => props.onPauseOpenChange(false)} onSaveAndQuit={saveAndQuitFromPause} open={props.paused} seed={props.gameId} />}
       <ClassicRestartDialog onOpenChange={(open) => {
         setRestartConfirmationOpen(open)
         props.onRestartDialogOpenChange?.(open)

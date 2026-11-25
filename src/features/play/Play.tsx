@@ -11,6 +11,7 @@ import { GAME_CONFIGS, isGameMode, type ClassicGameMode, type GameConfig } from 
 import { clearGameSelection, completeCareerLevel, loadCareerLevelGeneration, loadCareerProgression, loadClassicGameDefinition, saveCareerLevelGeneration, saveClassicGameDefinition, type CareerLevelGeneration, type ClassicGameDefinition } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
 import { generateCareerInfinitePieces } from './careerInfiniteGeneration'
+import { createCareerGameDataForCopy } from './careerGameData'
 import type { LockedCellGroup } from '@/game/gameConfig'
 import { EMPTY_CAREER_LEVEL_GENERATION, extendCareerLevelGeneration, getCareerGameId, getCareerLevel, getCareerLevelDataAtIndex, getCareerLevelGameMode, getCareerLevelPath, getDefaultCareerLevelData, getNextCareerLevel, isClassicGameDefinitionCareerData, type CareerLevelData, type ResolvedCareerLevel } from './careerLevels'
 import { GameGrid } from './GameGrid'
@@ -424,6 +425,7 @@ function GameSession(props: GameSessionProps) {
             exitPath={careerLevel ? '/' : undefined}
             hasBonus={bonus.length > 0}
             gameDefinition={gameDefinition}
+            gameDataForCopy={careerLevel ? createCareerGameDataForCopy(gameDefinition, careerLevel.bonus) : undefined}
             gameId={seed}
             gameMode={activeGameMode}
             hideGameControls={!tutorialShowsUI}
