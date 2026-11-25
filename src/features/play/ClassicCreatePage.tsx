@@ -419,7 +419,7 @@ export function ClassicCreatePage() {
 
   return (
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
-      <header className="relative z-10 mx-auto flex w-full max-w-[550px] items-center justify-between gap-4 px-5 pb-6">
+      <header className="relative z-20 mx-auto flex w-full max-w-[550px] items-center justify-between gap-4 px-5 pb-6">
         <div>
           <h1 className="poster-title text-[33px] leading-none">{t('classic.title')}</h1>
           <p className="poster-kicker mt-2 text-[11px] text-[var(--muted-text-color)]">{t('classic.create')}</p>
@@ -435,6 +435,7 @@ export function ClassicCreatePage() {
               <div className="relative size-full">
                 <GameGridCanvas
                   config={config}
+                  expandViewport
                   interactive
                   lockedCellGroups={EMPTY_LOCKED_CELL_GROUPS}
                   markers={EMPTY_MARKERS}
@@ -450,7 +451,7 @@ export function ClassicCreatePage() {
               </div>
             </section>
           </div>
-          <div className="mx-auto mt-4 flex shrink-0 gap-2">
+          <div className="relative z-20 mx-auto mt-4 flex shrink-0 gap-2">
             <DepthSurface
               aria-label={t('classic.mistakes', { count: repetitionCount })}
               aria-live="polite"
