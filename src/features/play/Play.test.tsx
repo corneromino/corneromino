@@ -45,6 +45,7 @@ vi.mock('./ClassicShapesDialog', () => ({ ClassicShapesDialog: () => null }))
 
 import { clearGameSelection, loadCareerLevelGeneration, loadCareerProgression, loadClassicGameDefinition, saveCareerLevelGeneration, saveClassicGameDefinition } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
+import { CAREER_PLACEMENT_ITERATIONS_PER_ATTEMPT } from './careerInfiniteGeneration'
 import { Play } from './Play'
 
 const pieces: readonly PlacedTetromino[] = [{
@@ -256,6 +257,33 @@ it('generates and persists a board for a configuration-based Career level', asyn
     gameId: 'career:level-1',
   })
   expect(saveClassicGameDefinition).toHaveBeenCalledWith(gameGridProps.current?.gameDefinition)
+})
+
+it('uses bounded placement for the infinite Career level and persists its starting configuration', async () => {
+  vi.mocked(loadClassicGameDefinition).mockResolvedValue(null)
+  vi.mocked(generateTetrominoPlacementsV2).mockResolvedValue([...pieces])
+
+  render(<MemoryRouter initialEntries={['/play?career=level-10']}><Play /></MemoryRouter>)
+
+  await waitFor(() => expect(gameGridProps.current?.gameDefinition?.seed).toBe('career:level-10'))
+  expect(generateTetrominoPlacementsV2).toHaveBeenCalledWith(
+    expect.objectContaining({ columns: 5, rows: 7, tetrominoCount: 4, spread: 0 }),
+    expect.objectContaining({ maxIterations: CAREER_PLACEMENT_ITERATIONS_PER_ATTEMPT, yieldEvery: 250 }),
+  )
+  expect(saveClassicGameDefinition).toHaveBeenCalledWith(expect.objectContaining({ seed: 'career:level-10' }))
+})
+
+it('retains an already saved infinite Career board instead of replacing it with a new curve', async () => {
+  const saved = {
+    config: { ...GAME_CONFIGS.c001, tetrominoCount: 1 }, gameMode: 'c001' as const,
+    pieces, seed: 'career:level-10', version: 1 as const,
+  }
+  vi.mocked(loadClassicGameDefinition).mockResolvedValue(saved)
+
+  render(<MemoryRouter initialEntries={['/play?career=level-10']}><Play /></MemoryRouter>)
+
+  await waitFor(() => expect(gameGridProps.current?.gameDefinition).toEqual(saved))
+  expect(generateTetrominoPlacementsV2).not.toHaveBeenCalled()
 })
 
 it('gives every repeated configuration level its own persisted board identity', async () => {

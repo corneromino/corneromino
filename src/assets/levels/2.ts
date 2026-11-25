@@ -13,6 +13,7 @@ export const level2: CareerLevel = {
       {
         content: 'career.tutorial.level2.lock',
         showUI: false,
+        boardInteractive: true,
         advanceOn: ['lock'],
         area: 'board',
         board: { x: 0, y: 4, rows: 2, columns: 3 }

@@ -27,6 +27,15 @@ afterEach(() => {
 })
 
 describe('Career levels', () => {
+  it('resolves the infinite difficulty at its Career number without changing its positional identity', () => {
+    const level = getCareerLevel('level-50', { infiniteRepeats: { 9: 41 } })!
+    expect(level).toMatchObject({
+      id: 'level-50', number: 50, generationPolicy: 'career-infinite',
+      infiniteRepeat: { sourceIndex: 9, repeatIndex: 40, isTail: true },
+      data: { columns: 8, rows: 9, tetrominoCount: 11, spread: 0.45 },
+    })
+  })
+
   it('keeps position-only levels visible in data while skipping them during play', () => {
     careerLevels.splice(0, careerLevels.length,
       { data: firstAuthoredDefinition(), x: 0, y: 0 },

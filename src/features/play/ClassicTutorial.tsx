@@ -379,7 +379,7 @@ export function ClassicTutorial() {
   return (
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
       <header className={cn(
-        "relative z-10 mx-auto flex w-full max-w-[550px] flex-col gap-3 px-5 pb-6",
+        "relative z-20 mx-auto flex w-full max-w-[550px] flex-col gap-3 px-5 pb-6",
         TUTORIAL_SCENARIOS[tutorialScenario].config.hideGameControls && "opacity-0"
       )}>
         <div className="flex items-center justify-between gap-4">

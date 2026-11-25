@@ -14,6 +14,8 @@ export interface GridAppearance {
   /** Opacity of empty cell borders and the space between them. */
   emptyCellBorderOpacity?: number
   backgroundColor: number
+  /** Keep the backdrop behind the transformed finite grid instead of the viewport. */
+  backdropFollowsGrid?: boolean
   /** Sizes in logical pixels at viewport.cellSize; they scale with zoom. */
   borderSize: number
   borderRadius: number
@@ -114,7 +116,16 @@ export class GridSurface {
       previous?.destroy(true)
       this.textureKey = key
     }
-    this.backdrop.clear().rect(0, 0, viewport.width, viewport.height).fill({ color: appearance.backgroundColor, alpha: emptyCellBorderOpacity })
+    const backdropFollowsGrid = appearance.backdropFollowsGrid === true && !this.bounds.infinite
+    this.backdrop.clear()
+    if (backdropFollowsGrid) {
+      const radius = appearance.borderRadius * Math.min(cellWidth, cellHeight) / viewport.cellSize
+      this.backdrop.roundRect(0, 0, width, height, radius)
+    } else {
+      this.backdrop.rect(0, 0, viewport.width, viewport.height)
+    }
+    this.backdrop.fill({ color: appearance.backgroundColor, alpha: emptyCellBorderOpacity })
+    this.backdrop.position.set(backdropFollowsGrid ? offsetX : 0, backdropFollowsGrid ? offsetY : 0)
     this.background.position.set(this.bounds.infinite ? 0 : offsetX, this.bounds.infinite ? 0 : offsetY)
     this.background.width = width
     this.background.height = height
@@ -136,7 +147,10 @@ export class GridSurface {
     this.metrics.offsetX = offsetX
     this.metrics.offsetY = offsetY
     if (this.bounds.infinite) this.background.tilePosition.set(offsetX, offsetY)
-    else this.background.position.set(offsetX, offsetY)
+    else {
+      this.background.position.set(offsetX, offsetY)
+      if (this.appearance.backdropFollowsGrid) this.backdrop.position.set(offsetX, offsetY)
+    }
     for (const layer of Object.values(this.worldLayers)) layer.position.set(offsetX, offsetY)
   }
 

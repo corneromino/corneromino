@@ -68,6 +68,22 @@ describe('shared grid navigation', () => {
     expect(test.view().zoom).toBe(4)
   })
 
+  it('anchors zoom to board coordinates when the canvas extends beyond the board', () => {
+    const canvas = new EventTarget() as HTMLCanvasElement
+    let view: GridView = { zoom: 1, offsetX: 0, offsetY: 0 }
+    const navigation = createGridNavigation(canvas, {
+      minZoom: 1, maxZoom: 4, getView: () => view, getSize: () => ({ width: 300, height: 300 }),
+      getPoint: (event) => ({ x: event.clientX - 50, y: event.clientY - 120 }),
+      setView: (next) => { view = next }, onTap: vi.fn(),
+    })
+    const detach = attachGridInput(canvas, { gestures: false, cellAt: () => ({ column: 0, row: 0 }), callbacks: navigation.callbacks })
+    canvas.dispatchEvent(Object.assign(new Event('wheel', { cancelable: true }), { deltaY: -100, clientX: 150, clientY: 320 }))
+    expect(view.zoom).toBeCloseTo(1.1)
+    expect(view.offsetX).toBeCloseTo(-10)
+    expect(view.offsetY).toBeCloseTo(-20)
+    detach()
+  })
+
   it('uses the current maximum zoom when the board or viewport changes', () => {
     const captures = new Set<number>()
     const canvas = Object.assign(new EventTarget(), {

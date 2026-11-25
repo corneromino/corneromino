@@ -11,7 +11,7 @@ export const CLASSIC_VERIFICATION_EFFECT: NonNullable<GameConfig['verificationEf
 export const VERIFICATION_FLIP_DURATION_MS = 2000
 export const VERIFICATION_FLIP_BATCH_SIZE = 5
 
-const COMPLETION_SCREENSHOT_DELAY_MS = 400;
+export const COMPLETION_SCREENSHOT_DELAY_MS = 400;
 
 export interface GameConfig {
   /** Inclusive bounds for generated Classic bonus requirements. Both are required to enable bonuses. */
@@ -37,8 +37,6 @@ export interface GameConfig {
   completionScreenshotDelayMs?: number
   /** Tutorials disable navigation so their cell highlights stay aligned. Defaults to true. */
   navigationEnabled?: boolean
-  /** Reserves transparent space above the board for raised selected cells. Defaults to true. */
-  topSelectionOverflowEnabled?: boolean
   columns: number
   rows: number
   /** 0 uses the full board; 1 strongly favors placements around its center. */

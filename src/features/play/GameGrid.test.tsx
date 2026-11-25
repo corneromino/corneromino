@@ -1,15 +1,17 @@
 // @vitest-environment jsdom
-import { StrictMode, useImperativeHandle, type ComponentProps } from 'react'
+import { StrictMode, useEffect, useImperativeHandle, type ComponentProps } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CELL_CORNERS, GAME_CONFIGS, type GameSelectionState, type PlacedTetromino } from '@/game/gameConfig'
-import { loadGameSelection, saveGameSelection } from '@/lib/db'
+import { loadGameSelection, saveGameSelection, type ClassicGameDefinition } from '@/lib/db'
 import { ToastProvider } from '@/components/toast/ToastProvider'
+import { level2 } from '@/assets/levels/2'
+import { getGridMetrics, screenToGridCell } from '@/rendering/grid/gridGeometry'
 import type { GameGridCanvas } from './GameGridCanvas'
 import { GameGrid } from './GameGrid'
 
-const canvasMock = vi.hoisted(() => ({ captureBoard: vi.fn(), props: undefined as ComponentProps<typeof GameGridCanvas> | undefined }))
+const canvasMock = vi.hoisted(() => ({ autoReady: true, captureBoard: vi.fn(), clientToCell: vi.fn(), props: undefined as ComponentProps<typeof GameGridCanvas> | undefined }))
 
 vi.mock('@/lib/db', () => ({ loadGameSelection: vi.fn(), saveClassicGameDefinition: vi.fn().mockResolvedValue(undefined), saveGameSelection: vi.fn().mockResolvedValue(undefined), clearGameSelection: vi.fn() }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: { count?: number }) => {
@@ -28,7 +30,8 @@ vi.mock('./CorrectGameDialog', () => ({ CorrectGameDialog: ({ onOpenChange, open
 vi.mock('./GameGridCanvas', () => ({
   GameGridCanvas: (props: ComponentProps<typeof GameGridCanvas>) => {
     canvasMock.props = props
-    useImperativeHandle(props.ref, () => ({ captureBoard: canvasMock.captureBoard, resetView: () => undefined }), [])
+    useImperativeHandle(props.ref, () => ({ captureBoard: canvasMock.captureBoard, clientToCell: canvasMock.clientToCell, resetView: () => undefined }), [])
+    useEffect(() => { if (canvasMock.autoReady) props.onReady?.() }, [props.onReady])
     const piece = props.pieces[0]
     const cell = piece?.cells[0]
     const key = cell ? `${cell.x},${cell.y}` : ''
@@ -120,6 +123,8 @@ function setup(lockingMode: 'auto' | 'manual' = 'auto', overrides: Partial<GridP
 let time: number
 beforeEach(() => {
   vi.clearAllMocks()
+  canvasMock.autoReady = true
+  canvasMock.clientToCell.mockReset()
   canvasMock.captureBoard.mockReturnValue({ toDataURL: () => 'data:image/png;base64,clean-board' })
   time = 1000
   vi.spyOn(performance, 'now').mockImplementation(() => time)
@@ -134,25 +139,87 @@ afterEach(() => {
 describe('Classic locking modes', () => {
   it('loads behind a delayed entrance before sliding the grid into view', async () => {
     vi.useFakeTimers()
+    canvasMock.autoReady = false
     const onEntranceAnimationComplete = vi.fn()
     setup('auto', { entranceAnimation: true, onEntranceAnimationComplete })
 
     const entrance = screen.getByLabelText('Game board').closest('.game-grid-entrance')!
     expect(entrance.getAttribute('data-revealed')).toBeNull()
     expect(canvasMock.props!.interactive).toBe(false)
+    expect(canvasMock.props!.edgeFadeEnabled).toBe(false)
 
     await act(async () => { await vi.advanceTimersByTimeAsync(1_000) })
+    expect(entrance.getAttribute('data-revealed')).toBeNull()
+    expect(onEntranceAnimationComplete).not.toHaveBeenCalled()
 
+    act(() => canvasMock.props!.onReady?.())
     expect(entrance.getAttribute('data-revealed')).toBe('true')
     expect(canvasMock.props!.interactive).toBe(true)
-    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    expect(canvasMock.props!.edgeFadeEnabled).toBe(false)
+    for (const type of ['animationend', 'webkitAnimationEnd']) {
+      const animationEnd = new Event(type, { bubbles: true })
+      Object.defineProperty(animationEnd, 'animationName', { value: 'game-grid-slide-up' })
+      fireEvent(entrance, animationEnd)
+    }
     expect(onEntranceAnimationComplete).toHaveBeenCalledOnce()
+    expect(canvasMock.props!.edgeFadeEnabled).toBe(true)
+  })
+
+  it('completes the entrance immediately after the board is ready with reduced motion', async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
+    try {
+      canvasMock.autoReady = false
+      const onEntranceAnimationComplete = vi.fn()
+      setup('auto', { entranceAnimation: true, onEntranceAnimationComplete })
+      await act(async () => { await vi.advanceTimersByTimeAsync(1_000) })
+      expect(onEntranceAnimationComplete).not.toHaveBeenCalled()
+      act(() => canvasMock.props!.onReady?.())
+      expect(canvasMock.props!.edgeFadeEnabled).toBe(true)
+      expect(onEntranceAnimationComplete).toHaveBeenCalledOnce()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('disables canvas interaction when a tutorial step marks the board non-interactive', async () => {
     setup('auto', { boardInteractive: false })
 
     await waitFor(() => expect(canvasMock.props?.interactive).toBe(false))
+  })
+
+  it('locks and unlocks level 2 cells through the active tutorial highlight', async () => {
+    const definition = level2.data as ClassicGameDefinition
+    const onUnlocked = vi.fn()
+    const { props } = setup('auto', {
+      boardInteractive: true,
+      config: definition.config,
+      pieces: definition.pieces,
+      onUnlocked,
+      highlightAreas: [{ id: 'level-2-highlight', left: 0, top: 4, width: 3, height: 2 }],
+    })
+    await waitFor(() => expect(canvasMock.props?.interactive).toBe(true))
+    const highlight = document.getElementById('level-2-highlight')!
+    highlight.classList.add('driver-active-element')
+    // A screen-sized canvas starts at (0, 0), but this zoomed and panned board
+    // starts at (40, 100). The highlighted cells must use the grid transform.
+    const metrics = getGridMetrics({ infinite: false, columns: 6, rows: 6 }, {
+      width: 300, height: 300, cellSize: 50, fit: 'manual', zoom: 1.5, offsetX: -20, offsetY: -30,
+    })
+    canvasMock.clientToCell.mockImplementation(({ clientX, clientY }) => screenToGridCell(metrics, clientX - 40, clientY - 100))
+    const tapCell = (column: number, row: number) => {
+      const clientX = 40 + metrics.offsetX + (column + 0.5) * metrics.cellWidth
+      const clientY = 100 + metrics.offsetY + (row + 0.5) * metrics.cellHeight
+      fireEvent(highlight, new MouseEvent('pointerup', { bubbles: true, clientX, clientY }))
+    }
+
+    for (const [column, row] of [[0, 4], [1, 4], [1, 5], [2, 5]]) tapCell(column, row)
+    expect(board().locked[0].cellKeys).toEqual(['0,4', '1,4', '1,5', '2,5'])
+    expect(props.onLocked).toHaveBeenCalledOnce()
+    tapCell(0, 4)
+    tapCell(0, 4)
+    expect(board().locked).toHaveLength(0)
+    expect(onUnlocked).toHaveBeenCalledOnce()
   })
 
   it('forwards configured Career rendering to the canvas', () => {

@@ -393,6 +393,17 @@
   }
 }
 
+.game-grid-expanded-viewport {
+  --grid-edge-fade: 10%;
+  --grid-webkit-edge-mask: linear-gradient(to bottom, transparent 50px, black 100px, black calc(100% - var(--grid-edge-fade)), transparent);
+  --grid-edge-mask: linear-gradient(to bottom, transparent 50px, black 100px, black calc(100% - var(--grid-edge-fade)), transparent);
+}
+
+.game-grid-expanded-viewport[data-edge-fade='true'] {
+  -webkit-mask-image: var(--grid-webkit-edge-mask);
+  mask-image: var(--grid-edge-mask);
+}
+
 .game-grid-entrance {
   opacity: 0;
   pointer-events: none;
@@ -426,6 +437,11 @@
   .game-grid-entrance[data-revealed] {
     opacity: 1;
     transform: none;
+  }
+
+  .game-grid-entrance[data-revealed] .game-grid-expanded-viewport {
+    -webkit-mask-image: var(--grid-webkit-edge-mask);
+    mask-image: var(--grid-edge-mask);
   }
 }
 

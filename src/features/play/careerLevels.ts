@@ -1,6 +1,7 @@
 import type { CareerLevelGeneration, ClassicGameDefinition } from '@/lib/db'
 import { getBonusPercentage, type BonusRequirement, type BonusShapeRotation } from '@/game/bonus'
 import { GAME_CONFIGS, GAME_MODES, type ClassicGameMode, type GameModeConfig } from '@/game/gameConfig'
+import { getCareerInfiniteDifficulty } from './careerInfiniteDifficulty'
 import type { CareerTutorial } from './careerTutorial'
 import { level1 } from '@/assets/levels/1'
 import { level2 } from '@/assets/levels/2'
@@ -8,6 +9,11 @@ import { LOCKED_CELL_COLOR_HEX } from '@/rendering/colors'
 import { level3 } from '@/assets/levels/3'
 import { level4 } from '@/assets/levels/4'
 import { level5 } from '@/assets/levels/5'
+import { level6 } from '@/assets/levels/6'
+import { level7 } from '@/assets/levels/7'
+import { level8 } from '@/assets/levels/8'
+import { level9 } from '@/assets/levels/9'
+import { level10 } from '@/assets/levels/10'
 
 export type CareerLevelEdge = 'top' | 'bottom' | 'left' | 'right'
 export type CareerLevelOrigin = 'absolute' | 'relative'
@@ -36,6 +42,8 @@ export interface CareerLevel {
   data?: CareerLevelData | CareerLevelBuilder
   /** Outgoing edge on this card, connecting it to the following level. */
   from?: CareerLevelEdge
+  /** Bounded placement and fallback for the generated infinite Career section. */
+  generationPolicy?: 'career-infinite'
   /** Coordinates are absolute map positions by default, or offsets from the prior level. */
   origin?: CareerLevelOrigin
   /** Number of additional virtual levels, or an on-demand repeating section. */
@@ -91,6 +99,11 @@ export const careerLevels: CareerLevel[] = [
   level3,
   level4,
   level5,
+  level6,
+  level7,
+  level8,
+  level9,
+  level10,
   {
     x: 0,
     y: 75 * 2,
@@ -98,9 +111,10 @@ export const careerLevels: CareerLevel[] = [
     to: 'bottom',
     origin: 'relative',
     repeat: 'infinite',
+    generationPolicy: 'career-infinite',
     data: (levelNumber, _previousLevel) => {
       return {
-        data: GAME_CONFIGS.c002,
+        data: getCareerInfiniteDifficulty(levelNumber),
         bgColor: LOCKED_CELL_COLOR_HEX[levelNumber % LOCKED_CELL_COLOR_HEX.length]
       }
     }

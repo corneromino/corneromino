@@ -16,7 +16,6 @@ export const CLASSIC_INFINITE_CONFIG: ClassicInfiniteConfig = {
   lockingMode: 'auto',
   finalVerificationMode: 'auto',
   navigationEnabled: false,
-  topSelectionOverflowEnabled: false,
   visibleRows: 12,
   scrollRowsPerSecond: 1,
 }

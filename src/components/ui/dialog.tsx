@@ -21,7 +21,9 @@ function DialogContent({ children, className, floatingContent, ...props }: Dialo
         shadowColor="#b95c2e"
           className={cn(
             'dialog-content fixed top-1/2 left-1/2 z-50 w-[calc(100%-2.5rem)] max-w-[340px] -translate-x-1/2 -translate-y-1/2 outline-none',
-            floatingContent && '!overflow-visible',
+            // The inset shadow already draws the rounded depth band. Hide the
+            // rectangular pseudo-element when floating content needs overflow.
+            floatingContent && '!overflow-visible after:!hidden',
             className,
           )}
       >

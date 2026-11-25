@@ -13,6 +13,8 @@ interface GridNavigationOptions {
   getView: () => GridView
   setView: (view: GridView) => void
   getSize: () => Size
+  /** Override canvas-relative coordinates when the drawing area extends beyond the board. */
+  getPoint?: (event: { clientX: number; clientY: number }) => Point
   minZoom: number
   /** May vary with board/viewport size while the canvas remains mounted. */
   maxZoom: number | (() => number)
@@ -49,6 +51,7 @@ export function createGridNavigation(canvas: HTMLCanvasElement, options: GridNav
   let pinch: { distance: number; zoom: number; anchor: Point } | null = null
 
   function point(event: { clientX: number; clientY: number }): Point {
+    if (options.getPoint) return options.getPoint(event)
     const rect = canvas.getBoundingClientRect()
     const size = options.getSize()
     return { x: (event.clientX - rect.left) * size.width / rect.width, y: (event.clientY - rect.top) * size.height / rect.height }

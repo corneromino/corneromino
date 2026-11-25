@@ -132,7 +132,7 @@ export default {
         "level": "Niveau {{number}}",
         "tutorial": {
             "level1": {
-                "cell": "Voici une case avec un petit carré dans un coin !",
+                "cell": "Voici une case avec un petit carré dans un coin.",
                 "cantomino": "Un Cantomino est composé de 4 cases qui se touchent.",
                 "corners": "Dans ces 4 cases, chaque petit carré doit se trouver dans un coin différent !",
                 "play": "Sélectionne les 4 cases qui forment le Cantomino pour passer au niveau suivant !"

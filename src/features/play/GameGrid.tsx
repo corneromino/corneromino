@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type AnimationEvent, type ReactNode } from 'react'
 import { Check, Eraser, Lock, Pencil, RotateCcw, Unlock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -25,6 +25,7 @@ import type { CareerTutorialControlArea } from './careerTutorial'
 const DOUBLE_TAP_UNLOCK_MS = 200
 const GAME_GRID_REVEAL_DELAY_MS = 1
 const GAME_GRID_ENTRANCE_DURATION_MS = 400
+const GAME_GRID_ENTRANCE_FALLBACK_MS = GAME_GRID_ENTRANCE_DURATION_MS + 100
 
 interface GameGridProps {
   /** Disables only board-cell interaction, leaving tutorial UI targets available. */
@@ -137,6 +138,7 @@ export function GameGrid(props: GameGridProps) {
   const [showCellIds, setShowCellIds] = useState(false)
   const [hasEntranceDelayElapsed, setHasEntranceDelayElapsed] = useState(() => props.entranceAnimation !== true)
   const [hasEntranceAnimationCompleted, setHasEntranceAnimationCompleted] = useState(() => props.entranceAnimation !== true)
+  const [isCanvasReady, setIsCanvasReady] = useState(false)
   const [selectedCellKeys, setSelectedCellKeys] = useState<Set<string>>(() => new Set())
   const [lockedCellGroups, setLockedCellGroups] = useState<LockedCellGroup[]>([])
   const [markers, setMarkers] = useState<Map<string, CellMarkerColor>>(() => new Map())
@@ -167,9 +169,10 @@ export function GameGrid(props: GameGridProps) {
   const lastLockedTapRef = useRef<{ groupId: string; time: number } | null>(null)
   const verificationIdRef = useRef(0)
   const handleGridNavigation = useCallback(() => { lastLockedTapRef.current = null }, [])
+  const handleCanvasReady = useCallback(() => setIsCanvasReady(true), [])
   const autoLock = props.config.lockingMode === 'auto'
   const autoFinalVerification = props.config.finalVerificationMode === 'auto'
-  const isEntranceRevealed = props.entranceAnimation !== true || (hasEntranceDelayElapsed && selectionLoaded)
+  const isEntranceRevealed = props.entranceAnimation !== true || (hasEntranceDelayElapsed && selectionLoaded && isCanvasReady)
   const isGameplayPaused = props.paused || props.suspended === true || !isEntranceRevealed
   const cellMap = createCellMap(props.pieces)
   const lockedCellMap = createLockedCellMap(lockedCellGroups)
@@ -208,9 +211,20 @@ export function GameGrid(props: GameGridProps) {
       return
     }
 
-    const completeTimer = window.setTimeout(() => setHasEntranceAnimationCompleted(true), GAME_GRID_ENTRANCE_DURATION_MS)
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setHasEntranceAnimationCompleted(true)
+      return
+    }
+    // A fallback covers interrupted or unavailable CSS animations.
+    const completeTimer = window.setTimeout(() => setHasEntranceAnimationCompleted(true), GAME_GRID_ENTRANCE_FALLBACK_MS)
     return () => window.clearTimeout(completeTimer)
   }, [isEntranceRevealed, props.entranceAnimation])
+
+  function handleEntranceAnimationEnd(event: AnimationEvent<HTMLDivElement>) {
+    if (event.target === event.currentTarget && event.animationName === 'game-grid-slide-up') {
+      setHasEntranceAnimationCompleted(true)
+    }
+  }
 
   useEffect(() => {
     if (hasEntranceAnimationCompleted) props.onEntranceAnimationComplete?.()
@@ -494,11 +508,9 @@ export function GameGrid(props: GameGridProps) {
 
   function selectHighlightedCell(event: React.PointerEvent<HTMLDivElement>) {
     if (props.boardInteractive === false || !event.currentTarget.classList.contains('driver-active-element')) return
-    const canvas = gameBoardRef.current?.querySelector('canvas')
-    if (!canvas) return
-    const bounds = canvas.getBoundingClientRect()
-    const column = Math.floor((event.clientX - bounds.left) / bounds.width * props.config.columns)
-    const row = Math.floor((event.clientY - bounds.top) / bounds.height * props.config.rows)
+    const cell = gameCanvasRef.current?.clientToCell(event)
+    if (!cell) return
+    const { column, row } = cell
     if (column < 0 || column >= props.config.columns || row < 0 || row >= props.config.rows) return
     toggleCellSelection(`${column},${row}`, event.timeStamp)
   }
@@ -755,6 +767,7 @@ export function GameGrid(props: GameGridProps) {
     <div
       className={cn('flex h-full min-h-0 flex-col gap-4 px-1', props.entranceAnimation && 'game-grid-entrance')}
       data-revealed={isEntranceRevealed || undefined}
+      onAnimationEnd={handleEntranceAnimationEnd}
     >
       <div className="flex min-h-0 flex-1 items-start justify-center [container-type:size]">
         <section aria-label="Game board" className="mx-auto max-w-[550px]" id={props.boardId} ref={gameBoardRef} style={boardStyle}>
@@ -765,10 +778,13 @@ export function GameGrid(props: GameGridProps) {
                 config={props.config}
                 emptyCellBorderOpacity={props.emptyCellBorderOpacity}
                 emptyCellOpacity={props.emptyCellOpacity}
+                edgeFadeEnabled={hasEntranceAnimationCompleted}
+                expandViewport
                 interactive={props.boardInteractive !== false && selectionLoaded && !isGameplayPaused && !isExiting && !isCompleted && !verification}
                 lockedCellGroups={lockedCellGroups}
                 markers={markers}
                 onNavigate={handleGridNavigation}
+                onReady={handleCanvasReady}
                 onCellExit={props.onCellExit}
                 vhsCrt={props.vhsCrt}
                 exitDistortion={props.exitDistortion}
@@ -816,7 +832,7 @@ export function GameGrid(props: GameGridProps) {
           {boardBottomAdornmentHeightRatio > 0 && <div aria-hidden="true" style={{ aspectRatio: `1 / ${boardBottomAdornmentHeightRatio}` }} />}
         </section>
       </div>
-      {!props.config.hideGameControls && <div className={cn('mx-auto flex w-full max-w-[550px] shrink-0 flex-nowrap justify-center gap-1 transition-opacity sm:gap-2', props.hideGameControls && 'pointer-events-none opacity-0')}>
+      {!props.config.hideGameControls && <div className={cn('relative z-20 mx-auto flex w-full max-w-[550px] shrink-0 flex-nowrap justify-center gap-1 transition-opacity sm:gap-2', props.hideGameControls && 'pointer-events-none opacity-0')}>
         <Button
           aria-label={t('common.restart')}
           className="text-[var(--canvas-foreground)]"

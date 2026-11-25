@@ -30,6 +30,13 @@ export interface PlacementV2Options {
   yieldEvery?: number
 }
 
+export class PlacementSearchLimitError extends Error {
+  constructor(maxIterations: number) {
+    super(`Placement search exceeded ${maxIterations} iterations.`)
+    this.name = 'PlacementSearchLimitError'
+  }
+}
+
 const DEFAULT_MAX_ITERATIONS = 5_000_000 //250_000
 const DEFAULT_PROGRESS_EVERY = 10
 const DEFAULT_YIELD_EVERY = 1_000
@@ -136,7 +143,7 @@ async function recordIteration(context: SearchContext): Promise<void> {
   context.iterations += 1
 
   if (context.iterations > context.maxIterations) {
-    throw new Error(`Placement search exceeded ${context.maxIterations} iterations.`)
+    throw new PlacementSearchLimitError(context.maxIterations)
   }
 
   if (context.iterations % context.progressEvery === 0) {

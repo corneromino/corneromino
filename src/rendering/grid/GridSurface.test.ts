@@ -1,4 +1,4 @@
-import { Container, Rectangle, Texture, TextureSource, type Application } from 'pixi.js'
+import { Container, Graphics, Rectangle, Texture, TextureSource, type Application } from 'pixi.js'
 import { describe, expect, it, vi } from 'vitest'
 import { GridSurface } from './GridSurface'
 import { GAME_COLORS } from '@/rendering/colors'
@@ -90,6 +90,24 @@ describe('shared textured grid surface', () => {
     expect(generateTexture).toHaveBeenCalledTimes(3)
     expect(faceTexture).not.toBe(initialTexture)
     expect(surface.texture).not.toBe(faceTexture)
+    surface.destroy()
+  })
+
+  it('keeps the finite backdrop aligned with the board through zoom and pan', () => {
+    const { surface: initial, app, viewport, appearance } = setup()
+    initial.destroy()
+    const surface = new GridSurface(app as unknown as Application, { infinite: false, columns: 4, rows: 3 }, viewport, {
+      ...appearance, backdropFollowsGrid: true,
+    })
+    const backdrop = surface.root.children[0] as Graphics
+    expect(backdrop.containsPoint({ x: 1, y: 1 })).toBe(true)
+    surface.update({ ...viewport, zoom: 2, offsetX: -90, offsetY: -35 })
+    expect(backdrop.position).toMatchObject({ x: -90, y: -35 })
+    expect(backdrop.getLocalBounds().rectangle).toMatchObject({ x: 0, y: 0, width: 448, height: 336 })
+    expect(backdrop.containsPoint({ x: 1, y: 1 })).toBe(false)
+    surface.setOffset(-120, -70)
+    expect(backdrop.position).toMatchObject({ x: -120, y: -70 })
+    expect(surface.background.position).toMatchObject({ x: -120, y: -70 })
     surface.destroy()
   })
 

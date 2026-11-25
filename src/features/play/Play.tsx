@@ -10,6 +10,7 @@ import { getPerfectionPercentage, type GameCompletionResult } from '@/game/compl
 import { GAME_CONFIGS, isGameMode, type ClassicGameMode, type GameConfig } from '@/game/gameConfig'
 import { clearGameSelection, completeCareerLevel, loadCareerLevelGeneration, loadCareerProgression, loadClassicGameDefinition, saveCareerLevelGeneration, saveClassicGameDefinition, type CareerLevelGeneration, type ClassicGameDefinition } from '@/lib/db'
 import { generateTetrominoPlacementsV2 } from '@/game/placementV2'
+import { generateCareerInfinitePieces } from './careerInfiniteGeneration'
 import type { LockedCellGroup } from '@/game/gameConfig'
 import { EMPTY_CAREER_LEVEL_GENERATION, extendCareerLevelGeneration, getCareerGameId, getCareerLevel, getCareerLevelDataAtIndex, getCareerLevelGameMode, getCareerLevelPath, getDefaultCareerLevelData, getNextCareerLevel, isClassicGameDefinitionCareerData, type CareerLevelData, type ResolvedCareerLevel } from './careerLevels'
 import { GameGrid } from './GameGrid'
@@ -281,10 +282,12 @@ function GameSession(props: GameSessionProps) {
         if (savedDefinition) await clearGameSelection(activeGameMode, seed)
         const generationSeed = createRandomSeed()
         const config = data
-        const pieces = await generateTetrominoPlacementsV2(config, {
-          random: createSeededRandom(`${seed}:${generationSeed}`),
-          yieldEvery: 250,
-        })
+        const pieces = careerLevel.generationPolicy === 'career-infinite'
+          ? await generateCareerInfinitePieces(config, `${seed}:${generationSeed}`)
+          : await generateTetrominoPlacementsV2(config, {
+              random: createSeededRandom(`${seed}:${generationSeed}`),
+              yieldEvery: 250,
+            })
         const definition = {
           bonus: generateBonusRequirements(pieces, config, createSeededRandom(`${seed}:${generationSeed}:bonus`)),
           config: { ...config },
@@ -367,7 +370,7 @@ function GameSession(props: GameSessionProps) {
   return (
     <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
       <TetrominoBackground />
-      <header className={cn('relative z-10 mx-auto flex w-full max-w-[550px] flex-col gap-3 px-5 pb-6 transition-opacity', !tutorialShowsUI && 'pointer-events-none opacity-0')}>
+      <header className={cn('relative z-20 mx-auto flex w-full max-w-[550px] flex-col gap-3 px-5 pb-6 transition-opacity', !tutorialShowsUI && 'pointer-events-none opacity-0')}>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <h1 className="poster-title text-[33px] leading-none">{gameTitle}</h1>
