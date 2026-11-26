@@ -13,7 +13,7 @@ import { VsVictoryDialog } from './VsVictoryDialog'
 import { PixelCrownIcon } from './PixelCrownIcon'
 import { isVsLocalBoardSize, VS_LOCAL_CONFIG, VS_LOCAL_DEFAULT_BOARD_SIZE, type VsLocalBoardSize } from './vsLocalConfig'
 import { exportVsDebugState } from './vsDebugState'
-import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsPlayerScores, goToVsHistory, hasVsTurnDraft, previousVsMove, resumeVsLocalGame, selectVsCell, toggleVsMoveDirection, VS_PLAYERS, type VsGameResult, type VsLocalGameState, type VsPlayerId } from './vsLocalGame'
+import { canPlayVsTurn, createVsLocalGame, finishVsTurn, getVsPlayerScores, goToVsHistory, hasVsTurnDraft, previousVsMove, resumeVsLocalGame, selectVsCell, setVsPendingCorner, toggleVsMoveDirection, VS_PLAYERS, type VsCorner, type VsGameResult, type VsLocalGameState, type VsPlayerId } from './vsLocalGame'
 
 interface PlayerBandProps {
   active: boolean
@@ -45,7 +45,7 @@ function PlayerBand({ active, canFinishTurn, facingOpponent = false, onFinishTur
     <section
       aria-label={`${playerLabel}, ${playerStatus}`}
       className={cn(
-        'relative flex h-[66px] shrink-0 items-center rounded-md border-0 border-x-0 px-3 mx-1 transition-[box-shadow,opacity] duration-200',
+        'relative flex min-h-[66px] w-(--vs-board-width) flex-1 self-center items-center rounded-md border-0 border-x-0 px-3 transition-[box-shadow,opacity] duration-200',
         active ? 'ring-4 ring-offset-(--paper) ring-offset-2 ring-(--player-turn-color)' : 'opacity-65',
         facingOpponent && 'rotate-180',
       )}
@@ -131,6 +131,9 @@ export function VsLocalGrid() {
 
   const selectCell = useCallback((column: number, row: number) => {
     setGame((current) => current && selectVsCell(current, column, row))
+  }, [])
+  const aimCorner = useCallback((column: number, row: number, corner: VsCorner) => {
+    setGame((current) => current && setVsPendingCorner(current, column, row, corner))
   }, [])
   const endTurn = useCallback(() => {
     setGame((current) => current && finishVsTurn(current))
@@ -242,10 +245,10 @@ export function VsLocalGrid() {
         </div>
         {game && <VsMoveList history={game.history} onSelect={selectHistoryMove} />}
       </header>
-      <div className="flex min-h-0 flex-1 flex-col gap-2 px-1">
+      <div className="flex min-h-0 flex-1 flex-col gap-2 px-1 [container-type:size]" style={{ '--vs-board-width': 'min(100cqw, max(0px, calc(100cqh - 148px)))' } as CSSProperties}>
           <PlayerBand active={result === null && game?.activePlayer === 0} canFinishTurn={canFinishTurn} facingOpponent onFinishTurn={endTurn} onToggleMoveDirection={toggleMoveDirection} player={0} pointDifference={playerOnePoints - playerTwoPoints} points={playerOnePoints} result={result} />
-        <section aria-label={t('versusGame.localBoard')} className="min-h-0 flex-1 border-4 border-[var(--grid-border-color)] bg-[var(--grid-border-color)]">
-          {game && <VsLocalCanvas game={game} key={game.boardSize ?? VS_LOCAL_DEFAULT_BOARD_SIZE} onCellTap={selectCell} />}
+        <section aria-label={t('versusGame.localBoard')} className="aspect-square w-(--vs-board-width) shrink-0 self-center border-4 border-[var(--grid-border-color)] bg-[var(--grid-border-color)]">
+          {game && <VsLocalCanvas game={game} key={game.boardSize ?? VS_LOCAL_DEFAULT_BOARD_SIZE} onAim={aimCorner} onCellTap={selectCell} />}
         </section>
           <PlayerBand active={result === null && game?.activePlayer === 1} canFinishTurn={canFinishTurn} onFinishTurn={endTurn} onToggleMoveDirection={toggleMoveDirection} player={1} pointDifference={playerTwoPoints - playerOnePoints} points={playerTwoPoints} result={result} />
       </div>

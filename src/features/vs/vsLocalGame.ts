@@ -356,6 +356,13 @@ export function selectVsCell(state: VsLocalGameState, column: number, row: numbe
   return { ...state, pendingPlacement: { column, row, corner: 1 } }
 }
 
+/** Change only the currently pending placement, never a committed or different cell. */
+export function setVsPendingCorner(state: VsLocalGameState, column: number, row: number, corner: VsCorner): VsLocalGameState {
+  const pending = state.pendingPlacement
+  if (!canPlayVsTurn(state) || !pending || pending.column !== column || pending.row !== row || pending.corner === corner) return state
+  return { ...state, pendingPlacement: { ...pending, corner } }
+}
+
 export function toggleVsMoveDirection(state: VsLocalGameState): VsLocalGameState {
   if (!canPlayVsTurn(state) || !state.pendingPlacement) return state
   return { ...state, pendingMoveDirection: state.pendingMoveDirection === 'orthogonal' ? 'diagonal' : 'orthogonal' }

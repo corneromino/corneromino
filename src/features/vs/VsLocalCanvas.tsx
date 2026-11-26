@@ -9,16 +9,18 @@ import { GridSurface } from '@/rendering/grid/GridSurface'
 import { attachGridInput } from '@/rendering/grid/gridInput'
 import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
 import { CanvasStartupError } from '@/rendering/pixi/CanvasStartupError'
-import { getVsNextTurnPreviewCells, getVsTargetedCells, VS_PLAYERS, type VsLocalGameState, type VsPlayerId } from './vsLocalGame'
+import { getVsNextTurnPreviewCells, getVsTargetedCells, VS_PLAYERS, type VsCorner, type VsLocalGameState, type VsPlayerId } from './vsLocalGame'
+import { createVsPlacementInput } from './vsPlacementInput'
+import { createVsCornerTransition, type VsCornerPosition } from './vsCornerTransition'
 import { getVsLockedShapeBridges } from './vsLockedShapeBridges'
 import { CASCADE_LOCK_EFFECTS } from '@/features/cascade/cascadeEffects'
 import { VS_LOCAL_DEFAULT_BOARD_SIZE } from './vsLocalConfig'
 import { getVsBaseCellColor, isVsCheckerboardCell, VS_CHECKERBOARD_CELL_COLOR } from './vsCheckerboard'
+import { drawVsCellOverlay, VS_CELL_BORDER_SIZE } from './drawVsCellOverlay'
 
 const TARGET_DOT_RADIUS_RATIO = 0.15
 const TARGET_DOT_ALPHA = 0.5
 const NEXT_OPPONENT_PREVIEW_ALPHA = 0.32
-const CELL_BORDER_SIZE = 1.5
 const COORDINATE_FONT_SIZE = 24
 const SELECTED_CELL_COLOR = 0x5fc47a
 
@@ -32,9 +34,10 @@ interface CoordinateLabel {
 interface VsLocalCanvasProps {
   game: VsLocalGameState
   onCellTap: (column: number, row: number) => void
+  onAim: (column: number, row: number, corner: VsCorner) => void
 }
 
-function drawPlacement(graphics: Graphics, surface: GridSurface, column: number, row: number, corner: number, pending: boolean, lockedBy?: VsPlayerId, selectedColor?: number) {
+function drawPlacement(graphics: Graphics, surface: GridSurface, column: number, row: number, corner: number, pending: boolean, lockedBy?: VsPlayerId, selectedColor?: number, markerPosition?: VsCornerPosition | null) {
   const screenPosition = surface.cellToScreen(column, row)
   const { cellHeight, cellWidth } = surface.metrics
   const { x, y } = screenPosition
@@ -44,7 +47,7 @@ function drawPlacement(graphics: Graphics, surface: GridSurface, column: number,
   drawCellBody(graphics, x, y, width, height, {
     fillColor: selectedColor ?? (pending ? GAME_COLORS.cornerMarker : lockedBy === undefined ? getVsBaseCellColor(column, row) : VS_PLAYERS[lockedBy].lockedColor),
     borderColor: GAME_COLORS.cellBorder,
-    borderSize: CELL_BORDER_SIZE,
+    borderSize: VS_CELL_BORDER_SIZE,
     borderRadius: getGridSquircleRadius(cellSize),
   })
   const marker = {
@@ -53,7 +56,12 @@ function drawPlacement(graphics: Graphics, surface: GridSurface, column: number,
     paddingY: Math.max(3, height * 0.12),
     radius: getGridCornerSquircleRadius(width * 0.45),
   }
-  const position = getCornerMarkerPosition(corner, width, height, marker)
+  const topLeft = getCornerMarkerPosition(0, width, height, marker)
+  const bottomRight = getCornerMarkerPosition(2, width, height, marker)
+  const position = markerPosition ? {
+    x: topLeft.x + (bottomRight.x - topLeft.x) * markerPosition.x,
+    y: topLeft.y + (bottomRight.y - topLeft.y) * markerPosition.y,
+  } : getCornerMarkerPosition(corner, width, height, marker)
   drawCornerMarker(graphics, x + position.x, y + position.y, { ...marker, color: pending ? GAME_COLORS.cellFill : GAME_COLORS.cornerMarker })
 }
 
@@ -62,6 +70,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const gameRef = useRef(props.game)
   const onCellTapRef = useRef(props.onCellTap)
+  const onAimRef = useRef(props.onAim)
   const drawRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
@@ -74,12 +83,17 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
   }, [props.onCellTap])
 
   useEffect(() => {
+    onAimRef.current = props.onAim
+  }, [props.onAim])
+
+  useEffect(() => {
     const container = containerRef.current
     if (!container) return
     setStartupFailed(false)
 
     const app = new Application()
     const pieces = new Graphics()
+    const pendingLayer = new Graphics()
     const checkerboard = new Graphics()
     const lockImpactLayer = new Container()
     const coordinateLabels: CoordinateLabel[] = []
@@ -91,18 +105,27 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
     const gridShakeMotion = { time: 0 }
     const impactMotions = new Set<{ time: number }>()
     const boardSize = gameRef.current.boardSize ?? VS_LOCAL_DEFAULT_BOARD_SIZE
+    const pendingTransition = createVsCornerTransition(
+      () => drawPending(),
+      () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
+    )
+
+    function drawPending() {
+      pendingLayer.clear()
+      const pending = gameRef.current.pendingPlacement
+      if (!surface || !pending) return
+      drawPlacement(pendingLayer, surface, pending.column, pending.row, pending.corner, true, undefined, undefined, pendingTransition.getPosition())
+    }
 
     function drawCheckerboard() {
       if (!surface) return
       checkerboard.clear()
       const { cellHeight, cellWidth } = surface.metrics
-      const border = CELL_BORDER_SIZE
-        const radius = getGridSquircleRadius(cellWidth - border * 2, cellHeight - border * 2)
       for (let row = 0; row < boardSize; row += 1) {
         for (let column = 0; column < boardSize; column += 1) {
           if (!isVsCheckerboardCell(column, row)) continue
           const { x, y } = surface.cellToScreen(column, row)
-          checkerboard.roundRect(x + border, y + border, cellWidth - border * 2, cellHeight - border * 2, radius).fill(VS_CHECKERBOARD_CELL_COLOR)
+          drawVsCellOverlay(checkerboard, x, y, cellWidth, cellHeight, VS_CHECKERBOARD_CELL_COLOR)
         }
       }
     }
@@ -256,9 +279,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
       for (const cell of previewCells) {
         const { x, y } = surface.cellToScreen(cell.column, cell.row)
         const { cellHeight, cellWidth } = surface.metrics
-        const inset = 1.5
-        const radius = getGridSquircleRadius(cellWidth - inset * 2, cellHeight - inset * 2)
-        pieces.roundRect(x + inset, y + inset, cellWidth - inset * 2, cellHeight - inset * 2, radius).fill({ color: GAME_COLORS.cornerMarker, alpha: NEXT_OPPONENT_PREVIEW_ALPHA })
+        drawVsCellOverlay(pieces, x, y, cellWidth, cellHeight, GAME_COLORS.cornerMarker, NEXT_OPPONENT_PREVIEW_ALPHA)
       }
       for (const cell of getVsTargetedCells(gameRef.current)) {
         const { x, y } = surface.cellToScreen(cell.column, cell.row)
@@ -271,11 +292,12 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
         drawPlacement(pieces, surface, placement.column, placement.row, placement.corner, false, placement.lockedBy, selected ? SELECTED_CELL_COLOR : undefined)
       }
       // Draw joins after all bodies so neighbouring cell borders cannot cover them.
-      for (const bridge of getVsLockedShapeBridges(gameRef.current.lockedShapes, surface.metrics, CELL_BORDER_SIZE)) {
+      for (const bridge of getVsLockedShapeBridges(gameRef.current.lockedShapes, surface.metrics, VS_CELL_BORDER_SIZE)) {
         pieces.rect(bridge.x, bridge.y, bridge.width, bridge.height).fill(VS_PLAYERS[bridge.player].lockedColor)
       }
       const pending = gameRef.current.pendingPlacement
-      if (pending) drawPlacement(pieces, surface, pending.column, pending.row, pending.corner, true)
+      pendingTransition.sync(pending)
+      drawPending()
       drawCoordinates()
       const lockedCellKeys = new Set(gameRef.current.placedCells
         .filter((placement) => placement.lockedBy !== undefined)
@@ -294,16 +316,17 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
     const host = new PixiCanvasHost({
       app,
       container,
-      canvasClassName: 'size-full touch-manipulation',
+      canvasClassName: 'size-full touch-none',
       init: { background: GAME_COLORS.cellBorder },
       onError: () => setStartupFailed(true),
       onDestroy: () => {
         drawRef.current = null
         detachInput?.()
+        pendingTransition.destroy()
         clearLockEffects()
         surface?.destroy()
         surface = undefined
-        for (const layer of [pieces, checkerboard, lockImpactLayer]) {
+        for (const layer of [pieces, pendingLayer, checkerboard, lockImpactLayer]) {
           if (!layer.destroyed) layer.destroy({ children: true })
         }
       },
@@ -318,12 +341,13 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
           cellColor: GAME_COLORS.cellFill,
           borderColor: GAME_COLORS.cellBorder,
           backgroundColor: GAME_COLORS.cellBorder,
-          borderSize: CELL_BORDER_SIZE,
+          borderSize: VS_CELL_BORDER_SIZE,
           borderRadius: getGridSquircleRadius(cellSize),
           gap: 0,
         })
         surface.layers.underPieces.addChild(checkerboard)
         surface.layers.pieces.addChild(pieces)
+        surface.layers.pieces.addChild(pendingLayer)
         surface.layers.effects.addChild(lockImpactLayer)
         // One in-cell number per row and letter per column, reused on redraw.
         for (const kind of ['row', 'column'] as const) {
@@ -343,10 +367,11 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
         }
         app.stage.addChild(surface.root)
         drawCheckerboard()
-        detachInput = attachGridInput(app.canvas, {
-          cellAt: (event) => surface!.pointerToCell(event),
-          callbacks: { onCellTap: ({ column, row }) => onCellTapRef.current(column, row) },
-        })
+        const cellAt = (event: PointerEvent) => surface!.pointerToCell(event)
+        const input = createVsPlacementInput(app.canvas, () => gameRef.current, cellAt,
+          (column, row) => onCellTapRef.current(column, row),
+          (column, row, corner) => onAimRef.current(column, row, corner))
+        detachInput = attachGridInput(app.canvas, { cellAt, callbacks: input.callbacks, gestures: false })
         draw()
       },
       onResize: (pixiApp) => {
@@ -355,7 +380,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
           cellColor: GAME_COLORS.cellFill,
           borderColor: GAME_COLORS.cellBorder,
           backgroundColor: GAME_COLORS.cellBorder,
-          borderSize: CELL_BORDER_SIZE,
+          borderSize: VS_CELL_BORDER_SIZE,
           borderRadius: getGridSquircleRadius(cellSize),
           gap: 0,
         })
