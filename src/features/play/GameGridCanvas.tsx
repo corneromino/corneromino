@@ -16,7 +16,7 @@ import { GAME_COLORS } from '@/rendering/colors'
 import { attachGridInput, type GridCellEvent } from '@/rendering/grid/gridInput'
 import { constrainGridView, createGridNavigation, type GridView } from '@/rendering/grid/gridNavigation'
 import { drawCellBody, drawCornerMarker, getCornerMarkerPosition } from '@/rendering/grid/drawMarkedCell'
-import { drawGridFrame } from '@/rendering/grid/drawGridFrame'
+import { drawGridFrame, getFramedCellSize } from '@/rendering/grid/drawGridFrame'
 import { getGridCornerSquircleRadius, getGridSquircleRadius } from '@/rendering/grid/gridSquircle'
 import { CELL_CORNERS, CLASSIC_VERIFICATION_EFFECT, SELECTED_CELL_SCALE, VERIFICATION_FLIP_BATCH_SIZE, VERIFICATION_FLIP_DURATION_MS } from '@/game/gameConfig'
 import { ShockwaveFilter } from 'pixi-filters'
@@ -230,7 +230,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     function maximumZoom() {
       const { columns, rows } = propsRef.current.config
       const { width, height } = boardSize()
-      const fittedCellSize = Math.min(width / columns, height / rows)
+      const fittedCellSize = getFramedCellSize(width, height, columns, rows, CELL_BORDER_RATIO)
       return Math.max(MINIMUM_MAX_ZOOM, NAVIGATION_TARGET_CELL_SIZE_PX / fittedCellSize)
     }
 
@@ -248,7 +248,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       const scrolling = propsRef.current.scrolling
       // Keep post-processing tied to the screen, not the long recycled world.
       app.stage.filterArea = scrolling || vhsCrtEffect || lockWaves.size ? app.screen : undefined
-      const cellSize = scrolling ? width / columns : Math.min(width / columns, height / rows)
+      const cellSize = scrolling ? width / columns : getFramedCellSize(width, height, columns, rows, CELL_BORDER_RATIO)
       view = scrolling
         ? { zoom: 1, offsetX: 0, offsetY: scrolling.getOffsetRows() * cellSize }
         : constrainGridView(view, { width, height }, { width: columns * cellSize, height: rows * cellSize })
@@ -345,7 +345,8 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
 
     function resize() {
       const { width, height } = boardSize()
-      const cellSize = Math.min(width / propsRef.current.config.columns, height / propsRef.current.config.rows)
+      const { columns, rows } = propsRef.current.config
+      const cellSize = propsRef.current.scrolling ? width / columns : getFramedCellSize(width, height, columns, rows, CELL_BORDER_RATIO)
       if (previousSize.cellSize > 0) {
         // Keep the same board location at the viewport center on orientation/size changes.
         const scale = cellSize / previousSize.cellSize
@@ -410,7 +411,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           const boardOutline = new Graphics()
           drawGridFrame(boardOutline, boardWidth, boardHeight, cellBorderSize, getGridSquircleRadius(cellWidth, cellHeight), BOARD_COLOR)
           boardOutline.alpha = getEmptyCellOpacity(current.emptyCellBorderOpacity)
-          // Cover the outer half of edge-cell faces.
+          // The inner half of the frame covers only the cell borders.
           boardOutline.zIndex = 0.5
           board.addChild(boardOutline)
         }
