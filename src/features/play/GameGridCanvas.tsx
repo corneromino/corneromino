@@ -18,7 +18,7 @@ import { constrainGridView, createGridNavigation, type GridView } from '@/render
 import { drawCellBody, drawCornerMarker, getCornerMarkerPosition } from '@/rendering/grid/drawMarkedCell'
 import { drawGridFrame } from '@/rendering/grid/drawGridFrame'
 import { getGridCornerSquircleRadius, getGridSquircleRadius } from '@/rendering/grid/gridSquircle'
-import { CELL_CORNERS, CLASSIC_VERIFICATION_EFFECT, VERIFICATION_FLIP_BATCH_SIZE, VERIFICATION_FLIP_DURATION_MS } from '@/game/gameConfig'
+import { CELL_CORNERS, CLASSIC_VERIFICATION_EFFECT, SELECTED_CELL_SCALE, VERIFICATION_FLIP_BATCH_SIZE, VERIFICATION_FLIP_DURATION_MS } from '@/game/gameConfig'
 import { ShockwaveFilter } from 'pixi-filters'
 import { gsap } from 'gsap'
 import type { CellMarkerColor, GameConfig, LockedCellGroup, PlacedTetromino } from '@/game/gameConfig'
@@ -98,7 +98,6 @@ const NOTE_OUTLINE_MAX_SCALE = 1
 /** Opacity of white note outlines. */
 const NOTE_OUTLINE_OPACITY = 0.9
 const NOTE_OUTLINE_COLOR = 0xffffff
-const SELECTED_CELL_SCALE = 0.85
 /** Dense boards can zoom until a cell reaches this comfortable interaction size. */
 const NAVIGATION_TARGET_CELL_SIZE_PX = 160
 const MINIMUM_MAX_ZOOM = 4
@@ -411,8 +410,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           const boardOutline = new Graphics()
           drawGridFrame(boardOutline, boardWidth, boardHeight, cellBorderSize, getGridSquircleRadius(cellWidth, cellHeight), BOARD_COLOR)
           boardOutline.alpha = getEmptyCellOpacity(current.emptyCellBorderOpacity)
-          // Cover the outer half of edge-cell faces while selected cells can
-          // still rise above the frame.
+          // Cover the outer half of edge-cell faces.
           boardOutline.zIndex = 0.5
           board.addChild(boardOutline)
         }
@@ -455,14 +453,8 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
             cellContainer.pivot.set(cellWidth / 2, cellHeight / 2)
             const centerX = x * cellWidth + cellWidth / 2
             const centerY = y * cellHeight + cellHeight / 2
-            const selectedY = centerY - cellHeight * 0.2
-            if (isNewlySelected) {
-              cellContainer.position.set(centerX, centerY)
-            } else {
-              cellContainer.position.set(centerX, selectedY)
-              cellContainer.rotation = Math.PI / 90
-              cellContainer.scale.set(SELECTED_CELL_SCALE)
-            }
+            cellContainer.position.set(centerX, centerY)
+            if (!isNewlySelected) cellContainer.scale.set(SELECTED_CELL_SCALE)
           } else if (isNewlyLocked) {
             cellContainer.pivot.set(cellWidth / 2, cellHeight / 2)
             cellContainer.position.set(x * cellWidth + cellWidth / 2, y * cellHeight + cellHeight / 2)
@@ -471,14 +463,20 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
             const centerX = x * cellWidth + cellWidth / 2
             const centerY = y * cellHeight + cellHeight / 2
             cellContainer.pivot.set(cellWidth / 2, cellHeight / 2)
-            cellContainer.position.set(centerX, centerY - cellHeight * 0.2)
-            cellContainer.rotation = Math.PI / 90
+            cellContainer.position.set(centerX, centerY)
             cellContainer.scale.set(SELECTED_CELL_SCALE)
           }
 
           const borderSize = cellSize * CELL_BORDER_RATIO
           const radius = getGridSquircleRadius(cellWidth, cellHeight)
           const returningToBoard = isNewlyDeselected && !isNewlyLocked
+          let selectionBacking: Graphics | undefined
+          if (selected || returningToBoard) {
+            selectionBacking = new Graphics()
+            selectionBacking.roundRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight, radius).fill(BOARD_COLOR)
+            selectionBacking.zIndex = selected ? 0.9 : 0
+            board.addChild(selectionBacking)
+          }
           const fillColor = selected ? BOARD_COLOR : lockedGroup ? lockedColorToNumber(lockedGroup.color) : temporary ? OUTLINE_COLOR : !capturingGameplayPreview && current.showAuthoredPieceColors && piece?.color ? lockedColorToNumber(piece.color) : CELL_COLOR
           const cellGraphic = new Graphics();
           drawCellBody(cellGraphic, 0, 0, cellWidth, cellHeight, {
@@ -536,25 +534,15 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           if (isNewlyLocked) {
             gsap.to(cellContainer.scale, { duration: 0.28, ease: 'back.out(2)', x: 1, y: 1 })
           } else if (isNewlySelected) {
-            gsap.to(cellContainer, {
-              duration: 0.15,
-              ease: 'power2.out',
-              rotation: Math.PI / 90,
-              y: y * cellHeight + cellHeight / 2 - cellHeight * 0.2,
-            })
             gsap.to(cellContainer.scale, { duration: 0.15, ease: 'power2.out', x: SELECTED_CELL_SCALE, y: SELECTED_CELL_SCALE })
           } else if (isNewlyDeselected) {
-            const centerY = y * cellHeight + cellHeight / 2
-            gsap.to(cellContainer, {
-              duration: 0.15,
-              ease: 'power2.inOut',
-              rotation: 0,
-              y: centerY,
+            gsap.to(cellContainer.scale, {
+              duration: 0.15, ease: 'power2.inOut', x: 1, y: 1,
               onUpdate: () => {
-                if (returningBorder) returningBorder.alpha = 1 - (centerY - cellContainer.y) / (cellHeight * 0.2)
+                if (returningBorder) returningBorder.alpha = SELECTED_CELL_SCALE === 1 ? 1 : Math.max(0, Math.min(1, (cellContainer.scale.x - SELECTED_CELL_SCALE) / (1 - SELECTED_CELL_SCALE)))
               },
+              onComplete: () => { if (selectionBacking) selectionBacking.visible = false },
             })
-            gsap.to(cellContainer.scale, { duration: 0.15, ease: 'power2.inOut', x: 1, y: 1 })
           }
         }
       }

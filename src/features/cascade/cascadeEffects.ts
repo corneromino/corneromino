@@ -8,7 +8,7 @@ export const CASCADE_LOCK_EFFECTS = {
   },
   gridShake: {
     enabled: true,
-    amplitudeCells: 1,
+    amplitudeCells: 0.5,
     durationSeconds: 0.3,
     frequencyHz: 50,
   },

@@ -13,6 +13,9 @@ export const VERIFICATION_FLIP_BATCH_SIZE = 5
 
 export const COMPLETION_SCREENSHOT_DELAY_MS = 400;
 
+/** Scale of a selected cell, centered on its original position. */
+export const SELECTED_CELL_SCALE: number = 0.85
+
 export interface GameConfig {
   /** Inclusive bounds for generated Classic bonus requirements. Both are required to enable bonuses. */
   bonusMax?: number

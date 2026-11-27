@@ -12,6 +12,7 @@ import { CanvasStartupError } from '@/rendering/pixi/CanvasStartupError'
 import { getVsNextTurnPreviewCells, getVsTargetedCells, VS_PLAYERS, type VsCorner, type VsLocalGameState, type VsPlayerId } from './vsLocalGame'
 import { createVsPlacementInput } from './vsPlacementInput'
 import { createVsCornerTransition, type VsCornerPosition } from './vsCornerTransition'
+import { createVsSelectionTransition } from './vsSelectionTransition'
 import { getVsLockedShapeBridges } from './vsLockedShapeBridges'
 import { CASCADE_LOCK_EFFECTS } from '@/features/cascade/cascadeEffects'
 import { VS_LOCAL_DEFAULT_BOARD_SIZE } from './vsLocalConfig'
@@ -22,7 +23,7 @@ const TARGET_DOT_RADIUS_RATIO = 0.15
 const TARGET_DOT_ALPHA = 0.5
 const NEXT_OPPONENT_PREVIEW_ALPHA = 0.32
 const COORDINATE_FONT_SIZE = 24
-const SELECTED_CELL_COLOR = 0x5fc47a
+const PENDING_CELL_COLOR = 0x5fc47a
 
 interface CoordinateLabel {
   kind: 'column' | 'row'
@@ -37,23 +38,24 @@ interface VsLocalCanvasProps {
   onAim: (column: number, row: number, corner: VsCorner) => void
 }
 
-function drawPlacement(graphics: Graphics, surface: GridSurface, column: number, row: number, corner: number, pending: boolean, lockedBy?: VsPlayerId, selectedColor?: number, markerPosition?: VsCornerPosition | null) {
+function drawPlacement(graphics: Graphics, surface: GridSurface, column: number, row: number, corner: number, pending: boolean, lockedBy?: VsPlayerId, selectedColor?: number, markerPosition?: VsCornerPosition | null, scale = 1) {
   const screenPosition = surface.cellToScreen(column, row)
   const { cellHeight, cellWidth } = surface.metrics
-  const { x, y } = screenPosition
-  const width = cellWidth
-  const height = cellHeight
+  const width = cellWidth * scale
+  const height = cellHeight * scale
+  const x = screenPosition.x + (cellWidth - width) / 2
+  const y = screenPosition.y + (cellHeight - height) / 2
   const cellSize = Math.min(width, height)
   drawCellBody(graphics, x, y, width, height, {
-    fillColor: selectedColor ?? (pending ? GAME_COLORS.cornerMarker : lockedBy === undefined ? getVsBaseCellColor(column, row) : VS_PLAYERS[lockedBy].lockedColor),
+    fillColor: selectedColor ?? (pending ? PENDING_CELL_COLOR : lockedBy === undefined ? getVsBaseCellColor(column, row) : VS_PLAYERS[lockedBy].lockedColor),
     borderColor: GAME_COLORS.cellBorder,
-    borderSize: VS_CELL_BORDER_SIZE,
+    borderSize: VS_CELL_BORDER_SIZE * scale,
     borderRadius: getGridSquircleRadius(cellSize),
   })
   const marker = {
     size: width * 0.45,
-    paddingX: Math.max(3, width * 0.12),
-    paddingY: Math.max(3, height * 0.12),
+    paddingX: Math.max(3, cellWidth * 0.12) * scale,
+    paddingY: Math.max(3, cellHeight * 0.12) * scale,
     radius: getGridCornerSquircleRadius(width * 0.45),
   }
   const topLeft = getCornerMarkerPosition(0, width, height, marker)
@@ -62,7 +64,7 @@ function drawPlacement(graphics: Graphics, surface: GridSurface, column: number,
     x: topLeft.x + (bottomRight.x - topLeft.x) * markerPosition.x,
     y: topLeft.y + (bottomRight.y - topLeft.y) * markerPosition.y,
   } : getCornerMarkerPosition(corner, width, height, marker)
-  drawCornerMarker(graphics, x + position.x, y + position.y, { ...marker, color: pending ? GAME_COLORS.cellFill : GAME_COLORS.cornerMarker })
+  drawCornerMarker(graphics, x + position.x, y + position.y, { ...marker, color: selectedColor !== undefined ? GAME_COLORS.cellFill : GAME_COLORS.cornerMarker })
 }
 
 export function VsLocalCanvas(props: VsLocalCanvasProps) {
@@ -107,6 +109,10 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
     const boardSize = gameRef.current.boardSize ?? VS_LOCAL_DEFAULT_BOARD_SIZE
     const pendingTransition = createVsCornerTransition(
       () => drawPending(),
+      () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
+    )
+    const selectionTransition = createVsSelectionTransition(
+      () => draw(),
       () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
     )
 
@@ -156,10 +162,10 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
 
         const pending = game.pendingPlacement?.column === column && game.pendingPlacement.row === row
         const owner = placements.get(`${column},${row}`)?.lockedBy
-        const backgroundColor = pending ? GAME_COLORS.cornerMarker : owner === undefined ? getVsBaseCellColor(column, row) : VS_PLAYERS[owner].lockedColor
+        const backgroundColor = pending ? PENDING_CELL_COLOR : owner === undefined ? getVsBaseCellColor(column, row) : VS_PLAYERS[owner].lockedColor
         if (label.backgroundColor !== backgroundColor) {
           label.backgroundColor = backgroundColor
-          label.text.style.fill = pending ? GAME_COLORS.cellFill : GAME_COLORS.ink
+          label.text.style.fill = GAME_COLORS.ink
           // A fine, cell-coloured outline keeps the small labels readable even
           // when a corner marker passes underneath them.
           label.text.style.stroke = { color: backgroundColor, width: 2.5 }
@@ -287,9 +293,16 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
         pieces.circle(x + cellWidth / 2, y + cellHeight / 2, Math.min(cellWidth, cellHeight) * TARGET_DOT_RADIUS_RATIO).fill({ color: GAME_COLORS.cornerMarker, alpha: TARGET_DOT_ALPHA })
       }
       const selectedCellKeys = new Set(game.selectedCellKeys)
+      selectionTransition.sync(game.placedCells.map((placement) => `${placement.column},${placement.row}`), selectedCellKeys)
       for (const placement of gameRef.current.placedCells) {
-        const selected = selectedCellKeys.has(`${placement.column},${placement.row}`)
-        drawPlacement(pieces, surface, placement.column, placement.row, placement.corner, false, placement.lockedBy, selected ? SELECTED_CELL_COLOR : undefined)
+        const key = `${placement.column},${placement.row}`
+        const selected = selectedCellKeys.has(key)
+        if (selected || selectionTransition.scaleFor(key) < 1) {
+          const { x, y } = surface.cellToScreen(placement.column, placement.row)
+          const { cellWidth, cellHeight } = surface.metrics
+          pieces.roundRect(x, y, cellWidth, cellHeight, getGridSquircleRadius(cellWidth, cellHeight)).fill(GAME_COLORS.cellBorder)
+        }
+        drawPlacement(pieces, surface, placement.column, placement.row, placement.corner, false, placement.lockedBy, selected ? GAME_COLORS.cellBorder : undefined, undefined, selectionTransition.scaleFor(key))
       }
       // Draw joins after all bodies so neighbouring cell borders cannot cover them.
       for (const bridge of getVsLockedShapeBridges(gameRef.current.lockedShapes, surface.metrics, VS_CELL_BORDER_SIZE)) {
@@ -323,6 +336,7 @@ export function VsLocalCanvas(props: VsLocalCanvasProps) {
         drawRef.current = null
         detachInput?.()
         pendingTransition.destroy()
+        selectionTransition.destroy()
         clearLockEffects()
         surface?.destroy()
         surface = undefined
