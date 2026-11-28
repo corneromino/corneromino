@@ -22,6 +22,7 @@ const gameGridProps = vi.hoisted(() => ({ current: undefined as {
   highlightAreas?: readonly { height: number; id: string; left: number; top: number; width: number }[]
   onLocked?: () => void
   onGameCompleted?: (result: { bonusPercentage: number; perfectionPercentage: number }) => void
+  onCorrectVerification?: () => void
   onEntranceAnimationComplete?: () => void
   onRestart?: () => void
   onSelected?: () => void
@@ -160,6 +161,19 @@ it('does not activate a button when a reveal tap is retargeted to it', async () 
   fireEvent.pointerUp(pause, { pointerId: 1, clientX: 10, clientY: 30, button: 0 })
   fireEvent.click(pause, { detail: 1 })
   expect(gameGridProps.current?.paused).toBe(true)
+})
+
+it('restores the HUD and board fade when verification finds the board correct', async () => {
+  vi.mocked(loadClassicGameDefinition).mockResolvedValue({ config: { ...GAME_CONFIGS.c001 }, gameMode: 'c001', pieces, seed: 'hud-correct', version: 1 })
+  const view = renderPlay('hud-correct')
+  await screen.findByTestId('game-grid')
+  fireEvent.click(screen.getByRole('button', { name: 'common.fullScreen' }))
+  expect(view.container.querySelector('header')?.getAttribute('aria-hidden')).toBe('true')
+  expect(gameGridProps.current?.edgeFadeEnabled).toBe(false)
+  act(() => gameGridProps.current?.onCorrectVerification?.())
+  expect(view.container.querySelector('header')?.getAttribute('aria-hidden')).toBeNull()
+  expect(gameGridProps.current?.hideGameControls).toBe(false)
+  expect(gameGridProps.current?.edgeFadeEnabled).toBe(true)
 })
 
 it('regenerates and persists saved definitions with duplicate bonuses', async () => {

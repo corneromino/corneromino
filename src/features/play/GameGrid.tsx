@@ -79,6 +79,8 @@ interface GameGridProps {
   onUnlockCountChange?: (unlockCount: number) => void
   onMoveCountChange: (moveCount: number) => void
   onCorrectSolution?: () => void
+  /** Called as soon as verification identifies a correct board. */
+  onCorrectVerification?: () => void
   /** Builds completion metrics for the completed board. */
   getCompletionResult?: (lockedGroups: readonly LockedCellGroup[], unlockCount: number) => GameCompletionResult
   /** Whether the active game defines a bonus star. */
@@ -601,6 +603,7 @@ export function GameGrid(props: GameGridProps) {
     const validLockCount = validGroups.length
 
     const isCorrect = validLockCount === lockedCellGroups.length
+    if (isCorrect) props.onCorrectVerification?.()
     setValidationResult({
       isCorrect,
       validLockCount,

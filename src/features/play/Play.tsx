@@ -490,6 +490,7 @@ function GameSession(props: GameSessionProps) {
             onElapsedSecondsChange={setElapsedSeconds}
             onEntranceAnimationComplete={careerTutorial ? handleTutorialGridEntranceComplete : undefined}
             onGameCompleted={careerLevel ? handleCareerGameCompleted : undefined}
+            onCorrectVerification={() => setHudHidden(false)}
             onLocked={() => advanceTutorial('lock')}
             onMoveCountChange={setMoveCount}
             onNextGame={nextGame}

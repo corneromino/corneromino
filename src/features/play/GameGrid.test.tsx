@@ -261,12 +261,15 @@ describe('Classic locking modes', () => {
   it.each(['auto', 'manual'] as const)('captures before the wave and waits for renderer completion with %s verification', async (finalVerificationMode) => {
     vi.useFakeTimers()
     try {
+      const onCorrectVerification = vi.fn()
       setup('auto', {
         config: { ...GAME_CONFIGS.c003, completionScreenshotDelayMs: 200, finalVerificationMode },
         onCorrectSolution: undefined,
+        onCorrectVerification,
       })
       tap(...firstSquare, ...secondSquare)
       if (finalVerificationMode === 'manual') fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
+      expect(onCorrectVerification).toHaveBeenCalledOnce()
        expect(screen.queryByTestId('completion-dialog')).toBeNull()
        expect(canvasMock.captureBoard).not.toHaveBeenCalled()
       expect(canvasMock.props!.verificationRequest).toBeUndefined()
@@ -297,12 +300,15 @@ describe('Classic locking modes', () => {
       const incorrectPieces: PlacedTetromino[] = pieces.map((piece, index) => index === 1
         ? { ...piece, cells: piece.cells.map((cell) => ({ ...cell, corner: 'top-left' as const })) }
         : piece)
+      const onCorrectVerification = vi.fn()
       setup('auto', {
         config: { ...GAME_CONFIGS.c003, completionScreenshotDelayMs: 200, finalVerificationMode: 'manual' },
         pieces: incorrectPieces,
+        onCorrectVerification,
       })
       tap(...firstSquare, ...secondSquare)
       fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
+      expect(onCorrectVerification).not.toHaveBeenCalled()
       expect(canvasMock.props!.verificationRequest).toBeUndefined()
       expect(canvasMock.captureBoard).not.toHaveBeenCalled()
 
@@ -351,11 +357,13 @@ describe('Classic locking modes', () => {
 
   it('can skip verification animation for immediate correct results', () => {
     const config = { ...GAME_CONFIGS.c003, completionAnimationEnabled: false, completionScreenshotDelayMs: 0, finalVerificationMode: 'manual' as const }
-    const { props } = setup('auto', { config })
+    const onCorrectVerification = vi.fn()
+    const { props } = setup('auto', { config, onCorrectVerification })
     tap(...firstSquare, ...secondSquare)
     fireEvent.click(screen.getByRole('button', { name: 'classic.verify' }))
     expect(canvasMock.props!.verificationRequest).toBeUndefined()
     expect(props.onCorrectSolution).toHaveBeenCalledOnce()
+    expect(onCorrectVerification).toHaveBeenCalledOnce()
 
   })
 
