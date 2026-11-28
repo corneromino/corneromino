@@ -12,11 +12,12 @@ import { PixiCanvasHost } from '@/rendering/pixi/PixiCanvasHost'
 import { CanvasStartupError } from '@/rendering/pixi/CanvasStartupError'
 import { VhsCrtEffect, type VhsCrtEffectConfig } from '@/rendering/pixi/VhsCrtEffect'
 import { InfiniteExitDistortionEffect, type InfiniteExitDistortionConfig } from '@/rendering/pixi/InfiniteExitDistortionEffect'
-import { GAME_COLORS } from '@/rendering/colors'
+import { GAME_COLORS, SELECTED_CELL_BACKGROUND_COLOR, SELECTED_CELL_BORDER_COLOR } from '@/rendering/colors'
 import { attachGridInput, type GridCellEvent } from '@/rendering/grid/gridInput'
 import { constrainGridView, createGridNavigation, type GridView } from '@/rendering/grid/gridNavigation'
 import { drawCellBody, drawCornerMarker, getCornerMarkerPosition } from '@/rendering/grid/drawMarkedCell'
 import { drawGridFrame, getFramedCellSize } from '@/rendering/grid/drawGridFrame'
+import { drawCellBorder, getCellSelectionProgress, getSelectionBorderAlpha, getSelectionBorderSize, mixSelectionColor } from '@/rendering/grid/selectedCellBorder'
 import { getGridCornerSquircleRadius, getGridSquircleRadius } from '@/rendering/grid/gridSquircle'
 import { CELL_CORNERS, CLASSIC_VERIFICATION_EFFECT, SELECTED_CELL_SCALE, VERIFICATION_FLIP_BATCH_SIZE, VERIFICATION_FLIP_DURATION_MS } from '@/game/gameConfig'
 import { ShockwaveFilter } from 'pixi-filters'
@@ -183,6 +184,7 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
     let disposed = false
     let reportedReady = false
     let cellShakeLayers = new Map<string, Container>()
+    const selectionContainers = new Map<string, Container>()
     let emptyCellSprites = new Map<Container, Sprite>()
     let noteOutlines: Graphics[] = []
     const gridShakeMotion = { time: 0, x: 0, y: 0 }
@@ -393,6 +395,8 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
       const newlyLockedCellKeys: string[] = []
 
       verificationAnimation?.clearCells()
+      const previousSelectionScales = new Map([...selectionContainers].map(([key, cell]) => [key, cell.scale.x]))
+      selectionContainers.clear()
       stopCellAnimations()
       lockedShine.clearCells()
       for (const child of board.removeChildren()) {
@@ -430,14 +434,17 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
           if (isNewlyLocked) newlyLockedCellKeys.push(key)
           const isNewlySelected = selected && !previousSelectedKeysRef.current.has(key)
           const isNewlyDeselected = !selected && previousSelectedKeysRef.current.has(key)
+          const previousScale = previousSelectionScales.get(key)
+          const returningToBoard = !selected && !isNewlyLocked && (isNewlyDeselected || (previousScale !== undefined && previousScale !== 1))
           const cellContainer = new Container()
           const shakeLayer = new Container()
           cellContainer.addChild(shakeLayer)
           cellShakeLayers.set(key, shakeLayer)
-          cellContainer.zIndex = selected ? 1 : 0
+          // The outer frame must not cover a still-fading selection border.
+          cellContainer.zIndex = selected || returningToBoard ? 1 : 0
           cellContainer.position.set(x * cellWidth, y * cellHeight)
 
-          if (!cell && !temporary && !lockedGroup && !selected && !current.markers.has(key)) {
+          if (!cell && !temporary && !lockedGroup && !selected && !returningToBoard && !current.markers.has(key)) {
             // The repeated texture draws empty cells. A hidden tile is used
             // only when a nearby lock effect shakes this individual cell.
             const tile = new Sprite(surface!.texture)
@@ -450,50 +457,62 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
             continue
           }
 
-          if (selected) {
+          if (selected || returningToBoard) {
             cellContainer.pivot.set(cellWidth / 2, cellHeight / 2)
             const centerX = x * cellWidth + cellWidth / 2
             const centerY = y * cellHeight + cellHeight / 2
             cellContainer.position.set(centerX, centerY)
-            if (!isNewlySelected) cellContainer.scale.set(SELECTED_CELL_SCALE)
+            cellContainer.scale.set(previousScale ?? (isNewlySelected ? 1 : SELECTED_CELL_SCALE))
+            selectionContainers.set(key, cellContainer)
           } else if (isNewlyLocked) {
             cellContainer.pivot.set(cellWidth / 2, cellHeight / 2)
             cellContainer.position.set(x * cellWidth + cellWidth / 2, y * cellHeight + cellHeight / 2)
             cellContainer.scale.set(0.75)
-          } else if (isNewlyDeselected) {
-            const centerX = x * cellWidth + cellWidth / 2
-            const centerY = y * cellHeight + cellHeight / 2
-            cellContainer.pivot.set(cellWidth / 2, cellHeight / 2)
-            cellContainer.position.set(centerX, centerY)
-            cellContainer.scale.set(SELECTED_CELL_SCALE)
           }
 
           const borderSize = cellSize * CELL_BORDER_RATIO
           const radius = getGridSquircleRadius(cellWidth, cellHeight)
-          const returningToBoard = isNewlyDeselected && !isNewlyLocked
           let selectionBacking: Graphics | undefined
           if (selected || returningToBoard) {
             selectionBacking = new Graphics()
             selectionBacking.roundRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight, radius).fill(BOARD_COLOR)
-            selectionBacking.zIndex = selected ? 0.9 : 0
+            selectionBacking.zIndex = 0.9
             board.addChild(selectionBacking)
           }
-          const fillColor = selected ? BOARD_COLOR : lockedGroup ? lockedColorToNumber(lockedGroup.color) : temporary ? OUTLINE_COLOR : !capturingGameplayPreview && current.showAuthoredPieceColors && piece?.color ? lockedColorToNumber(piece.color) : CELL_COLOR
+          const fillColor = lockedGroup ? lockedColorToNumber(lockedGroup.color) : temporary ? OUTLINE_COLOR : !capturingGameplayPreview && current.showAuthoredPieceColors && piece?.color ? lockedColorToNumber(piece.color) : CELL_COLOR
           const cellGraphic = new Graphics();
           drawCellBody(cellGraphic, 0, 0, cellWidth, cellHeight, {
             fillColor,
-            borderColor: selected ? fillColor : BOARD_COLOR,
-            borderSize: selected || returningToBoard ? 0 : borderSize,
+            borderColor: BOARD_COLOR,
+            borderSize,
             borderRadius: radius
           });
           shakeLayer.addChild(cellGraphic);
-          let returningBorder: Graphics | undefined
-          if (returningToBoard) {
-            returningBorder = new Graphics()
-            returningBorder.roundRect(0, 0, cellWidth, cellHeight, radius).fill(BOARD_COLOR)
-            returningBorder.roundRect(borderSize, borderSize, cellWidth - borderSize * 2, cellHeight - borderSize * 2, Math.max(0, radius - borderSize)).cut()
-            returningBorder.alpha = 0
-            shakeLayer.addChild(returningBorder)
+          let selectionBorder: Graphics | undefined
+          let selectionFace: Graphics | undefined
+          let markerGraphic: Graphics | undefined
+          let lastSelectionBorderSize = -1
+          const updateSelectionAppearance = () => {
+            const progress = selected || returningToBoard ? getCellSelectionProgress(cellContainer.scale.x, selected) : 0
+            const currentBorderSize = getSelectionBorderSize(borderSize, progress, cellSize)
+            if (selectionFace && selectionBorder && currentBorderSize !== lastSelectionBorderSize) {
+              lastSelectionBorderSize = currentBorderSize
+              cellGraphic.clear()
+              drawCellBody(cellGraphic, 0, 0, cellWidth, cellHeight, { fillColor, borderColor: BOARD_COLOR, borderSize: currentBorderSize, borderRadius: radius })
+              selectionFace.clear()
+              selectionFace.roundRect(currentBorderSize, currentBorderSize, cellWidth - currentBorderSize * 2, cellHeight - currentBorderSize * 2, Math.max(0, radius - currentBorderSize)).fill(SELECTED_CELL_BACKGROUND_COLOR)
+              selectionBorder.clear()
+              drawCellBorder(selectionBorder, 0, 0, cellWidth, cellHeight, currentBorderSize, radius, SELECTED_CELL_BORDER_COLOR)
+            }
+            if (selectionFace) selectionFace.alpha = progress
+            if (selectionBorder) selectionBorder.alpha = getSelectionBorderAlpha(progress)
+            if (markerGraphic) markerGraphic.tint = mixSelectionColor(OUTLINE_COLOR, CELL_COLOR, progress)
+          }
+          if (selected || returningToBoard) {
+            selectionFace = new Graphics()
+            shakeLayer.addChild(selectionFace)
+            selectionBorder = new Graphics()
+            shakeLayer.addChild(selectionBorder)
           }
 
           if (lockedGroup && !selected) {
@@ -514,12 +533,13 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
               const markerSize = cellWidth * 0.45
               const offsetX = cellWidth * 0.12
               const offsetY = cellHeight * 0.12
-            const style = { color: selected ? CELL_COLOR : OUTLINE_COLOR, size: markerSize, paddingX: offsetX, paddingY: offsetY, radius: getGridCornerSquircleRadius(markerSize) }
+            const style = { color: 0xffffff, size: markerSize, paddingX: offsetX, paddingY: offsetY, radius: getGridCornerSquircleRadius(markerSize) }
             const position = getCornerMarkerPosition(CELL_CORNERS.indexOf(cell.corner), cellWidth, cellHeight, style)
-            const markerGraphic = new Graphics()
+            markerGraphic = new Graphics()
             drawCornerMarker(markerGraphic, position.x, position.y, style)
             shakeLayer.addChild(markerGraphic)
           }
+          updateSelectionAppearance()
 
           if (current.markers.has(key)) {
             const noteGraphic = new Graphics()
@@ -534,15 +554,17 @@ export const GameGridCanvas = forwardRef<GameGridCanvasHandle, GameGridCanvasPro
 
           if (isNewlyLocked) {
             gsap.to(cellContainer.scale, { duration: 0.28, ease: 'back.out(2)', x: 1, y: 1 })
-          } else if (isNewlySelected) {
-            gsap.to(cellContainer.scale, { duration: 0.15, ease: 'power2.out', x: SELECTED_CELL_SCALE, y: SELECTED_CELL_SCALE })
-          } else if (isNewlyDeselected) {
+          } else if (selected && cellContainer.scale.x !== SELECTED_CELL_SCALE) {
+            gsap.to(cellContainer.scale, { duration: 0.15, ease: 'power2.out', x: SELECTED_CELL_SCALE, y: SELECTED_CELL_SCALE, onUpdate: updateSelectionAppearance })
+          } else if (returningToBoard) {
             gsap.to(cellContainer.scale, {
               duration: 0.15, ease: 'power2.inOut', x: 1, y: 1,
-              onUpdate: () => {
-                if (returningBorder) returningBorder.alpha = SELECTED_CELL_SCALE === 1 ? 1 : Math.max(0, Math.min(1, (cellContainer.scale.x - SELECTED_CELL_SCALE) / (1 - SELECTED_CELL_SCALE)))
+              onUpdate: updateSelectionAppearance,
+              onComplete: () => {
+                if (selectionBacking) selectionBacking.visible = false
+                cellContainer.zIndex = 0
+                selectionContainers.delete(key)
               },
-              onComplete: () => { if (selectionBacking) selectionBacking.visible = false },
             })
           }
         }

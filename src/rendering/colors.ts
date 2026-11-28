@@ -17,6 +17,15 @@ export const GAME_COLORS = {
   markerWhite: 0x8d8d8d,
 } as const
 
+/** Target face color for selected Classic and VS cells. */
+export const SELECTED_CELL_BACKGROUND_COLOR = 0x92543a
+
+/** Target border appearance for selected Classic and VS cells. Opacity is between 0 and 1. */
+export const SELECTED_CELL_BORDER_COLOR = GAME_COLORS.cellFill
+export const SELECTED_CELL_BORDER_OPACITY = 0
+/** Selected border thickness relative to its normal thickness; 1 keeps it unchanged. */
+export const SELECTED_CELL_BORDER_THICKNESS_MULTIPLIER = 0
+
 /** Shared capture palette for Classic, Cascade, and player colours in Local VS. */
 export const LOCKED_CELL_COLORS = [
   0x55c7df, 0x8270d8, 0xbe69d6, 0xde5d9b, 0xe4555c, 0x5fc47a,
