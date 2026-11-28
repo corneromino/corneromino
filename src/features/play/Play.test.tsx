@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { useEffect } from 'react'
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { GAME_CONFIGS, type PlacedTetromino } from '@/game/gameConfig'
 import { careerLevels } from './careerLevels'
 
 const gameGridProps = vi.hoisted(() => ({ current: undefined as {
+  boardHitTestRef?: { current: ((point: { clientX: number; clientY: number }) => boolean | null) | null }
   exitPath?: string
   config?: { finalVerificationMode?: 'auto' | 'manual' }
   gameDefinition?: { seed: string }
@@ -15,6 +16,7 @@ const gameGridProps = vi.hoisted(() => ({ current: undefined as {
   boardInteractive?: boolean
   emptyCellBorderOpacity?: number
   emptyCellOpacity?: number
+  edgeFadeEnabled?: boolean
   showCornerMarkers?: boolean
   hideGameControls?: boolean
   highlightAreas?: readonly { height: number; id: string; left: number; top: number; width: number }[]
@@ -24,9 +26,11 @@ const gameGridProps = vi.hoisted(() => ({ current: undefined as {
   onRestart?: () => void
   onSelected?: () => void
   pieces: readonly PlacedTetromino[]
+  paused?: boolean
   persistSelection?: boolean
   tutorialControlIds?: { reset?: string }
 } | undefined }))
+vi.hoisted(() => document.documentElement.style.setProperty('--paper', '#ffd18a'))
 const tutorialDriverMock = vi.hoisted(() => ({ destroy: vi.fn(), drive: vi.fn(), moveTo: vi.fn() }))
 const initialCareerLevels = [...careerLevels]
 
@@ -39,6 +43,11 @@ vi.mock('./GameGrid', () => ({
   GameGrid: (props: typeof gameGridProps.current extends infer Props ? NonNullable<Props> : never) => {
     gameGridProps.current = props
     useEffect(() => props.onEntranceAnimationComplete?.(), [props.onEntranceAnimationComplete])
+    useEffect(() => {
+      if (!props.boardHitTestRef) return
+      props.boardHitTestRef.current = ({ clientX }) => clientX >= 100
+      return () => { if (props.boardHitTestRef) props.boardHitTestRef.current = null }
+    }, [props.boardHitTestRef])
     return <output data-testid="game-grid">{props.pieces.length}</output>
   },
 }))
@@ -93,6 +102,64 @@ it('loads a stored board definition without running the seed generator', async (
   expect(generateTetrominoPlacementsV2).not.toHaveBeenCalled()
   expect(gameGridProps.current?.gameDefinition).toEqual(expect.objectContaining({ ...definition, bonus: expect.any(Array) }))
   expect(saveClassicGameDefinition).toHaveBeenCalledWith(gameGridProps.current?.gameDefinition)
+})
+
+it('toggles the HUD without moving or replacing the board, and ignores board and control taps', async () => {
+  vi.mocked(loadClassicGameDefinition).mockResolvedValue({ config: { ...GAME_CONFIGS.c001 }, gameMode: 'c001', pieces, seed: 'hud-test', version: 1 })
+  vi.stubGlobal('PointerEvent', class extends MouseEvent {
+    pointerId: number
+    constructor(type: string, init: PointerEventInit = {}) { super(type, init); this.pointerId = init.pointerId ?? 1 }
+  })
+  const view = renderPlay('hud-test')
+  await screen.findByTestId('game-grid')
+  const main = view.container.querySelector('main')!
+  const header = main.querySelector('header')!
+  const board = screen.getByTestId('game-grid')
+  const tap = (target: Element, x: number) => {
+    fireEvent.pointerDown(target, { pointerId: 1, clientX: x, clientY: 30, button: 0 })
+    fireEvent.pointerUp(target, { pointerId: 1, clientX: x, clientY: 30, button: 0 })
+  }
+  tap(board, 110)
+  expect(header.getAttribute('aria-hidden')).toBeNull()
+  const fullscreen = screen.getByRole('button', { name: 'common.fullScreen' })
+  tap(fullscreen, 10)
+  expect(header.getAttribute('aria-hidden')).toBeNull()
+  fireEvent.click(fullscreen)
+  expect(header.getAttribute('aria-hidden')).toBe('true')
+  expect(header.hasAttribute('inert')).toBe(true)
+  expect(gameGridProps.current?.hideGameControls).toBe(true)
+  expect(gameGridProps.current?.edgeFadeEnabled).toBe(false)
+  expect(screen.getByTestId('game-grid')).toBe(board)
+  tap(main, 10)
+  expect(header.getAttribute('aria-hidden')).toBeNull()
+  expect(gameGridProps.current?.hideGameControls).toBe(false)
+  expect(gameGridProps.current?.edgeFadeEnabled).toBe(true)
+  tap(main, 10)
+  expect(header.getAttribute('aria-hidden')).toBe('true')
+  fireEvent.keyDown(window, { key: 'Escape' })
+  expect(header.getAttribute('aria-hidden')).toBeNull()
+  expect(header.hasAttribute('inert')).toBe(false)
+})
+
+it('does not activate a button when a reveal tap is retargeted to it', async () => {
+  vi.mocked(loadClassicGameDefinition).mockResolvedValue({ config: { ...GAME_CONFIGS.c001 }, gameMode: 'c001', pieces, seed: 'hud-touch', version: 1 })
+  vi.stubGlobal('PointerEvent', class extends MouseEvent {
+    pointerId: number
+    constructor(type: string, init: PointerEventInit = {}) { super(type, init); this.pointerId = init.pointerId ?? 1 }
+  })
+  const view = renderPlay('hud-touch')
+  await screen.findByTestId('game-grid')
+  const main = view.container.querySelector('main')!
+  const pause = screen.getByTitle('common.pause')
+  fireEvent.click(screen.getByRole('button', { name: 'common.fullScreen' }))
+  fireEvent.pointerDown(main, { pointerId: 1, clientX: 10, clientY: 30, button: 0 })
+  fireEvent.pointerUp(main, { pointerId: 1, clientX: 10, clientY: 30, button: 0 })
+  fireEvent.click(pause, { detail: 1 })
+  expect(gameGridProps.current?.paused).toBe(false)
+  fireEvent.pointerDown(pause, { pointerId: 1, clientX: 10, clientY: 30, button: 0 })
+  fireEvent.pointerUp(pause, { pointerId: 1, clientX: 10, clientY: 30, button: 0 })
+  fireEvent.click(pause, { detail: 1 })
+  expect(gameGridProps.current?.paused).toBe(true)
 })
 
 it('regenerates and persists saved definitions with duplicate bonuses', async () => {
@@ -417,7 +484,7 @@ it('maps authored Career tutorial board areas and advances from a cell selection
     y: 0,
   })
 
-  render(<MemoryRouter initialEntries={['/play?career=tutorial-career-board']}><Play /></MemoryRouter>)
+  const view = render(<MemoryRouter initialEntries={['/play?career=tutorial-career-board']}><Play /></MemoryRouter>)
 
   await waitFor(() => expect(tutorialDriverMock.drive).toHaveBeenCalledWith(0))
   expect(gameGridProps.current).toMatchObject({
@@ -429,9 +496,12 @@ it('maps authored Career tutorial board areas and advances from a cell selection
     tutorialControlIds: { reset: 'career-tutorial-reset' },
   })
   expect(clearGameSelection).toHaveBeenCalledWith('c003', 'career:tutorial-career-board')
+  expect(view.container.querySelector('header')?.getAttribute('aria-hidden')).toBe('true')
+  expect((view.container.querySelector('[title="common.fullScreen"]') as HTMLButtonElement).disabled).toBe(true)
 
   gameGridProps.current?.onSelected?.()
   await waitFor(() => expect(tutorialDriverMock.moveTo).toHaveBeenCalledWith(1))
+  expect(view.container.querySelector('header')?.getAttribute('aria-hidden')).toBeNull()
 })
 
 it('uses the seed generator for a legacy save with no board definition', async () => {

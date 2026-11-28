@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Pause } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { Maximize, Pause } from 'lucide-react'
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ import { CareerStarIcon } from '@/components/CareerStars'
 import { getCareerTutorialTargetId, type CareerTutorialAction, type CareerTutorialStep } from './careerTutorial'
 import { cn } from '@/lib/utils'
 import { TetrominoBackground } from '../main-menu/TetrominoBackground'
+import { createOutsideBoardTap } from './outsideBoardTap'
 
 function formatElapsedTime(elapsedSeconds: number) {
   const minutes = Math.floor(elapsedSeconds / 60).toString().padStart(2, '0')
@@ -86,6 +87,15 @@ function GameSession(props: GameSessionProps) {
   const [unlockCount, setUnlockCount] = useState(0)
   const [gameDefinition, setGameDefinition] = useState<ClassicGameDefinition | null>(null)
   const [pauseOpen, setPauseOpen] = useState(false)
+  const [hudHidden, setHudHidden] = useState(false)
+  const mainRef = useRef<HTMLElement>(null)
+  const boardHitTestRef = useRef<((point: { clientX: number; clientY: number }) => boolean | null) | null>(null)
+  const suppressOutsideTapClickRef = useRef(false)
+  const [outsideBoardTap] = useState(() => createOutsideBoardTap(() => {
+    // A touch click can be retargeted to a HUD button revealed by pointerup.
+    suppressOutsideTapClickRef.current = true
+    setHudHidden((hidden) => !hidden)
+  }, (point) => boardHitTestRef.current?.(point) ?? null))
   const [bonusOpen, setBonusOpen] = useState(false)
   const [shapesOpen, setShapesOpen] = useState(false)
   const [careerLevel, setCareerLevel] = useState(props.careerLevel)
@@ -120,6 +130,7 @@ function GameSession(props: GameSessionProps) {
   const activeTutorialStep = tutorialOpen ? tutorialSteps[tutorialStepIndex] : undefined
   const tutorialBoardInteractive = activeTutorialStep?.boardInteractive !== false
   const tutorialShowsUI = activeTutorialStep?.showUI !== false
+  const hideHud = hudHidden || !tutorialShowsUI
   const tutorialHighlightAreas = tutorialSteps.flatMap((step, index) => step.area === 'board'
     ? [{
         height: step.board?.rows ?? gameDefinition?.config.rows ?? modeConfig.rows,
@@ -137,6 +148,22 @@ function GameSession(props: GameSessionProps) {
     unlock: getCareerTutorialTargetId('unlock'),
     verify: getCareerTutorialTargetId('verify'),
   } : undefined
+
+  const canToggleHudFromPointer = (event: ReactPointerEvent<HTMLElement>) => {
+    if (!gameDefinition || tutorialOpen || pauseOpen || bonusOpen || shapesOpen || event.button !== 0) return false
+    const target = event.target
+    return target instanceof Element && event.currentTarget.contains(target)
+      && !target.closest('button, a, input, select, textarea, [role="button"], [role="dialog"], [contenteditable="true"]')
+  }
+
+  useEffect(() => {
+    if (!hudHidden || tutorialOpen || pauseOpen || bonusOpen || shapesOpen) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !document.querySelector('[role="dialog"][data-state="open"]')) setHudHidden(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [hudHidden, tutorialOpen, pauseOpen, bonusOpen, shapesOpen])
 
   function setActiveTutorialStepIndex(index: number) {
     const nextDataIndex = getTutorialDataIndex(careerLevel?.data, tutorialSteps[index]?.dataIndex)
@@ -369,9 +396,23 @@ function GameSession(props: GameSessionProps) {
   }, [gameDefinition, t, tutorialGridReady, tutorialOpen, tutorialSelectionReady, tutorialSteps, tutorialSuspended])
 
   return (
-    <main className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]">
+    <main ref={mainRef} tabIndex={-1} className="poster-page app-page relative flex flex-col overflow-hidden py-5 text-[var(--canvas-foreground)]"
+      onPointerDownCapture={(event) => {
+        suppressOutsideTapClickRef.current = false
+        outsideBoardTap.down(event, canToggleHudFromPointer(event))
+      }}
+      onPointerMoveCapture={(event) => outsideBoardTap.move(event)}
+      onPointerUpCapture={(event) => outsideBoardTap.up(event, canToggleHudFromPointer(event))}
+      onPointerCancelCapture={(event) => outsideBoardTap.cancel(event)}
+      onLostPointerCapture={(event) => outsideBoardTap.cancel(event)}
+      onClickCapture={(event) => {
+        if (!suppressOutsideTapClickRef.current || event.detail === 0) return
+        suppressOutsideTapClickRef.current = false
+        event.preventDefault()
+        event.stopPropagation()
+      }}>
       <TetrominoBackground />
-      <header className={cn('relative z-20 mx-auto flex w-full max-w-[550px] flex-col gap-3 px-5 pb-6 transition-opacity', !tutorialShowsUI && 'pointer-events-none opacity-0')}>
+      <header aria-hidden={hideHud || undefined} inert={hideHud || undefined} className={cn('relative z-20 mx-auto flex w-full max-w-[550px] flex-col gap-3 px-5 pb-6 transition-opacity', hideHud && 'pointer-events-none opacity-0')}>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <h1 className="poster-title text-[33px] leading-none">{gameTitle}</h1>
@@ -385,15 +426,27 @@ function GameSession(props: GameSessionProps) {
               variant="ghost"
             >?</Button>
           </div>
-          <Button
-            aria-label={`${t('common.pause')} ${gameTitle}`}
-            className="size-10 shrink-0 text-[var(--canvas-foreground)]"
-            onClick={() => setPauseOpen(true)}
-            size="icon"
-            title={t('common.pause')}
-            type="button">
-            <Pause aria-hidden="true" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              aria-label={t('common.fullScreen')}
+              className="size-10 shrink-0 text-[var(--canvas-foreground)]"
+              disabled={!gameDefinition || tutorialOpen}
+              onClick={() => { setHudHidden(true); mainRef.current?.focus() }}
+              size="icon"
+              title={t('common.fullScreen')}
+              type="button">
+              <Maximize aria-hidden="true" />
+            </Button>
+            <Button
+              aria-label={`${t('common.pause')} ${gameTitle}`}
+              className="size-10 shrink-0 text-[var(--canvas-foreground)]"
+              onClick={() => setPauseOpen(true)}
+              size="icon"
+              title={t('common.pause')}
+              type="button">
+              <Pause aria-hidden="true" />
+            </Button>
+          </div>
         </div>
         <div className="flex items-center justify-between gap-4">
           <AttemptProgressBar ariaLabel={attemptAriaLabel} moveCount={moveCount} requiredLockCount={requiredLockCount} unlockCount={unlockCount} />
@@ -415,10 +468,12 @@ function GameSession(props: GameSessionProps) {
       <div className="relative z-10 min-h-0 flex-1">
         {gameDefinition && tutorialSelectionReady &&
           <GameGrid
+            boardHitTestRef={boardHitTestRef}
             boardInteractive={tutorialBoardInteractive}
             config={gameConfig ?? gameDefinition.config}
             emptyCellBorderOpacity={careerLevel?.rendering?.emptyCellBorderOpacity}
             emptyCellOpacity={careerLevel?.rendering?.emptyCellOpacity}
+            edgeFadeEnabled={!hudHidden}
             entranceAnimation
             getCompletionResult={getCompletionResult}
             deferCompletionDialog={tutorialOpen}
@@ -428,7 +483,7 @@ function GameSession(props: GameSessionProps) {
             gameDataForCopy={careerLevel ? createCareerGameDataForCopy(gameDefinition, careerLevel.bonus) : undefined}
             gameId={seed}
             gameMode={activeGameMode}
-            hideGameControls={!tutorialShowsUI}
+            hideGameControls={hideHud}
             highlightAreas={tutorialHighlightAreas}
             isCareerLevel={!!careerLevel}
             key={`${activeGameMode}:${seed}:${gameDefinition.version}:${tutorialBoardRevision}`}

@@ -18,6 +18,7 @@ export default {
         "next": "Next",
         "previous": "Previous",
         "pause": "Pause",
+        "fullScreen": "Full screen",
         "quit": "Quit",
         "restart": "Restart",
         "resume": "Resume",

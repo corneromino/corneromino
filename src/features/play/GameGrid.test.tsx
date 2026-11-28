@@ -12,6 +12,7 @@ import type { GameGridCanvas } from './GameGridCanvas'
 import { GameGrid } from './GameGrid'
 
 const canvasMock = vi.hoisted(() => ({ autoReady: true, captureBoard: vi.fn(), clientToCell: vi.fn(), props: undefined as ComponentProps<typeof GameGridCanvas> | undefined }))
+vi.hoisted(() => document.documentElement.style.setProperty('--paper', '#ffd18a'))
 
 vi.mock('@/lib/db', () => ({ loadGameSelection: vi.fn(), saveClassicGameDefinition: vi.fn().mockResolvedValue(undefined), saveGameSelection: vi.fn().mockResolvedValue(undefined), clearGameSelection: vi.fn() }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: { count?: number }) => {
@@ -137,6 +138,33 @@ afterEach(() => {
 })
 
 describe('Classic locking modes', () => {
+  it('disables the expanded board fade when requested and restores it afterward', async () => {
+    const view = setup('auto', { edgeFadeEnabled: true })
+    await waitFor(() => expect(canvasMock.props?.interactive).toBe(true))
+    expect(canvasMock.props?.edgeFadeEnabled).toBe(true)
+    view.rerender({ edgeFadeEnabled: false })
+    expect(canvasMock.props?.edgeFadeEnabled).toBe(false)
+    view.rerender({ edgeFadeEnabled: true })
+    expect(canvasMock.props?.edgeFadeEnabled).toBe(true)
+  })
+
+  it('exposes hit testing against the actual board and disables it while paused', async () => {
+    const boardHitTestRef: { current: ((point: { clientX: number; clientY: number }) => boolean | null) | null } = { current: null }
+    const view = setup('auto', { boardHitTestRef })
+    await waitFor(() => expect(canvasMock.props?.interactive).toBe(true))
+    const point = { clientX: 20, clientY: 30 }
+    canvasMock.clientToCell.mockReturnValue({ column: 0, row: 0 })
+    expect(boardHitTestRef.current?.(point)).toBe(true)
+    canvasMock.clientToCell.mockReturnValue({ column: -1, row: 0 })
+    expect(boardHitTestRef.current?.(point)).toBe(false)
+    canvasMock.clientToCell.mockReturnValue({ column: GAME_CONFIGS.c003.columns, row: 0 })
+    expect(boardHitTestRef.current?.(point)).toBe(false)
+    canvasMock.clientToCell.mockReturnValue(null)
+    expect(boardHitTestRef.current?.(point)).toBeNull()
+    view.rerender({ paused: true })
+    expect(boardHitTestRef.current?.(point)).toBeNull()
+  })
+
   it('loads behind a delayed entrance before sliding the grid into view', async () => {
     vi.useFakeTimers()
     canvasMock.autoReady = false
